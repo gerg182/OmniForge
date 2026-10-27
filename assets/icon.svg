@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1a2029"/>
+      <stop offset="0.55" stop-color="#0b0f15"/>
+      <stop offset="1" stop-color="#06080c"/>
+    </linearGradient>
+    <radialGradient id="aura" cx="0.72" cy="0.27" r="0.66">
+      <stop offset="0" stop-color="#6f7dff" stop-opacity="0.18"/>
+      <stop offset="0.5" stop-color="#74ffb2" stop-opacity="0.07"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="sparkGlow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#9ef7ff" stop-opacity="0.4"/>
+      <stop offset="1" stop-color="#66e9ff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="forge" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#efffa9"/>
+      <stop offset="0.42" stop-color="#c9ff51"/>
+      <stop offset="1" stop-color="#68f4ad"/>
+    </linearGradient>
+    <linearGradient id="forgeDark" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#bdf95d"/>
+      <stop offset="1" stop-color="#3bd99b"/>
+    </linearGradient>
+    <linearGradient id="spark" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#e9feff"/>
+      <stop offset="0.42" stop-color="#72eaff"/>
+      <stop offset="1" stop-color="#9a8dff"/>
+    </linearGradient>
+    <linearGradient id="edge" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0.02"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="114" fill="url(#bg)"/>
+  <rect x="11" y="11" width="490" height="490" rx="104" fill="url(#aura)"/>
+  <rect x="17" y="17" width="478" height="478" rx="98" fill="none" stroke="url(#edge)" stroke-width="2"/>
+  <circle cx="377" cy="139" r="94" fill="url(#sparkGlow)"/>
+  <path d="M102 194 H328 C374 194 412 207 443 234 C426 236 414 241 404 251 H102 Z" fill="url(#forge)"/>
+  <path d="M205 251 H309 V302 C309 323 321 337 340 344 L366 354 H146 L171 344 C191 337 205 322 205 302 Z" fill="url(#forgeDark)"/>
+  <rect x="129" y="348" width="254" height="48" rx="22" fill="url(#forgeDark)"/>
+  <path d="M117 203 H318 C355 203 386 212 411 230" fill="none" stroke="#f7ffd8" stroke-opacity="0.52" stroke-width="7" stroke-linecap="round"/>
+  <path d="M375 79 L390 121 L432 136 L390 151 L375 193 L360 151 L318 136 L360 121 Z" fill="url(#spark)"/>
+  <circle cx="306" cy="143" r="9" fill="#baf8ff"/>
+  <circle cx="430" cy="181" r="5" fill="#86f1ff" opacity="0.85"/>
+  <circle cx="318" cy="91" r="4" fill="#b8a8ff" opacity="0.75"/>
+</svg>

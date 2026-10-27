@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https:; font-src 'self' data:; media-src 'self' blob:;">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OmniForge</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="ambient ambient-one"></div>
+  <div class="ambient ambient-two"></div>
+
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <img class="brand-mark" src="../../assets/icon.svg" alt="" aria-hidden="true">
+        <div>
+          <div class="brand-name">OMNIFORGE</div>
+          <div class="brand-tagline">file &amp; media workbench</div>
+        </div>
+      </div>
+
+      <nav class="nav" aria-label="Tools">
+        <div class="nav-group">
+          <div class="nav-label">Workspace</div>
+          <button class="nav-item" data-view="home"><span class="nav-icon" data-icon="home"></span><span>Overview</span></button>
+          <button class="nav-item" data-view="youtube"><span class="nav-icon" data-icon="download"></span><span>YouTube Downloader</span><span class="nav-pip"></span></button>
+          <button class="nav-item" data-view="convert"><span class="nav-icon" data-icon="convert"></span><span>Universal Convert</span></button>
+        </div>
+        <div class="nav-group">
+          <div class="nav-label">Media</div>
+          <button class="nav-item" data-view="compress"><span class="nav-icon" data-icon="compress"></span><span>Compress</span></button>
+          <button class="nav-item" data-view="trim"><span class="nav-icon" data-icon="scissors"></span><span>Trim &amp; Clip</span></button>
+          <button class="nav-item" data-view="join"><span class="nav-icon" data-icon="merge"></span><span>Join Media</span></button>
+          <button class="nav-item" data-view="extract"><span class="nav-icon" data-icon="music"></span><span>Extract Audio</span></button>
+          <button class="nav-item" data-view="normalize"><span class="nav-icon" data-icon="wave"></span><span>Normalize Audio</span></button>
+          <button class="nav-item" data-view="gif"><span class="nav-icon" data-icon="gif"></span><span>GIF Studio</span></button>
+          <button class="nav-item" data-view="frames"><span class="nav-icon" data-icon="frames"></span><span>Frame Extractor</span></button>
+        </div>
+        <div class="nav-group">
+          <div class="nav-label">Speech</div>
+          <button class="nav-item" data-view="transcribe"><span class="nav-icon" data-icon="mic"></span><span>Audio to Text</span></button>
+          <button class="nav-item" data-view="dictation"><span class="nav-icon" data-icon="mic"></span><span>Dictation</span></button>
+        </div>
+        <div class="nav-group">
+          <div class="nav-label">Files</div>
+          <button class="nav-item" data-view="pdf"><span class="nav-icon" data-icon="pdf"></span><span>PDF Toolkit</span></button>
+          <button class="nav-item" data-view="archive"><span class="nav-icon" data-icon="archive"></span><span>Archives</span></button>
+          <button class="nav-item" data-view="checksum"><span class="nav-icon" data-icon="hash"></span><span>Checksums</span></button>
+          <button class="nav-item" data-view="info"><span class="nav-icon" data-icon="info"></span><span>Media Inspector</span></button>
+        </div>
+      </nav>
+
+      <div class="sidebar-footer">
+        <button class="engine-card" data-view="settings" id="engine-card">
+          <div class="engine-orbit"><span></span></div>
+          <div class="engine-copy">
+            <strong id="engine-title">Checking engines…</strong>
+            <span id="engine-subtitle">FFmpeg · yt-dlp</span>
+          </div>
+          <span class="nav-icon small" data-icon="settings"></span>
+        </button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="topbar-copy">
+          <div class="eyebrow" id="page-eyebrow">Workspace</div>
+          <h1 id="page-title">Overview</h1>
+        </div>
+        <div class="topbar-actions">
+          <div class="local-chip"><span class="status-dot"></span> Local processing</div>
+          <button class="queue-button" id="queue-button" aria-label="Open job queue">
+            <span class="nav-icon" data-icon="queue"></span>
+            <span>Job queue</span>
+            <span class="queue-badge hidden" id="queue-badge">0</span>
+          </button>
+        </div>
+      </header>
+      <section class="view" id="view" aria-live="polite"></section>
+    </main>
+  </div>
+
+  <div class="queue-overlay" id="queue-overlay"></div>
+  <aside class="queue-drawer" id="queue-drawer" aria-label="Job queue">
+    <div class="queue-header">
+      <div class="queue-heading">
+        <div class="queue-icon-badge"><span class="nav-icon" data-icon="queue"></span></div>
+        <div>
+          <div class="eyebrow">Activity</div>
+          <h2>Job queue</h2>
+          <p id="queue-header-meta">No jobs yet</p>
+        </div>
+      </div>
+
+    </div>
+    <div class="queue-tabs" role="tablist" aria-label="Filter jobs">
+      <button data-queue-filter="all" class="active">All <span id="queue-count-all">0</span></button>
+      <button data-queue-filter="active">Active <span id="queue-count-active">0</span></button>
+      <button data-queue-filter="finished">Finished <span id="queue-count-finished">0</span></button>
+    </div>
+    <div class="queue-list" id="queue-list"></div>
+    <div class="queue-footer">
+      <button class="ghost-button" id="clear-finished"><span data-icon="trash"></span> Clear finished</button>
+      <span class="muted" id="queue-summary">Jobs run one at a time</span>
+    </div>
+  </aside>
+
+  <div class="toast-stack" id="toasts" aria-live="assertive"></div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
