@@ -9,6 +9,19 @@ const { isSupportedYouTubeUrl } = require('./youtube');
 
 const SUPPORTED_TOOLS = new Set(Object.keys(TOOL_LABELS));
 
+function scrubSecrets(spec) {
+  if (!spec?.options) return;
+  delete spec.options.password;
+  delete spec.options.confirm;
+}
+
+function snapshotSpec(spec) {
+  const clean = { ...spec, options: { ...(spec?.options || {}) } };
+  if (Object.prototype.hasOwnProperty.call(clean.options, 'password')) clean.options.password = '';
+  delete clean.options.confirm;
+  return clean;
+}
+
 function snapshot(job) {
   return {
     id: job.id,
@@ -17,7 +30,7 @@ function snapshot(job) {
     status: job.status,
     progress: job.progress,
     message: job.message,
-    spec: job.spec,
+    spec: snapshotSpec(job.spec),
     outputPaths: job.outputPaths,
     data: job.data,
     error: job.error,
@@ -51,6 +64,23 @@ class JobManager {
 
     if (tool === 'youtube') {
       if (!isSupportedYouTubeUrl(options.url)) throw new Error('Enter a valid YouTube video URL.');
+    } else if (tool === 'encryptor') {
+      const mode = options.mode === 'decrypt' ? 'decrypt' : 'encrypt';
+      const password = typeof options.password === 'string' ? options.password : '';
+      if (inputPaths.length === 0) throw new Error('Choose at least one input file.');
+      if (!password) throw new Error('Enter a password.');
+      if (password.length > 1024) throw new Error('The password is too long.');
+      if (mode === 'encrypt' && password.length < 8) throw new Error('Use a password with at least 8 characters.');
+      if (mode === 'encrypt' && typeof options.confirm === 'string' && options.confirm !== password) {
+        throw new Error('The password confirmation does not match.');
+      }
+      for (const filePath of inputPaths) {
+        const encrypted = filePath.toLowerCase().endsWith('.ofenc');
+        if (mode === 'decrypt' && !encrypted) throw new Error(`Not an OmniForge encrypted file: ${path.basename(filePath)}`);
+        if (mode === 'encrypt' && encrypted) throw new Error(`Already encrypted: ${path.basename(filePath)}`);
+      }
+      options.mode = mode;
+      delete options.confirm;
     } else if (tool === 'checksum' || tool === 'info') {
       if (inputPaths.length === 0) throw new Error('Choose at least one input file.');
     } else if (inputPaths.length === 0) {
@@ -118,6 +148,7 @@ class JobManager {
       job.completedAt = new Date().toISOString();
       this.emitJob(job);
       this.store.addHistory(job);
+      scrubSecrets(job.spec);
       return { cancelled: true };
     }
     if (job === this.activeJob) {
@@ -181,6 +212,7 @@ class JobManager {
           this.store.addHistory(next);
           this.emitJob(next);
         } finally {
+          scrubSecrets(next.spec);
           this.activeJob = null;
           this.activeController = null;
         }

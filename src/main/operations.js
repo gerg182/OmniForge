@@ -24,6 +24,7 @@ const {
 } = require('./utils');
 const { executeJoin, executeFrames, executeNormalize } = require('./extra-operations');
 const { executeTranscribe } = require('./speech');
+const { encryptFile, decryptFile, encryptedOutputPath } = require('./encryption');
 
 function assertInputs(spec) {
   if (!Array.isArray(spec.inputPaths) || spec.inputPaths.length === 0) {
@@ -623,6 +624,35 @@ async function executeChecksum(spec, ctx) {
   return { outputPaths: [], data: { kind: 'checksum', results } };
 }
 
+async function executeEncryptor(spec, ctx) {
+  assertInputs(spec);
+  const mode = spec.options.mode === 'decrypt' ? 'decrypt' : 'encrypt';
+  const password = String(spec.options.password || '');
+  if (!password) throw new Error('Enter a password.');
+  const outputDirectory = await ensureDir(spec.outputDirectory);
+  const outputs = [];
+  const total = spec.inputPaths.length;
+
+  for (let index = 0; index < total; index += 1) {
+    const filePath = spec.inputPaths[index];
+    const base = (index / total) * 100;
+    const span = 100 / total;
+    const onProgress = (fraction) => {
+      ctx.report({ progress: Math.round(base + clamp(fraction, 0, 1) * span) });
+    };
+    ctx.report({
+      message: `${mode === 'encrypt' ? 'Encrypting' : 'Decrypting'} ${path.basename(filePath)}...`,
+      progress: Math.round(base)
+    });
+    const outputPath = mode === 'encrypt'
+      ? await encryptFile(filePath, encryptedOutputPath(outputDirectory, path.basename(filePath)), password, { signal: ctx.signal, onProgress })
+      : await decryptFile(filePath, outputDirectory, password, { signal: ctx.signal, onProgress });
+    outputs.push(outputPath);
+  }
+
+  return { outputPaths: outputs };
+}
+
 function summaryFromProbe(filePath, media) {
   const streams = media.streams || [];
   const video = streams.find((stream) => stream.codec_type === 'video');
@@ -776,6 +806,7 @@ async function executeJob(spec, ctx, deps) {
     case 'gif': return executeGif(spec, ctx, deps);
     case 'pdf': return executePdf(spec, ctx);
     case 'archive': return executeArchive(spec, ctx, deps);
+    case 'encryptor': return executeEncryptor(spec, ctx);
     case 'checksum': return executeChecksum(spec, ctx);
     case 'info': return executeInfo(spec, ctx, deps);
     case 'transcribe': return executeTranscribe(spec, ctx, deps);
@@ -795,6 +826,7 @@ module.exports = {
   executeGif,
   executePdf,
   executeArchive,
+  executeEncryptor,
   executeChecksum,
   executeInfo,
   executeYouTube,

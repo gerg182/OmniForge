@@ -57,6 +57,7 @@ const VIEW_META = {
   gif: ['Media', 'GIF Studio'],
   pdf: ['Files', 'PDF Toolkit'],
   archive: ['Files', 'Archives'],
+  encryptor: ['Files', 'File Encryptor'],
   checksum: ['Files', 'Checksum Verifier'],
   info: ['Files', 'Media Inspector'],
   transcribe: ['Speech', 'Audio to Text'],
@@ -66,13 +67,13 @@ const VIEW_META = {
 
 const TOOL_ICONS = {
   youtube: 'download', convert: 'convert', compress: 'compress', trim: 'scissors', extract: 'music',
-  join: 'merge', normalize: 'wave', frames: 'frames', gif: 'gif', pdf: 'pdf', archive: 'archive', checksum: 'hash', info: 'info', transcribe: 'mic'
+  join: 'merge', normalize: 'wave', frames: 'frames', gif: 'gif', pdf: 'pdf', archive: 'archive', encryptor: 'shield', checksum: 'hash', info: 'info', transcribe: 'mic'
 };
 
 const TOOL_COLORS = {
   youtube: '#ff8c8c', convert: '#c9ff51', compress: '#66e9ff', trim: '#74ffb2', join: '#ff9f6b',
   extract: '#ffc857', normalize: '#66e9ff', gif: '#b18cff', frames: '#b18cff', pdf: '#ff8c8c',
-  archive: '#7a9cff', checksum: '#f3a6ff', info: '#9aa6ba', transcribe: '#74ffb2'
+  archive: '#7a9cff', encryptor: '#ff8c8c', checksum: '#f3a6ff', info: '#9aa6ba', transcribe: '#74ffb2'
 };
 
 const ALLOWED_CATEGORIES = {
@@ -86,6 +87,7 @@ const ALLOWED_CATEGORIES = {
   gif: ['video'],
   pdf: ['pdf'],
   archive: null,
+  encryptor: null,
   checksum: null,
   info: null,
   transcribe: ['audio', 'video']
@@ -102,6 +104,7 @@ const GUIDES = {
   gif: { icon: 'gif', title: 'Make a clean, small GIF', text: 'The palette is generated per clip for better color and file size than a basic conversion.', steps: [['Add a video', 'Pick the clip you want to animate.'], ['Set the moment', 'Start time, duration, frame rate, and width.'], ['Create', 'A palette-optimized GIF is generated.']] },
   pdf: { icon: 'pdf', title: 'PDFs without uploads', text: 'Merge, split, extract, reorder, or rotate pages locally. Encrypted PDFs are not supported.', steps: [['Add PDFs', 'Merge uses every selected file.'], ['Choose an action', 'Page ranges look like 1-3,5.'], ['Save', 'New PDFs are written to your chosen folder.']] },
   archive: { icon: 'archive', title: 'Pack files or unpack archives', text: 'Create ZIP, 7Z, TAR, TAR.GZ, or GZ archives and extract common archive formats.', steps: [['Add items', 'Select files to pack or archives to open.'], ['Choose a mode', 'Create a new archive or extract an existing one.'], ['Finish', 'Extracted content gets its own folder.']] },
+  encryptor: { icon: 'shield', title: 'Encrypt files before they travel', text: 'AES-256-GCM with an scrypt-derived key encrypts the contents and authenticates the stored metadata. Everything runs locally.', steps: [['Add files', 'Encrypt anything, or choose .ofenc files to restore.'], ['Set a password', 'Use at least 8 characters. OmniForge never stores it.'], ['Save', 'Decrypted files get their original names back.']] },
   checksum: { icon: 'hash', title: 'Verify that a file is intact', text: 'Checksums are calculated locally with streaming reads, so large files stay responsive.', steps: [['Add files', 'Any file type can be hashed.'], ['Pick algorithms', 'MD5, SHA-1, and SHA-256 can run together.'], ['Compare', 'Copy a digest and compare it with the source.']] },
   info: { icon: 'info', title: 'See what is inside', text: 'FFprobe reports container details, duration, bitrate, video dimensions, and audio properties.', steps: [['Add media', 'Video and audio files work best.'], ['Inspect', 'The whole probe result is summarized.'], ['Review', 'Open technical details directly in the app.']] },
   transcribe: { icon: 'mic', title: 'Turn speech into text', text: 'Whisper runs locally on your PC. Audio never leaves the machine and nothing is uploaded.', steps: [['Add audio or video', 'Drop a recording, podcast, or video file.'], ['Pick a language', 'Auto-detect works for most recordings.'], ['Transcribe', 'Save a plain TXT or timed SRT transcript.']] }
@@ -112,7 +115,7 @@ const state = {
   settings: null,
   history: [],
   view: 'home',
-  files: { convert: [], compress: [], trim: [], join: [], normalize: [], frames: [], extract: [], gif: [], pdf: [], archive: [], checksum: [], info: [], transcribe: [] },
+  files: { convert: [], compress: [], trim: [], join: [], normalize: [], frames: [], extract: [], gif: [], pdf: [], archive: [], encryptor: [], checksum: [], info: [], transcribe: [] },
   options: {
     convert: { targetFormat: 'mp4', quality: 'balanced', resolution: 'source' },
     compress: { mode: 'quality', quality: 'balanced', resolution: 'source', targetSizeMB: '25' },
@@ -124,6 +127,7 @@ const state = {
     gif: { start: '00:00:00', duration: '5', fps: '12', width: '640' },
     pdf: { operation: 'merge', pages: '', rotation: '90' },
     archive: { operation: 'create', archiveFormat: 'zip', archiveName: '' },
+    encryptor: { mode: 'encrypt', password: '', confirm: '' },
     checksum: { algorithms: ['sha256'] },
     info: {},
     transcribe: { language: 'auto', outputFormat: 'txt' },
@@ -209,11 +213,11 @@ function categoryFor(ext, name = '') {
 }
 
 function categoryIcon(category) {
-  return { video: 'film', audio: 'music', image: 'image', data: 'braces', pdf: 'pdf', archive: 'archive' }[category] || 'file';
+  return { video: 'film', audio: 'music', image: 'image', data: 'braces', pdf: 'pdf', archive: 'archive', encrypted: 'shield' }[category] || 'file';
 }
 
 function categoryColor(category) {
-  return { video: '#66e9ff', audio: '#b18cff', image: '#74ffb2', data: '#ffc857', pdf: '#ff8c8c', archive: '#7a9cff' }[category] || '#838d9f';
+  return { video: '#66e9ff', audio: '#b18cff', image: '#74ffb2', data: '#ffc857', pdf: '#ff8c8c', archive: '#7a9cff', encrypted: '#ff8c8c' }[category] || '#838d9f';
 }
 
 function toolIcon(tool) {
@@ -244,6 +248,10 @@ function currentMeta() {
 
 function navigate(view) {
   if (!VIEW_META[view]) return;
+  if (state.view === 'encryptor' && view !== 'encryptor') {
+    state.options.encryptor.password = '';
+    state.options.encryptor.confirm = '';
+  }
   state.view = view;
   state.resetScroll = true;
   closeQueue();
@@ -278,6 +286,7 @@ function render() {
     case 'gif': html = renderGif(); break;
     case 'pdf': html = renderPdf(); break;
     case 'archive': html = renderArchive(); break;
+    case 'encryptor': html = renderEncryptor(); break;
     case 'checksum': html = renderChecksum(); break;
     case 'info': html = renderInfo(); break;
     case 'transcribe': html = renderTranscribe(); break;
@@ -299,7 +308,7 @@ function renderHome() {
       <div class="hero-copy">
         <div class="hero-kicker"><span class="status-dot"></span> Local-first file workbench</div>
         <h2>One app.<br><span class="gradient-text">Every file.</span><br>Zero uploads.</h2>
-        <p>Download, convert, compress, trim, extract, archive, and inspect files without sending them to a server. Built for fast batches and the formats you actually use.</p>
+        <p>Download, convert, compress, trim, extract, encrypt, archive, and inspect files without sending them to a server. Built for fast batches and the formats you actually use.</p>
         <div class="hero-actions">
           <button class="primary-button" data-view="convert">${icon('convert')} Open converter</button>
           <button class="secondary-button" data-view="youtube">${icon('download')} Download from YouTube</button>
@@ -338,6 +347,7 @@ function renderHome() {
       ${toolCard('dictation', 'mic', 'Dictation', 'Speak and get text instantly', '#74ffb2')}
       ${toolCard('frames', 'frames', 'Frame Extractor', 'Save video moments as images', '#b18cff')}
       ${toolCard('archive', 'archive', 'Archives', 'ZIP, 7Z, TAR and more', '#7a9cff')}
+      ${toolCard('encryptor', 'shield', 'File Encryptor', 'Password-protect files locally', '#ff8c8c')}
       ${toolCard('checksum', 'hash', 'Checksums', 'Verify files with MD5 or SHA', '#f3a6ff')}
     </div>
 
@@ -351,7 +361,7 @@ function renderHome() {
       <div class="panel side-panel">
         <div class="tool-icon side-icon" style="--icon-color: var(--lime)">${icon('shield')}</div>
         <h3>Built to stay on your machine</h3>
-        <p>OmniForge runs FFmpeg, 7-Zip, and yt-dlp locally. Your files never pass through a third-party conversion service.</p>
+        <p>OmniForge runs FFmpeg, 7-Zip, yt-dlp, and its encryption engine locally. Your files never pass through a third-party conversion service.</p>
         <div class="side-list">
           <div class="side-step"><span class="side-step-number">01</span><div><strong>Local by default</strong><span>Only YouTube downloads need the internet.</span></div></div>
           <div class="side-step"><span class="side-step-number">02</span><div><strong>Batch friendly</strong><span>Queue many files and keep working.</span></div></div>
@@ -921,6 +931,44 @@ function renderArchive() {
   </div>`;
 }
 
+function renderEncryptor() {
+  const decrypting = state.options.encryptor.mode === 'decrypt';
+  return `<div class="tool-layout">
+    <div style="display:grid;gap:14px">
+      <div class="panel">
+        <div class="panel-head"><div><h2>${decrypting ? 'Encrypted files' : 'Files to encrypt'}</h2><p>${decrypting ? 'Choose OmniForge .ofenc files and restore their original contents.' : 'Every selected file is encrypted into its own .ofenc file.'}</p></div><span class="status-pill">${state.files.encryptor.length ? `${state.files.encryptor.length} ready` : 'No files'}</span></div>
+        <div class="panel-body">
+          ${renderDropzone('encryptor', decrypting ? 'Drop .ofenc files' : 'Drop files to encrypt', decrypting ? 'Only files created by OmniForge are supported' : 'Any file type, including media, documents, and archives')}
+          ${renderFileList('encryptor')}
+        </div>
+      </div>
+      ${renderEncryptorSettings(decrypting)}
+    </div>
+    ${renderGuide('encryptor')}
+  </div>`;
+}
+
+function renderEncryptorSettings(decrypting) {
+  return `<div class="panel">
+    <div class="panel-head"><div><h2>Encryption settings</h2><p>AES-256-GCM protects the contents and verifies that nothing was changed.</p></div><span class="status-pill">${icon('shield')} Local only</span></div>
+    <div class="panel-body">
+      <div class="field full" style="margin-bottom:14px">
+        <label>Mode</label>
+        <div class="segmented">
+          <label><input type="radio" name="encryptor-mode" value="encrypt" data-tool="encryptor" data-option="mode" data-rerender="true" ${decrypting ? '' : 'checked'}><span>Encrypt files</span></label>
+          <label><input type="radio" name="encryptor-mode" value="decrypt" data-tool="encryptor" data-option="mode" data-rerender="true" ${decrypting ? 'checked' : ''}><span>Decrypt files</span></label>
+        </div>
+      </div>
+      <div class="form-grid">
+        <div class="field"><label>Password</label><input type="password" value="${escapeHtml(state.options.encryptor.password)}" data-tool="encryptor" data-option="password" maxlength="1024" autocomplete="${decrypting ? 'current-password' : 'new-password'}" spellcheck="false" placeholder="${decrypting ? 'Enter the file password' : 'At least 8 characters'}"><div class="field-note">${decrypting ? 'The password is only held in memory while the job runs.' : 'Use a long, unique password. It cannot be recovered.'}</div></div>
+        ${decrypting ? '' : `<div class="field"><label>Confirm password</label><input type="password" value="${escapeHtml(state.options.encryptor.confirm)}" data-tool="encryptor" data-option="confirm" maxlength="1024" autocomplete="new-password" spellcheck="false" placeholder="Repeat the password"><div class="field-note">Both passwords must match before encryption starts.</div></div>`}
+      </div>
+      <div class="legal-note">${icon('alert')} OmniForge does not store or transmit passwords. If you lose the password, the encrypted file cannot be recovered.</div>
+      ${renderStartBar('encryptor', decrypting ? 'Decrypt files' : 'Encrypt files', decrypting ? 'Original file names are restored from authenticated metadata.' : 'Each file becomes a separate .ofenc file in the output folder.', state.files.encryptor.length === 0)}
+    </div>
+  </div>`;
+}
+
 function renderChecksum() {
   const options = state.options.checksum;
   return `<div class="tool-layout">
@@ -1009,7 +1057,7 @@ function renderSettings() {
     ['sevenZip', '7-Zip', 'Archive engine'],
     ['speech', 'Whisper', 'Local speech-to-text engine']
   ];
-    const appVersion = state.status?.appVersion || '1.1.6';
+    const appVersion = state.status?.appVersion || '1.1.7';
     const updateInfo = state.updateInfo;
     const latestUpdate = updateInfo?.latest;
     const updateFolder = state.settings?.updateFolder || 'No update folder selected';
@@ -1104,7 +1152,7 @@ function renderSettings() {
     </div>
     <aside class="panel side-panel">
       <div class="tool-icon side-icon" style="--icon-color: var(--cyan)">${icon('harddrive')}</div>
-      <h3>OmniForge ${escapeHtml(state.status?.appVersion || '1.1.6')}</h3>
+      <h3>OmniForge ${escapeHtml(state.status?.appVersion || '1.1.7')}</h3>
       <p>Windows ${escapeHtml(state.status?.arch || '')} · Electron desktop app · Local-first by design.</p>
       <div class="side-list">
         <button class="secondary-button" data-action="open-tools" style="width:100%">${icon('folder')} Open tools folder</button>
@@ -1153,6 +1201,10 @@ async function addPaths(tool, paths, fileObjects = []) {
     const ext = extensionFor(name);
     const category = categoryFor(ext, name);
     if (allowed && !allowed.includes(category)) { skipped += 1; continue; }
+    if (tool === 'encryptor') {
+      const wantsEncrypted = state.options.encryptor.mode === 'decrypt';
+      if ((ext === 'ofenc') !== wantsEncrypted) { skipped += 1; continue; }
+    }
     if (existing.has(meta.path.toLowerCase())) continue;
     const dropped = byName.get(name);
     state.files[tool].push({
@@ -1235,6 +1287,9 @@ function batchSpecs(tool, outputDirectory) {
     }
     return files.map((file) => makeSpec('archive', [file.path], outputDirectory, { ...options }, file.name));
   }
+  if (tool === 'encryptor') {
+    return files.map((file) => makeSpec('encryptor', [file.path], outputDirectory, { ...options }, `${file.name} · ${options.mode === 'decrypt' ? 'Decrypt' : 'Encrypt'}`));
+  }
   return files.map((file) => makeSpec(tool, [file.path], outputDirectory, { ...options }, file.name));
 }
 
@@ -1259,6 +1314,15 @@ async function startTool(tool) {
   if (tool === 'checksum' && (!options.algorithms || options.algorithms.length === 0)) {
     showToast('Choose at least one checksum algorithm.', 'error'); return;
   }
+  if (tool === 'encryptor') {
+    if (!options.password) { showToast('Enter a password first.', 'error'); return; }
+    if (options.mode === 'encrypt' && options.password.length < 8) {
+      showToast('Use a password with at least 8 characters.', 'error'); return;
+    }
+    if (options.mode === 'encrypt' && options.password !== options.confirm) {
+      showToast('The password confirmation does not match.', 'error'); return;
+    }
+  }
 
   state.starting = true;
   try {
@@ -1276,6 +1340,11 @@ async function startTool(tool) {
     for (const spec of specs) {
       const job = await api.startJob(spec);
       state.jobs.set(job.id, job);
+    }
+    if (tool === 'encryptor') {
+      state.options.encryptor.password = '';
+      state.options.encryptor.confirm = '';
+      render();
     }
     openQueue();
     updateQueueBadge();
@@ -1325,8 +1394,22 @@ function updateOption(target) {
 function handleViewChange(event) {
   const target = event.target.closest('[data-option], [data-algorithm]');
   if (!target) return;
+  const previousEncryptorMode = state.options.encryptor.mode;
   updateOption(target);
+  if (target.dataset.tool === 'encryptor' && target.dataset.option === 'mode' && state.options.encryptor.mode !== previousEncryptorMode) {
+    syncEncryptorFiles();
+  }
   if (target.dataset.rerender === 'true') render();
+}
+
+function syncEncryptorFiles() {
+  const decrypting = state.options.encryptor.mode === 'decrypt';
+  const before = state.files.encryptor.length;
+  state.files.encryptor = state.files.encryptor.filter((file) => (file.ext === 'ofenc') === decrypting);
+  const removed = before - state.files.encryptor.length;
+  if (removed) {
+    showToast(`${removed} incompatible file${removed === 1 ? ' was' : 's were'} removed from the encryptor.`, 'error');
+  }
 }
 
 function handleViewInput(event) {

@@ -63,7 +63,8 @@ const INPUT_EXTENSIONS = {
   image: ['png', 'jpg', 'jpeg', 'webp', 'avif', 'gif', 'bmp', 'tif', 'tiff', 'ico', 'svg', 'heic', 'heif', 'jxl', 'tga', 'ppm', 'pgm'],
   data: ['json', 'csv', 'tsv', 'yaml', 'yml', 'xml'],
   pdf: ['pdf'],
-  archive: ['zip', '7z', 'tar', 'gz', 'tgz', 'bz2', 'xz', 'rar', 'iso', 'cab']
+  archive: ['zip', '7z', 'tar', 'gz', 'tgz', 'bz2', 'xz', 'rar', 'iso', 'cab'],
+  encrypted: ['ofenc']
 };
 
 const MEDIA_FORMAT_ORDER = ['video', 'audio', 'image'];
@@ -88,6 +89,7 @@ const TOOL_LABELS = {
   gif: 'GIF Studio',
   pdf: 'PDF Toolkit',
   archive: 'Archive Toolkit',
+  encryptor: 'File Encryptor',
   checksum: 'Checksum Verifier',
   info: 'Media Inspector',
   transcribe: 'Audio to Text'

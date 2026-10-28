@@ -1,6 +1,6 @@
 # OmniForge
 
-OmniForge is a local-first Windows desktop app for downloading permitted YouTube videos, converting media and data files, compressing and trimming clips, extracting audio, transcribing speech, recording dictation, building GIFs, editing PDFs, working with archives, calculating checksums, and inspecting media.
+OmniForge is a local-first Windows desktop app for downloading permitted YouTube videos, converting media and data files, compressing and trimming clips, extracting audio, transcribing speech, recording dictation, building GIFs, editing PDFs, working with archives, encrypting files, calculating checksums, and inspecting media.
 
 Everything runs on your PC. FFmpeg, FFprobe, yt-dlp, Deno, 7-Zip, and whisper.cpp with the multilingual base model are bundled with the app, so conversion, speech, and file tools do not require an internet connection. YouTube downloads naturally do.
 
@@ -20,6 +20,7 @@ Everything runs on your PC. FFmpeg, FFprobe, yt-dlp, Deno, 7-Zip, and whisper.cp
 - Palette-optimized GIF creation
 - PDF merge, split, extract, reorder, and rotate
 - ZIP, 7Z, TAR, TAR.GZ, and GZ creation and extraction
+- Password-based file encryption and decryption with AES-256-GCM (`.ofenc`)
 - MD5, SHA-1, and SHA-256 checksums
 - FFprobe media inspection
 - Audio and video to text with local whisper.cpp transcription (TXT or timestamped SRT)
@@ -62,6 +63,7 @@ Updates must use the electron-builder artifact name so the version can be read f
 - YouTube downloads are limited to public, single-video URLs in this version.
 - Playlists, subtitles, live streams, browser cookies, age-restricted/member content, and DRM bypass are not supported.
 - Encrypted PDFs and password-protected archives are not supported.
+- OmniForge `.ofenc` files require the original password. Passwords are held only in memory while a job runs and are never stored or uploaded.
 - Office document conversion is not included.
 - Download only content you own or have permission to download. Respect YouTube's terms and applicable copyright law.
 - Speech recognition uses the bundled `ggml-base.bin` multilingual model and runs entirely offline. Long recordings take longer to transcribe; the queue reports progress.
