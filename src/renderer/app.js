@@ -36,6 +36,7 @@ const ICONS = {
   harddrive: '<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M7 15h.01"/><path d="M11 15h.01"/><path d="M3 12h18"/>',
   sparkle: '<path d="m12 3 1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 16v4"/><path d="M21 18h-4"/>',
   mic: '<rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><path d="M12 17v4"/><path d="M8 21h8"/>',
+  captions: '<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M7 10h4"/><path d="M7 14h7"/><path d="M14 10h3"/>',
   stop: '<rect x="6" y="6" width="12" height="12" rx="2"/>'
 };
 
@@ -61,6 +62,7 @@ const VIEW_META = {
   info: ['Files', 'Media Inspector'],
   metadata: ['Privacy', 'Metadata Stripper'],
   shred: ['Privacy', 'Secure Delete'],
+  studio: ['Speech', 'Transcript Clip Studio'],
   transcribe: ['Speech', 'Audio to Text'],
   dictation: ['Speech', 'Dictation'],
   settings: ['System', 'Settings']
@@ -68,13 +70,13 @@ const VIEW_META = {
 
 const TOOL_ICONS = {
   youtube: 'download', convert: 'convert', compress: 'compress', trim: 'scissors', extract: 'music',
-  join: 'merge', normalize: 'wave', frames: 'frames', gif: 'gif', pdf: 'pdf', archive: 'archive', encryptor: 'shield', checksum: 'hash', info: 'info', transcribe: 'mic', metadata: 'file', shred: 'harddrive'
+  join: 'merge', normalize: 'wave', frames: 'frames', gif: 'gif', pdf: 'pdf', archive: 'archive', encryptor: 'shield', checksum: 'hash', info: 'info', transcribe: 'mic', studio: 'captions', metadata: 'file', shred: 'harddrive'
 };
 
 const TOOL_COLORS = {
   youtube: '#ff8c8c', convert: '#c9ff51', compress: '#66e9ff', trim: '#74ffb2', join: '#ff9f6b',
   extract: '#ffc857', normalize: '#66e9ff', gif: '#b18cff', frames: '#b18cff', pdf: '#ff8c8c',
-  archive: '#7a9cff', encryptor: '#ff8c8c', checksum: '#f3a6ff', info: '#9aa6ba', transcribe: '#74ffb2',
+  archive: '#7a9cff', encryptor: '#ff8c8c', checksum: '#f3a6ff', info: '#9aa6ba', transcribe: '#74ffb2', studio: '#c9ff51',
   metadata: '#c9ff51', shred: '#ff8c8c'
 };
 
@@ -94,7 +96,8 @@ const ALLOWED_CATEGORIES = {
   info: null,
   metadata: ['image', 'audio', 'video'],
   shred: null,
-  transcribe: ['audio', 'video']
+  transcribe: ['audio', 'video'],
+  studio: ['audio', 'video']
 };
 
 const GUIDES = {
@@ -113,7 +116,8 @@ const GUIDES = {
   info: { icon: 'info', title: 'See what is inside', text: 'FFprobe reports container details, duration, bitrate, video dimensions, and audio properties.', steps: [['Add media', 'Video and audio files work best.'], ['Inspect', 'The whole probe result is summarized.'], ['Review', 'Open technical details directly in the app.']] },
   metadata: { icon: 'file', title: 'Leave less behind', text: 'Remove EXIF, XMP, IPTC, comments, and media tags while preserving image data and color profiles.', steps: [['Add media', 'JPEG, PNG, WebP, audio, and video are supported.'], ['Choose a folder', 'Cleaned copies get a _clean suffix.'], ['Clean', 'Streams are copied without re-encoding media.']] },
   shred: { icon: 'harddrive', title: 'Overwrite before deleting', text: 'Files are overwritten with random data, truncated, renamed, and removed. This is not a guarantee on SSDs or copies in backups and cloud storage.', steps: [['Add files', 'Directories and symbolic links are rejected.'], ['Choose passes', 'One, three, or seven passes; three is the default.'], ['Confirm', 'The original file is destroyed and cannot be recovered.']] },
-  transcribe: { icon: 'mic', title: 'Turn speech into text', text: 'Whisper runs locally on your PC. Audio never leaves the machine and nothing is uploaded.', steps: [['Add audio or video', 'Drop a recording, podcast, or video file.'], ['Pick a language', 'Auto-detect works for most recordings.'], ['Transcribe', 'Save a plain TXT or timed SRT transcript.']] }
+  transcribe: { icon: 'mic', title: 'Turn speech into text', text: 'Whisper runs locally on your PC. Audio never leaves the machine and nothing is uploaded.', steps: [['Add audio or video', 'Drop a recording, podcast, or video file.'], ['Pick a language', 'Auto-detect works for most recordings.'], ['Transcribe', 'Save a plain TXT or timed SRT transcript.']] },
+  studio: { icon: 'captions', title: 'Edit video by its words', text: 'Transcribe locally, select sentences, and turn them into captioned clips without sending media anywhere.', steps: [['Load media', 'Transcribe with Whisper or import SRT/VTT.'], ['Select a range', 'Click a line, then Shift-click another.'], ['Render clips', 'Save trimmed media with optional captions.']] }
 };
 
 const state = {
@@ -121,7 +125,7 @@ const state = {
   settings: null,
   history: [],
   view: 'home',
-  files: { convert: [], compress: [], trim: [], join: [], normalize: [], frames: [], extract: [], gif: [], pdf: [], archive: [], encryptor: [], checksum: [], info: [], transcribe: [], metadata: [], shred: [] },
+  files: { convert: [], compress: [], trim: [], join: [], normalize: [], frames: [], extract: [], gif: [], pdf: [], archive: [], encryptor: [], checksum: [], info: [], transcribe: [], studio: [], metadata: [], shred: [] },
   options: {
     convert: { targetFormat: 'mp4', quality: 'balanced', resolution: 'source' },
     compress: { mode: 'quality', quality: 'balanced', resolution: 'source', targetSizeMB: '25' },
@@ -139,6 +143,7 @@ const state = {
     metadata: {},
     shred: { passes: '3', acknowledged: false },
     transcribe: { language: 'auto', outputFormat: 'txt' },
+    studio: { language: 'auto', exportFormat: 'srt' },
     dictation: { language: 'auto', outputFormat: 'txt' },
     youtube: { url: '', mode: 'video', quality: 'best', audioFormat: 'mp3' }
   },
@@ -151,6 +156,22 @@ const state = {
   updateInfo: null,
   updateChecking: false,
   resetScroll: true,
+  studio: {
+    project: null,
+    projectPath: null,
+    dirty: false,
+    recovery: null,
+    mediaUrl: '',
+    mediaError: '',
+    selectionAnchor: null,
+    selectedIds: [],
+    transcriptionJobId: null,
+    busy: false,
+    auditionEndMs: 0,
+    pendingSeekMs: 0,
+    recoveryTimer: null,
+    search: ''
+  },
   dictation: {
     recording: false,
     busy: false,
@@ -299,12 +320,14 @@ function render() {
     case 'info': html = renderInfo(); break;
     case 'metadata': html = renderMetadata(); break;
     case 'shred': html = renderShred(); break;
+    case 'studio': html = renderStudio(); break;
     case 'transcribe': html = renderTranscribe(); break;
     case 'dictation': html = renderDictation(); break;
     case 'settings': html = renderSettings(); break;
     default: html = renderHome();
   }
   viewEl.innerHTML = html;
+  if (state.view === 'studio') bindStudioPreview();
   viewEl.scrollTop = scrollTop;
   state.resetScroll = false;
   updateQueueBadge();
@@ -354,6 +377,7 @@ function renderHome() {
       ${toolCard('extract', 'music', 'Extract Audio', 'Turn video into MP3 or FLAC', '#ffc857')}
       ${toolCard('normalize', 'wave', 'Normalize Audio', 'Even out quiet and loud audio', '#66e9ff')}
       ${toolCard('transcribe', 'mic', 'Audio to Text', 'Local Whisper transcripts', '#74ffb2')}
+      ${toolCard('studio', 'captions', 'Transcript Clip Studio', 'Turn transcript lines into clips', '#c9ff51')}
       ${toolCard('dictation', 'mic', 'Dictation', 'Speak and get text instantly', '#74ffb2')}
       ${toolCard('frames', 'frames', 'Frame Extractor', 'Save video moments as images', '#b18cff')}
       ${toolCard('archive', 'archive', 'Archives', 'ZIP, 7Z, TAR and more', '#7a9cff')}
@@ -855,6 +879,236 @@ function renderDictation() {
   </div>`;
 }
 
+const STUDIO_VIDEO_FORMATS = [
+  { value: 'mp4', label: 'MP4' },
+  { value: 'mkv', label: 'MKV' },
+  { value: 'webm', label: 'WebM' },
+  { value: 'mov', label: 'MOV' }
+];
+
+const STUDIO_AUDIO_FORMATS = [
+  { value: 'mp3', label: 'MP3' },
+  { value: 'wav', label: 'WAV' },
+  { value: 'flac', label: 'FLAC' },
+  { value: 'm4a', label: 'M4A' },
+  { value: 'ogg', label: 'OGG' },
+  { value: 'opus', label: 'OPUS' }
+];
+
+function formatStudioTime(milliseconds) {
+  return formatDuration(Math.max(0, Number(milliseconds) || 0) / 1000);
+}
+
+function defaultStudioProject(mediaPath = '') {
+  return {
+    version: 1,
+    mediaPath,
+    durationMs: 0,
+    language: state.options.studio.language || 'auto',
+    segments: [],
+    clips: [],
+    clipPaddingMs: 150,
+    captionStyle: { fontSize: 24, color: '#FFFFFF', outline: 2, position: 'bottom' },
+    output: {
+      directory: state.settings?.lastOutputDir || state.settings?.outputDir || '',
+      videoFormat: 'mp4',
+      audioFormat: 'mp3',
+      burnCaptions: true,
+      exportCaptions: 'srt'
+    }
+  };
+}
+
+function studioMediaCategory() {
+  const file = state.files.studio[0];
+  return file?.category || 'video';
+}
+
+function studioSelectedSegments() {
+  const project = state.studio.project;
+  if (!project || !state.studio.selectedIds.length) return [];
+  const selected = new Set(state.studio.selectedIds);
+  return project.segments.filter((segment) => selected.has(segment.id));
+}
+
+function studioSelectedRange() {
+  const selected = studioSelectedSegments();
+  if (!selected.length) return null;
+  return {
+    startMs: Math.min(...selected.map((segment) => segment.startMs)),
+    endMs: Math.max(...selected.map((segment) => segment.endMs))
+  };
+}
+
+function studioCaptionOverlayStyle(project) {
+  const style = project?.captionStyle || defaultStudioProject().captionStyle;
+  const color = /^#[0-9a-f]{6}$/i.test(String(style.color || '')) ? style.color : '#FFFFFF';
+  const outline = Math.max(0, Math.min(4, Number(style.outline) || 0));
+  const shadows = outline > 0
+    ? Array.from({ length: 8 }, (_value, index) => {
+        const angle = (Math.PI * 2 * index) / 8;
+        return `${Math.cos(angle) * outline}px ${Math.sin(angle) * outline}px 0 #000`;
+      }).join(', ')
+    : 'none';
+  return `color:${escapeHtml(color)};font-size:${Math.max(14, Math.round(Number(style.fontSize || 24) * 0.75))}px;text-shadow:${shadows};`;
+}
+
+function studioClipExcerpt(project, clip) {
+  const text = project.segments
+    .filter((segment) => segment.endMs > clip.startMs && segment.startMs < clip.endMs)
+    .map((segment) => segment.text)
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return text.length > 170 ? `${text.slice(0, 167)}...` : text || 'No transcript text overlaps this range.';
+}
+
+function updateStudioClipExcerpts() {
+  const project = state.studio.project;
+  if (!project) return;
+  document.querySelectorAll('[data-studio-clip-excerpt]').forEach((element) => {
+    const clip = project.clips.find((entry) => entry.id === element.dataset.studioClipExcerpt);
+    if (clip) element.textContent = studioClipExcerpt(project, clip);
+  });
+}
+
+function renderStudio() {
+  const file = state.files.studio[0];
+  const project = state.studio.project;
+  const category = studioMediaCategory();
+  const recovery = state.studio.recovery;
+  const recoveryBanner = recovery ? `<div class="studio-recovery-banner">
+    <div>${icon('clock')}<div><strong>Unsaved Studio session available</strong><span>${escapeHtml(recovery.savedAt ? `Saved ${relativeTime(recovery.savedAt)}` : 'Recovery draft')}</span></div></div>
+    <div class="action-buttons"><button class="secondary-button" data-action="studio-restore-recovery">Restore</button><button class="ghost-button" data-action="studio-discard-recovery">Discard</button></div>
+  </div>` : '';
+
+  return `<div class="studio-layout">
+    <div class="studio-main">
+      ${recoveryBanner}
+      ${renderStudioMediaPanel(project, file, category)}
+      ${project ? renderStudioTranscriptPanel(project) : `<div class="panel studio-empty-panel"><div class="empty-state"><div class="tool-icon" style="--icon-color:var(--lime)">${icon('captions')}</div><h3>Turn a transcript into clips</h3><p>Load one audio or video file, transcribe it locally, then select the sentences you want to keep.</p><div class="action-buttons"><button class="primary-button" data-action="pick-files" data-tool="studio">${icon('folder')} Choose media</button><button class="secondary-button" data-action="studio-open-project">${icon('upload')} Open project</button></div></div></div>`}
+    </div>
+    <aside class="studio-rail">
+      ${renderStudioProjectPanel(file)}
+      ${project ? renderStudioSettingsPanel(project, category) : ''}
+      ${project ? renderStudioClipPanel(project, category) : ''}
+      ${renderGuide('studio')}
+    </aside>
+  </div>`;
+}
+
+function renderStudioMediaPanel(project, file, category) {
+  const missing = Boolean(state.studio.mediaError);
+  const mediaUrl = state.studio.mediaUrl;
+  const mediaElement = file && mediaUrl
+    ? category === 'audio'
+      ? `<audio id="studio-media" class="studio-audio" src="${escapeHtml(mediaUrl)}" controls preload="metadata"></audio>`
+      : `<video id="studio-media" class="studio-video" src="${escapeHtml(mediaUrl)}" controls preload="metadata"></video>`
+    : '';
+  return `<div class="panel studio-media-panel">
+    <div class="panel-head"><div><h2>${file ? escapeHtml(file.name) : 'Choose media'}</h2><p>One audio or video file per project. Preview and transcript seeking stay on this PC.</p></div><span class="status-pill ${missing ? 'failed' : file ? 'succeeded' : ''}">${missing ? 'Media missing' : file ? (category === 'video' ? 'Video ready' : 'Audio ready') : 'No media'}</span></div>
+    <div class="panel-body">
+      ${file ? `${renderFileList('studio')}<div class="action-buttons" style="margin-bottom:10px"><button class="secondary-button" data-action="studio-replace-media">${icon('folder')} Replace media</button></div>` : renderDropzone('studio', 'Drop audio or video here', 'MP3, WAV, MP4, MKV, MOV, WebM and more')}
+      ${missing ? `<div class="legal-note">${icon('alert')} The project media could not be found. Relink it before rendering.<div class="action-buttons" style="margin-top:10px"><button class="secondary-button" data-action="studio-relink-media">Relink media</button></div></div>` : ''}
+      ${mediaElement ? `<div class="studio-media-stage ${category}"><div class="studio-media-frame">${mediaElement}<div id="studio-caption-overlay" class="studio-caption-overlay ${escapeHtml(project?.captionStyle?.position || 'bottom')}" style="${studioCaptionOverlayStyle(project)}"></div></div><div class="studio-preview-meta"><span id="studio-time-readout">0:00 / ${project?.durationMs ? formatStudioTime(project.durationMs) : '--:--'}</span><span>Click a timestamp to seek; Shift-click to select a range.</span></div></div>` : ''}
+    </div>
+  </div>`;
+}
+
+function renderStudioTranscriptPanel(project) {
+  const job = state.jobs.get(state.studio.transcriptionJobId);
+  const busy = state.studio.busy || ['queued', 'running', 'cancelling'].includes(job?.status);
+  const ready = Boolean(state.status?.tools?.speech?.available);
+  const progress = Number(job?.progress) || 0;
+  const segments = project.segments;
+  return `<div class="panel studio-transcript-panel">
+    <div class="panel-head"><div><h2>Transcript</h2><p>Edit words freely. Timestamps stay fixed; clip selection uses the original timing.</p></div><span class="status-pill ${busy ? 'running' : segments.length ? 'succeeded' : ''}">${busy ? 'Transcribing' : segments.length ? `${segments.length} lines` : 'No transcript'}</span></div>
+    <div class="panel-body">
+      <div class="studio-transcript-tools">
+        <div class="action-buttons"><button class="primary-button" data-action="studio-transcribe" ${busy || !ready || state.studio.mediaError ? 'disabled' : ''}>${icon('mic')} ${segments.length ? 'Transcribe again' : 'Transcribe locally'}</button><button class="secondary-button" data-action="studio-import-transcript" ${busy ? 'disabled' : ''}>${icon('upload')} Import SRT/VTT</button><button class="secondary-button" data-action="studio-export-transcript" ${segments.length ? '' : 'disabled'}>${icon('file')} Export</button></div>
+        <div class="field studio-language-field"><label>Language</label><select data-studio-language>${selectOptions(SPEECH_LANGUAGES, project.language)}</select></div>
+        <div class="field studio-language-field"><label>Export as</label><select data-studio-export-format>${selectOptions([{ value: 'srt', label: 'SRT' }, { value: 'vtt', label: 'VTT' }], state.options.studio.exportFormat)}</select></div>
+      </div>
+      ${busy ? `<div class="studio-job-progress"><div class="job-progress-wrap"><div class="job-progress"><span style="width:${progress}%"></span></div><span class="job-percent">${progress}%</span></div><span>${escapeHtml(job?.message || 'Starting local transcription...')}</span></div>` : ''}
+      ${segments.length ? `<div class="studio-search-row"><span class="nav-icon">${icon('info')}</span><input data-studio-search value="${escapeHtml(state.studio.search)}" placeholder="Search transcript text" spellcheck="false"><span class="file-count">${state.studio.selectedIds.length} selected</span></div><div class="studio-segment-list" id="studio-segment-list">${segments.map((segment, index) => renderStudioSegment(segment, index)).join('')}</div>` : `<div class="studio-transcript-empty">${icon('file')} ${busy ? 'Whisper is preparing the transcript.' : 'Transcribe with Whisper or import an SRT/VTT file to begin.'}</div>`}
+    </div>
+  </div>`;
+}
+
+function renderStudioSegment(segment, index) {
+  const selected = state.studio.selectedIds.includes(segment.id);
+  return `<div class="studio-segment ${selected ? 'selected' : ''}" data-studio-row="${escapeHtml(segment.id)}">
+    <button class="studio-select ${selected ? 'selected' : ''}" data-action="studio-select-segment" data-id="${escapeHtml(segment.id)}" title="Select this line; Shift-click to extend">${selected ? icon('check') : String(index + 1)}</button>
+    <div class="studio-segment-copy"><div class="studio-segment-meta"><button data-action="studio-select-segment" data-id="${escapeHtml(segment.id)}">${formatStudioTime(segment.startMs)}</button><span>${formatStudioTime(segment.endMs)}</span></div><textarea rows="${Math.min(6, Math.max(2, String(segment.text).split('\n').length))}" data-studio-segment="${escapeHtml(segment.id)}" spellcheck="false">${escapeHtml(segment.text)}</textarea></div>
+  </div>`;
+}
+
+function renderStudioProjectPanel(file) {
+  const project = state.studio.project;
+  const title = state.studio.projectPath ? baseName(state.studio.projectPath) : project ? 'Untitled Studio project' : 'No project open';
+  const status = !project ? 'Choose media to begin' : state.studio.dirty ? 'Unsaved changes' : 'Saved';
+  return `<div class="panel studio-project-panel">
+    <div class="panel-head"><div><h2>Project</h2><p>${escapeHtml(title)}</p></div><span class="status-pill ${state.studio.dirty ? 'paused' : project ? 'succeeded' : ''}">${escapeHtml(status)}</span></div>
+    <div class="panel-body"><div class="studio-project-actions">
+      <button class="secondary-button" data-action="studio-open-project">${icon('upload')} Open project</button>
+      <button class="secondary-button" data-action="studio-save-project" ${project ? '' : 'disabled'}>${icon('check')} Save</button>
+      <button class="ghost-button" data-action="studio-save-project-as" ${project ? '' : 'disabled'}>Save as</button>
+      <button class="ghost-button" data-action="studio-new-project" ${file ? '' : 'disabled'}>Start over</button>
+    </div></div>
+  </div>`;
+}
+
+function renderStudioSettingsPanel(project, category) {
+  const video = category === 'video';
+  const formats = video ? STUDIO_VIDEO_FORMATS : STUDIO_AUDIO_FORMATS;
+  const selectedFormat = video ? project.output.videoFormat : project.output.audioFormat;
+  const style = project.captionStyle;
+  return `<div class="panel studio-settings-panel">
+    <div class="panel-head"><div><h2>Output &amp; captions</h2><p>Clips use the source timing with extra breathing room around each selected range.</p></div></div>
+    <div class="panel-body">
+      <div class="field full"><label>Output folder</label><div class="studio-path-picker"><span title="${escapeHtml(project.output.directory)}">${escapeHtml(project.output.directory || 'No folder selected')}</span><button class="ghost-button" data-action="studio-choose-output">${icon('folder')} Change</button></div></div>
+      <div class="form-grid studio-settings-grid">
+        <div class="field"><label>Clip format</label><select data-studio-output="outputFormat">${selectOptions(formats, selectedFormat)}</select></div>
+        <div class="field"><label>Padding around text</label><select data-studio-output="clipPaddingMs">${selectOptions([
+          { value: '0', label: 'None' }, { value: '150', label: '150 ms' }, { value: '300', label: '300 ms' }, { value: '500', label: '500 ms' }
+        ], String(project.clipPaddingMs))}</select></div>
+        <div class="field"><label>Caption files</label><select data-studio-output="exportCaptions">${selectOptions([
+          { value: 'srt', label: 'SRT sidecar' }, { value: 'vtt', label: 'VTT sidecar' }, { value: 'both', label: 'SRT + VTT' }, { value: 'none', label: 'No caption files' }
+        ], project.output.exportCaptions)}</select></div>
+        ${video ? `<div class="field"><label>Burn into video</label><label class="check-pill studio-check"><input type="checkbox" data-studio-output="burnCaptions" ${project.output.burnCaptions ? 'checked' : ''}><span>Render captions visibly</span></label></div>` : `<div class="field"><label>Caption delivery</label><div class="field-note">Audio clips use sidecar captions only.</div></div>`}
+      </div>
+      ${video ? `<div class="studio-style-block"><div class="studio-style-head"><strong>Caption style</strong><span>Preview updates live.</span></div><div class="form-grid studio-style-grid">
+        <div class="field"><label>Font size</label><input type="number" min="16" max="48" step="1" value="${Number(style.fontSize) || 24}" data-studio-style="fontSize"></div>
+        <div class="field"><label>Text color</label><input type="color" value="${escapeHtml(style.color || '#FFFFFF')}" data-studio-style="color"></div>
+        <div class="field"><label>Outline</label><input type="number" min="0" max="4" step="1" value="${Number(style.outline) || 0}" data-studio-style="outline"></div>
+        <div class="field"><label>Position</label><select data-studio-style="position">${selectOptions([
+          { value: 'bottom', label: 'Bottom' }, { value: 'center', label: 'Center' }, { value: 'top', label: 'Top' }
+        ], style.position)}</select></div>
+      </div></div>` : ''}
+    </div>
+  </div>`;
+}
+
+function renderStudioClipPanel(project, category) {
+  const selectedRange = studioSelectedRange();
+  const selected = studioSelectedSegments();
+  const missing = Boolean(state.studio.mediaError);
+  const canAdd = Boolean(selectedRange && !missing);
+  return `<div class="panel studio-clip-panel">
+    <div class="panel-head"><div><h2>Clip list</h2><p>${selected.length ? `${selected.length} line${selected.length === 1 ? '' : 's'} selected at ${formatStudioTime(selectedRange.startMs)}-${formatStudioTime(selectedRange.endMs)}` : 'Select transcript lines to add a clip.'}</p></div><span class="status-pill">${project.clips.length} clip${project.clips.length === 1 ? '' : 's'}</span></div>
+    <div class="panel-body">
+      <button class="primary-button studio-add-clip" data-action="studio-add-clip" ${canAdd ? '' : 'disabled'}>${icon('plus')} Add selected range</button>
+      ${project.clips.length ? `<div class="studio-clip-list">${project.clips.map((clip, index) => `<div class="studio-clip-row">
+        <div class="studio-clip-top"><input value="${escapeHtml(clip.label)}" data-studio-clip-label="${escapeHtml(clip.id)}" maxlength="120" aria-label="Clip name"><span>${formatStudioTime(clip.startMs)}-${formatStudioTime(clip.endMs)}</span></div>
+        <p data-studio-clip-excerpt="${escapeHtml(clip.id)}">${escapeHtml(studioClipExcerpt(project, clip))}</p>
+        <div class="studio-clip-actions"><button data-action="studio-preview-clip" data-id="${escapeHtml(clip.id)}">${icon('play')} Preview</button><button data-action="studio-move-clip" data-id="${escapeHtml(clip.id)}" data-dir="-1" ${index === 0 ? 'disabled' : ''}>Up</button><button data-action="studio-move-clip" data-id="${escapeHtml(clip.id)}" data-dir="1" ${index === project.clips.length - 1 ? 'disabled' : ''}>Down</button><button class="danger-text" data-action="studio-remove-clip" data-id="${escapeHtml(clip.id)}">Remove</button></div>
+      </div>`).join('')}</div>` : `<div class="studio-clip-empty">${icon('scissors')} Your selected transcript ranges will appear here.</div>`}
+      <button class="primary-button studio-render-button" data-action="studio-render-clips" ${project.clips.length && !missing ? '' : 'disabled'}>${icon('play')} Render ${project.clips.length || ''} clip${project.clips.length === 1 ? '' : 's'}</button>
+      <div class="field-note">${category === 'video' ? 'Video clips are re-encoded for accurate cuts.' : 'Audio clips are exported with the selected audio format.'} Caption sidecars use clip-relative timing.</div>
+    </div>
+  </div>`;
+}
+
 function renderGif() {
   const options = state.options.gif;
   return `<div class="tool-layout">
@@ -1125,7 +1379,7 @@ function renderSettings() {
     ['sevenZip', '7-Zip', 'Archive engine'],
     ['speech', 'Whisper', 'Local speech-to-text engine']
   ];
-    const appVersion = state.status?.appVersion || '1.1.8';
+    const appVersion = state.status?.appVersion || '1.2.0';
     const updateInfo = state.updateInfo;
     const latestUpdate = updateInfo?.latest;
     const updateHash = latestUpdate?.hash || null;
@@ -1225,7 +1479,7 @@ function renderSettings() {
     </div>
     <aside class="panel side-panel">
       <div class="tool-icon side-icon" style="--icon-color: var(--cyan)">${icon('harddrive')}</div>
-      <h3>OmniForge ${escapeHtml(state.status?.appVersion || '1.1.8')}</h3>
+      <h3>OmniForge ${escapeHtml(state.status?.appVersion || '1.2.0')}</h3>
       <p>Windows ${escapeHtml(state.status?.arch || '')} · Electron desktop app · Local-first by design.</p>
       <div class="side-list">
         <button class="secondary-button" data-action="open-tools" style="width:100%">${icon('folder')} Open tools folder</button>
@@ -1265,6 +1519,10 @@ async function refreshStatus(showMessage = false) {
 
 async function addPaths(tool, paths, fileObjects = []) {
   if (!paths.length) return;
+  if (tool === 'studio' && state.files.studio.length > 0) {
+    showToast('Remove the current Studio media before choosing another file.', 'error');
+    return;
+  }
   const metadata = await api.getFileMetadata(paths);
   const allowed = ALLOWED_CATEGORIES[tool];
   let skipped = 0;
@@ -1290,8 +1548,10 @@ async function addPaths(tool, paths, fileObjects = []) {
       size: Number(dropped?.size) || Number(meta.size) || 0
     });
     existing.add(meta.path.toLowerCase());
+    if (tool === 'studio') break;
   }
   if (skipped) showToast(`${skipped} file${skipped === 1 ? ' was' : 's were'} skipped because the type does not fit this tool.`, 'error');
+  if (tool === 'studio' && paths.length > 1) showToast('Only one Studio media file can be added per project.', 'error');
   if (tool === 'join' && state.files.join.length > 0) {
     const joinCategory = state.files.join[0].category;
     const currentCategory = formatInfo(state.options.join.outputFormat)?.category;
@@ -1302,6 +1562,10 @@ async function addPaths(tool, paths, fileObjects = []) {
     state.view = 'convert';
     state.resetScroll = true;
     closeQueue();
+  }
+  if (tool === 'studio') {
+    await loadStudioMedia(state.files.studio[0], true);
+    return;
   }
   render();
 }
@@ -1317,7 +1581,17 @@ async function pickFiles(tool) {
 
 function removeFile(tool, index) {
   if (!state.files[tool]) return;
+  if (tool === 'studio' && !studioDiscardConfirmation()) return;
   state.files[tool].splice(index, 1);
+  if (tool === 'studio') {
+    state.studio.project = null;
+    state.studio.projectPath = null;
+    state.studio.dirty = false;
+    state.studio.mediaUrl = '';
+    state.studio.mediaError = '';
+    resetStudioSelection();
+    clearStudioRecovery().catch(() => {});
+  }
   render();
 }
 
@@ -1366,6 +1640,594 @@ function batchSpecs(tool, outputDirectory) {
     return files.map((file) => makeSpec('encryptor', [file.path], outputDirectory, { ...options }, `${file.name} · ${options.mode === 'decrypt' ? 'Decrypt' : 'Encrypt'}`));
   }
   return files.map((file) => makeSpec(tool, [file.path], outputDirectory, { ...options }, file.name));
+}
+
+function cloneStudioProject() {
+  return state.studio.project ? JSON.parse(JSON.stringify(state.studio.project)) : null;
+}
+
+function studioBaseName(filePath) {
+  const name = baseName(filePath);
+  const dot = name.lastIndexOf('.');
+  return dot > 0 ? name.slice(0, dot) : name;
+}
+
+function resetStudioSelection() {
+  state.studio.selectionAnchor = null;
+  state.studio.selectedIds = [];
+  state.studio.auditionEndMs = 0;
+}
+
+function markStudioDirty() {
+  if (!state.studio.project) return;
+  state.studio.dirty = true;
+  const pill = document.querySelector('.studio-project-panel .status-pill');
+  if (pill) {
+    pill.textContent = 'Unsaved changes';
+    pill.className = 'status-pill paused';
+  }
+  scheduleStudioRecovery();
+}
+
+function scheduleStudioRecovery() {
+  if (state.studio.recoveryTimer) clearTimeout(state.studio.recoveryTimer);
+  state.studio.recoveryTimer = setTimeout(() => {
+    state.studio.recoveryTimer = null;
+    persistStudioRecovery().catch(() => {});
+  }, 600);
+}
+
+async function persistStudioRecovery() {
+  const project = cloneStudioProject();
+  if (!project?.mediaPath || !state.studio.dirty) return;
+  await api.saveStudioRecovery({ project, projectPath: state.studio.projectPath });
+}
+
+async function clearStudioRecovery(silent = true) {
+  if (state.studio.recoveryTimer) {
+    clearTimeout(state.studio.recoveryTimer);
+    state.studio.recoveryTimer = null;
+  }
+  try {
+    await api.clearStudioRecovery();
+    state.studio.recovery = null;
+  } catch (error) {
+    if (!silent) showToast(error.message || String(error), 'error');
+  }
+}
+
+function studioDiscardConfirmation() {
+  if (!state.studio.dirty) return true;
+  return window.confirm('Discard unsaved Transcript Clip Studio changes?');
+}
+
+async function applyStudioProject(project, projectPath = null, options = {}) {
+  if (!project) return;
+  state.studio.project = JSON.parse(JSON.stringify(project));
+  state.studio.projectPath = projectPath || null;
+  state.studio.dirty = options.dirty === true;
+  state.studio.mediaUrl = '';
+  state.studio.mediaError = '';
+  state.studio.pendingSeekMs = 0;
+  state.options.studio.language = project.language || 'auto';
+  resetStudioSelection();
+  state.studio.search = '';
+
+  const metadata = await api.getFileMetadata([project.mediaPath]);
+  const meta = metadata[0];
+  const name = meta?.name || baseName(project.mediaPath);
+  const ext = extensionFor(name);
+  const category = categoryFor(ext, name);
+  state.files.studio = [{
+    path: project.mediaPath,
+    name,
+    ext,
+    category,
+    size: Number(meta?.size) || 0
+  }];
+
+  if (meta?.isFile && !options.mediaMissing) {
+    try {
+      const media = await api.getStudioMediaUrl(project.mediaPath);
+      state.studio.mediaUrl = media.url;
+      state.studio.project.mediaPath = media.path;
+    } catch (error) {
+      state.studio.mediaError = error.message || 'Media could not be loaded.';
+    }
+  } else {
+    state.studio.mediaError = 'The project media file could not be found. Relink it to continue.';
+  }
+  if (state.studio.dirty) scheduleStudioRecovery();
+  render();
+}
+
+async function loadStudioMedia(file, createProject = false) {
+  if (!file) return;
+  if (!createProject && !studioDiscardConfirmation()) return;
+  const project = defaultStudioProject(file.path);
+  project.language = state.options.studio.language || 'auto';
+  state.studio.project = project;
+  state.studio.projectPath = null;
+  state.studio.mediaUrl = '';
+  state.studio.mediaError = '';
+  state.studio.pendingSeekMs = 0;
+  resetStudioSelection();
+  state.studio.search = '';
+  try {
+    const media = await api.getStudioMediaUrl(file.path);
+    state.studio.mediaUrl = media.url;
+    state.studio.project.mediaPath = media.path;
+    state.studio.dirty = true;
+    scheduleStudioRecovery();
+  } catch (error) {
+    state.studio.mediaError = error.message || 'Media could not be loaded.';
+    state.studio.dirty = false;
+  }
+  render();
+}
+
+async function newStudioProject() {
+  const file = state.files.studio[0];
+  if (!file) return;
+  if (!studioDiscardConfirmation()) return;
+  await loadStudioMedia(file, true);
+  showToast('Started a new Studio project from this media file.', 'success');
+}
+
+async function replaceStudioMedia() {
+  if (!studioDiscardConfirmation()) return;
+  try {
+    const paths = await api.chooseFiles();
+    if (!paths.length) return;
+    await clearStudioRecovery();
+    state.files.studio = [];
+    await addPaths('studio', paths);
+  } catch (error) {
+    showToast(`Could not replace the Studio media: ${error.message}`, 'error', 7000);
+  }
+}
+
+async function openStudioProject() {
+  if (!studioDiscardConfirmation()) return;
+  try {
+    const result = await api.openStudioProject();
+    if (result.canceled) return;
+    await applyStudioProject(result.project, result.projectPath, { dirty: false, mediaMissing: result.mediaMissing });
+    showToast(result.mediaMissing ? 'Project opened, but its media needs relinking.' : 'Studio project opened.', result.mediaMissing ? 'error' : 'success');
+  } catch (error) {
+    showToast(error.message || String(error), 'error', 7000);
+  }
+}
+
+async function saveStudioProject(saveAs = false) {
+  const project = cloneStudioProject();
+  if (!project) return;
+  try {
+    const result = await api.saveStudioProject(project, {
+      projectPath: state.studio.projectPath,
+      saveAs
+    });
+    if (result.canceled) return;
+    state.studio.project = result.project;
+    state.studio.projectPath = result.projectPath;
+    state.studio.dirty = false;
+    await clearStudioRecovery();
+    render();
+    showToast('Studio project saved.', 'success');
+  } catch (error) {
+    showToast(error.message || String(error), 'error', 7000);
+  }
+}
+
+async function relinkStudioMedia() {
+  try {
+    const paths = await api.chooseFiles();
+    if (!paths.length) return;
+    const metadata = await api.getFileMetadata([paths[0]]);
+    const meta = metadata[0];
+    if (!meta?.isFile) throw new Error('Choose an existing audio or video file.');
+    const ext = extensionFor(meta.name);
+    const category = categoryFor(ext, meta.name);
+    if (!['audio', 'video'].includes(category)) throw new Error('Choose an audio or video file.');
+    state.files.studio = [{ path: meta.path, name: meta.name, ext, category, size: Number(meta.size) || 0 }];
+    state.studio.project.mediaPath = meta.path;
+    state.studio.project.durationMs = 0;
+    const media = await api.getStudioMediaUrl(meta.path);
+    state.studio.mediaUrl = media.url;
+    state.studio.mediaError = '';
+    markStudioDirty();
+    render();
+    showToast('Studio media relinked.', 'success');
+  } catch (error) {
+    showToast(error.message || String(error), 'error', 7000);
+  }
+}
+
+async function restoreStudioRecovery() {
+  const recovery = state.studio.recovery;
+  if (!recovery || !studioDiscardConfirmation()) return;
+  await applyStudioProject(recovery.project, recovery.projectPath, { dirty: true });
+  state.studio.recovery = null;
+  scheduleStudioRecovery();
+  showToast('Unsaved Studio session restored.', 'success');
+}
+
+async function discardStudioRecovery() {
+  await clearStudioRecovery(false);
+  render();
+  showToast('Studio recovery draft discarded.', 'success');
+}
+
+async function ensureStudioOutputDirectory() {
+  const project = state.studio.project;
+  if (!project) return null;
+  if (project.output.directory) return project.output.directory;
+  const directory = await api.chooseOutputFolder();
+  if (!directory) return null;
+  project.output.directory = directory;
+  state.settings = await api.getSettings();
+  markStudioDirty();
+  return directory;
+}
+
+async function chooseStudioOutputDirectory() {
+  if (!state.studio.project) return;
+  const directory = await api.chooseOutputFolder();
+  if (!directory) return;
+  state.studio.project.output.directory = directory;
+  state.settings = await api.getSettings();
+  markStudioDirty();
+  render();
+}
+
+async function importStudioTranscript() {
+  if (!state.studio.project) return;
+  try {
+    const result = await api.chooseStudioTranscript();
+    if (result.canceled) return;
+    state.studio.project.segments = result.segments;
+    resetStudioSelection();
+    markStudioDirty();
+    render();
+    showToast(`Imported ${result.segments.length} transcript lines.`, 'success');
+  } catch (error) {
+    showToast(error.message || String(error), 'error', 7000);
+  }
+}
+
+async function exportStudioTranscript() {
+  const project = state.studio.project;
+  if (!project?.segments.length) return;
+  try {
+    const result = await api.exportStudioTranscript({
+      segments: project.segments,
+      format: state.options.studio.exportFormat || 'srt',
+      mediaPath: project.mediaPath,
+      directory: project.output.directory
+    });
+    if (!result.canceled) showToast('Transcript exported.', 'success');
+  } catch (error) {
+    showToast(error.message || String(error), 'error', 7000);
+  }
+}
+
+async function startStudioTranscription() {
+  const project = state.studio.project;
+  if (!project || state.studio.busy) return;
+  if (state.studio.mediaError) {
+    showToast('Relink the media file before transcribing.', 'error');
+    return;
+  }
+  if (!state.status?.tools?.speech?.available) {
+    showToast('The local Whisper engine is unavailable.', 'error');
+    return;
+  }
+  try {
+    const outputDirectory = await ensureStudioOutputDirectory();
+    if (!outputDirectory) return;
+    const base = studioBaseName(project.mediaPath);
+    const spec = makeSpec('transcribe', [project.mediaPath], outputDirectory, {
+      language: project.language,
+      outputFormat: 'srt',
+      baseName: `${base}_studio`
+    }, `${baseName(project.mediaPath)} · Studio transcript`);
+    state.studio.busy = true;
+    state.studio.transcriptionJobId = null;
+    render();
+    const job = await api.startJob(spec);
+    state.studio.transcriptionJobId = job.id;
+    state.jobs.set(job.id, job);
+    updateQueueBadge();
+    render();
+    showToast('Studio transcription queued.', 'success');
+  } catch (error) {
+    state.studio.busy = false;
+    state.studio.transcriptionJobId = null;
+    render();
+    showToast(error.message || String(error), 'error', 7000);
+  }
+}
+
+async function completeStudioTranscription(job) {
+  const project = state.studio.project;
+  const mediaPath = job.spec?.inputPaths?.[0] || '';
+  state.studio.busy = false;
+  state.studio.transcriptionJobId = null;
+  if (job.status !== 'succeeded') {
+    if (state.view === 'studio') render();
+    if (job.status === 'failed') showToast(job.error || 'Studio transcription failed.', 'error', 7000);
+    else if (job.status === 'cancelled') showToast('Studio transcription cancelled.', 'info', 4000);
+    return;
+  }
+  if (!project || project.mediaPath !== mediaPath) {
+    if (state.view === 'studio') render();
+    return;
+  }
+  const transcriptPath = job.outputPaths?.[0];
+  if (!transcriptPath) {
+    showToast('Whisper finished without returning a transcript.', 'error');
+    if (state.view === 'studio') render();
+    return;
+  }
+  try {
+    const result = await api.readStudioTranscript(transcriptPath);
+    project.segments = result.segments;
+    resetStudioSelection();
+    markStudioDirty();
+    if (state.view === 'studio') render();
+    showToast(`Studio transcript ready: ${result.segments.length} lines.`, 'success', 5000);
+  } catch (error) {
+    showToast(error.message || String(error), 'error', 7000);
+  }
+}
+
+function selectStudioSegment(id, extend) {
+  const project = state.studio.project;
+  if (!project) return;
+  const index = project.segments.findIndex((segment) => segment.id === id);
+  if (index === -1) return;
+  const anchorIndex = project.segments.findIndex((segment) => segment.id === state.studio.selectionAnchor);
+  if (!extend || anchorIndex === -1) {
+    state.studio.selectedIds = [id];
+    state.studio.selectionAnchor = id;
+  } else {
+    const start = Math.min(anchorIndex, index);
+    const end = Math.max(anchorIndex, index);
+    state.studio.selectedIds = project.segments.slice(start, end + 1).map((segment) => segment.id);
+  }
+  state.studio.pendingSeekMs = project.segments[index].startMs;
+  render();
+}
+
+function addStudioClip() {
+  const project = state.studio.project;
+  const range = studioSelectedRange();
+  if (!project || !range) return;
+  const padding = Math.max(0, Number(project.clipPaddingMs) || 0);
+  const maxEnd = project.durationMs > 0 ? project.durationMs : range.endMs + padding;
+  const startMs = Math.max(0, Math.round(range.startMs - padding));
+  const endMs = Math.min(maxEnd, Math.round(range.endMs + padding));
+  if (endMs <= startMs) {
+    showToast('That selected range is too short to render.', 'error');
+    return;
+  }
+  const id = globalThis.crypto?.randomUUID?.() || `clip-${Date.now()}-${project.clips.length}`;
+  project.clips.push({
+    id,
+    label: `Clip ${String(project.clips.length + 1).padStart(2, '0')}`,
+    startMs,
+    endMs
+  });
+  markStudioDirty();
+  render();
+  showToast('Range added to the clip list.', 'success', 2600);
+}
+
+function removeStudioClip(id) {
+  const project = state.studio.project;
+  if (!project) return;
+  project.clips = project.clips.filter((clip) => clip.id !== id);
+  markStudioDirty();
+  render();
+}
+
+function moveStudioClip(id, direction) {
+  const project = state.studio.project;
+  if (!project) return;
+  const index = project.clips.findIndex((clip) => clip.id === id);
+  const target = index + Number(direction);
+  if (index === -1 || target < 0 || target >= project.clips.length) return;
+  const [clip] = project.clips.splice(index, 1);
+  project.clips.splice(target, 0, clip);
+  markStudioDirty();
+  render();
+}
+
+function previewStudioClip(id) {
+  const project = state.studio.project;
+  const clip = project?.clips.find((entry) => entry.id === id);
+  if (!clip || state.studio.mediaError) return;
+  state.studio.auditionEndMs = clip.endMs;
+  seekStudio(clip.startMs, true);
+}
+
+async function renderStudioClips() {
+  const project = state.studio.project;
+  if (!project || !project.clips.length || state.studio.mediaError) return;
+  if (state.starting) return;
+  state.starting = true;
+  try {
+    const outputDirectory = await ensureStudioOutputDirectory();
+    if (!outputDirectory) return;
+    const category = studioMediaCategory();
+    const spec = makeSpec('studio', [project.mediaPath], outputDirectory, {
+      durationMs: project.durationMs,
+      outputFormat: category === 'video' ? project.output.videoFormat : project.output.audioFormat,
+      quality: 'high',
+      burnCaptions: project.output.burnCaptions,
+      exportCaptions: project.output.exportCaptions,
+      captionStyle: project.captionStyle,
+      clips: project.clips,
+      segments: project.segments
+    }, `Transcript Clip Studio · ${project.clips.length} clip${project.clips.length === 1 ? '' : 's'}`);
+    const job = await api.startJob(spec);
+    state.jobs.set(job.id, job);
+    openQueue();
+    updateQueueBadge();
+    renderQueue();
+    showToast(`${project.clips.length} Studio clip${project.clips.length === 1 ? '' : 's'} queued.`, 'success');
+  } catch (error) {
+    showToast(error.message || String(error), 'error', 7000);
+  } finally {
+    state.starting = false;
+  }
+}
+
+function seekStudio(milliseconds, play = false) {
+  const media = document.getElementById('studio-media');
+  const target = Math.max(0, Number(milliseconds) || 0) / 1000;
+  if (!media) {
+    state.studio.pendingSeekMs = Math.round(target * 1000);
+    return;
+  }
+  const applySeek = () => {
+    try { media.currentTime = target; } catch { /* metadata may still be loading */ }
+    updateStudioPreview();
+    if (play) media.play().catch(() => {});
+  };
+  if (media.readyState === 0) media.addEventListener('loadedmetadata', applySeek, { once: true });
+  else applySeek();
+}
+
+function refreshStudioCaptionOverlay() {
+  const project = state.studio.project;
+  const overlay = document.getElementById('studio-caption-overlay');
+  if (!project || !overlay) return;
+  overlay.className = `studio-caption-overlay ${project.captionStyle.position || 'bottom'}`;
+  overlay.setAttribute('style', studioCaptionOverlayStyle(project));
+}
+
+function updateStudioPreview() {
+  const media = document.getElementById('studio-media');
+  const project = state.studio.project;
+  if (!media || !project) return;
+  const currentMs = Math.max(0, (Number(media.currentTime) || 0) * 1000);
+  const readout = document.getElementById('studio-time-readout');
+  if (readout) readout.textContent = `${formatStudioTime(currentMs)} / ${project.durationMs ? formatStudioTime(project.durationMs) : formatStudioTime((Number(media.duration) || 0) * 1000)}`;
+  const active = project.segments.find((segment) => currentMs >= segment.startMs && currentMs < segment.endMs);
+  const overlay = document.getElementById('studio-caption-overlay');
+  if (overlay) {
+    overlay.textContent = active?.text || '';
+    overlay.classList.toggle('visible', Boolean(active?.text));
+  }
+  if (state.studio.auditionEndMs && currentMs >= state.studio.auditionEndMs) {
+    state.studio.auditionEndMs = 0;
+    media.pause();
+  }
+}
+
+function bindStudioPreview() {
+  const media = document.getElementById('studio-media');
+  const project = state.studio.project;
+  if (!media || !project) return;
+  const onMetadata = () => {
+    const durationMs = Math.round((Number(media.duration) || 0) * 1000);
+    if (durationMs > 0 && Math.abs(durationMs - Number(project.durationMs || 0)) > 250) {
+      project.durationMs = durationMs;
+      markStudioDirty();
+    }
+    if (state.studio.pendingSeekMs) {
+      const target = state.studio.pendingSeekMs;
+      state.studio.pendingSeekMs = 0;
+      try { media.currentTime = target / 1000; } catch { /* ignore invalid seek */ }
+    }
+    updateStudioPreview();
+  };
+  media.addEventListener('loadedmetadata', onMetadata);
+  if (media.readyState >= 1) onMetadata();
+  media.addEventListener('timeupdate', updateStudioPreview);
+  media.addEventListener('ended', () => { state.studio.auditionEndMs = 0; });
+  media.addEventListener('error', () => {
+    if (!state.studio.mediaError) {
+      state.studio.mediaError = 'The media preview could not be loaded. Try relinking the file.';
+      showToast(state.studio.mediaError, 'error', 7000);
+    }
+  });
+}
+
+function filterStudioSegments(query) {
+  const project = state.studio.project;
+  if (!project) return;
+  state.studio.search = String(query || '');
+  const needle = state.studio.search.trim().toLowerCase();
+  document.querySelectorAll('[data-studio-row]').forEach((row) => {
+    const segment = project.segments.find((entry) => entry.id === row.dataset.studioRow);
+    row.hidden = Boolean(needle && !String(segment?.text || '').toLowerCase().includes(needle));
+  });
+}
+
+function updateStudioControl(target) {
+  const project = state.studio.project;
+  if (!project) return false;
+  if (target.hasAttribute('data-studio-search')) {
+    filterStudioSegments(target.value);
+    return true;
+  }
+  if (target.hasAttribute('data-studio-export-format')) {
+    state.options.studio.exportFormat = target.value === 'vtt' ? 'vtt' : 'srt';
+    return true;
+  }
+  if (target.hasAttribute('data-studio-language')) {
+    project.language = target.value;
+    state.options.studio.language = project.language;
+    markStudioDirty();
+    return true;
+  }
+  if (target.hasAttribute('data-studio-clip-label')) {
+    const clip = project.clips.find((entry) => entry.id === target.dataset.studioClipLabel);
+    if (clip) {
+      clip.label = String(target.value || '').slice(0, 120);
+      markStudioDirty();
+    }
+    return true;
+  }
+  if (target.hasAttribute('data-studio-segment')) {
+    const segment = project.segments.find((entry) => entry.id === target.dataset.studioSegment);
+    if (segment) {
+      segment.text = String(target.value || '');
+      markStudioDirty();
+      updateStudioPreview();
+      updateStudioClipExcerpts();
+    }
+    return true;
+  }
+  if (target.hasAttribute('data-studio-output')) {
+    const field = target.dataset.studioOutput;
+    const category = studioMediaCategory();
+    if (field === 'outputFormat') {
+      if (category === 'video') project.output.videoFormat = target.value;
+      else project.output.audioFormat = target.value;
+    } else if (field === 'clipPaddingMs') {
+      project.clipPaddingMs = Math.max(0, Math.min(2000, Number(target.value) || 0));
+    } else if (field === 'burnCaptions') {
+      project.output.burnCaptions = Boolean(target.checked);
+    } else if (field === 'exportCaptions') {
+      project.output.exportCaptions = target.value;
+    }
+    markStudioDirty();
+    return true;
+  }
+  if (target.hasAttribute('data-studio-style')) {
+    const field = target.dataset.studioStyle;
+    if (field === 'fontSize') project.captionStyle.fontSize = Math.max(16, Math.min(48, Number(target.value) || 24));
+    if (field === 'outline') project.captionStyle.outline = Math.max(0, Math.min(4, Number(target.value) || 0));
+    if (field === 'color' && /^#[0-9a-f]{6}$/i.test(target.value)) project.captionStyle.color = target.value.toUpperCase();
+    if (field === 'position') project.captionStyle.position = target.value;
+    markStudioDirty();
+    refreshStudioCaptionOverlay();
+    return true;
+  }
+  return false;
 }
 
 async function startTool(tool) {
@@ -1478,8 +2340,12 @@ function updateOption(target) {
 }
 
 function handleViewChange(event) {
-  const target = event.target.closest('[data-option], [data-algorithm]');
+  const target = event.target.closest('[data-option], [data-algorithm], [data-studio-output], [data-studio-style], [data-studio-language], [data-studio-export-format]');
   if (!target) return;
+  if (updateStudioControl(target)) {
+    if (target.dataset.rerender === 'true') render();
+    return;
+  }
   const previousEncryptorMode = state.options.encryptor.mode;
   updateOption(target);
   if (target.dataset.tool === 'encryptor' && target.dataset.option === 'mode' && state.options.encryptor.mode !== previousEncryptorMode) {
@@ -1499,6 +2365,11 @@ function syncEncryptorFiles() {
 }
 
 function handleViewInput(event) {
+  const studioTarget = event.target.closest('[data-studio-search], [data-studio-segment], [data-studio-clip-label], [data-studio-output], [data-studio-style], [data-studio-language], [data-studio-export-format]');
+  if (studioTarget) {
+    updateStudioControl(studioTarget);
+    return;
+  }
   const target = event.target.closest('[data-option]');
   if (!target) return;
   updateOption(target);
@@ -1764,12 +2635,22 @@ function renderQueue() {
 
 function handleJobUpdate(job) {
   const previous = state.jobs.get(job.id);
+  const studioTranscriptId = state.studio.transcriptionJobId;
+  const isStudioTranscriptJob = Boolean(studioTranscriptId && job.id === studioTranscriptId);
   state.jobs.set(job.id, job);
   updateQueueBadge();
   if (state.queueOpen) renderQueue();
 
   if (previous?.status === job.status) return;
   if (job.status === 'succeeded') {
+    if (isStudioTranscriptJob) {
+      completeStudioTranscription(job).catch((error) => showToast(error.message || String(error), 'error', 7000));
+      api.getHistory().then((history) => {
+        state.history = history;
+        if (state.view === 'home') render();
+      }).catch(() => {});
+      return;
+    }
     if (job.data && !state.results.some((result) => result.jobId === job.id)) {
       state.results.unshift({ jobId: job.id, tool: job.tool, data: job.data, label: job.label, completedAt: job.completedAt });
     }
@@ -1792,11 +2673,21 @@ function handleJobUpdate(job) {
     }).catch(() => {});
     if (state.view === job.tool && ['checksum', 'info'].includes(job.tool)) render();
   } else if (job.status === 'failed') {
+    if (isStudioTranscriptJob) {
+      completeStudioTranscription(job).catch((error) => showToast(error.message || String(error), 'error', 7000));
+      api.getHistory().then((history) => {
+        state.history = history;
+        if (state.view === 'home') render();
+      }).catch(() => {});
+      return;
+    }
     if (job.tool === 'transcribe' && job.spec?.options?.dictation) {
       state.dictation.error = job.error || 'Dictation failed.';
       if (state.view === 'dictation') render();
     }
     showToast(`${job.label}: ${job.error || 'Job failed'}`, 'error', 7500);
+  } else if (job.status === 'cancelled' && isStudioTranscriptJob) {
+    completeStudioTranscription(job).catch(() => {});
   }
 }
 
@@ -2112,20 +3003,51 @@ async function transcribeDictation(recordingPath) {
   }
 }
 
-function handleAction(actionTarget) {
+function handleAction(actionTarget, event) {
   const action = actionTarget.dataset.action;
   const tool = actionTarget.dataset.tool;
   switch (action) {
     case 'pick-files': pickFiles(tool); break;
     case 'remove-file': removeFile(tool, Number(actionTarget.dataset.index)); break;
     case 'move-file': moveFile(tool, Number(actionTarget.dataset.index), Number(actionTarget.dataset.dir)); break;
-    case 'clear-files': state.files[tool] = []; render(); break;
+    case 'clear-files':
+      if (tool === 'studio' && !studioDiscardConfirmation()) break;
+      state.files[tool] = [];
+      if (tool === 'studio') {
+        state.studio.project = null;
+        state.studio.projectPath = null;
+        state.studio.dirty = false;
+        state.studio.mediaUrl = '';
+        state.studio.mediaError = '';
+        resetStudioSelection();
+        clearStudioRecovery().catch(() => {});
+      }
+      render();
+      break;
     case 'start-tool': startTool(tool); break;
     case 'yt-fetch': fetchYouTube(); break;
     case 'start-dictation': startDictation(); break;
     case 'stop-dictation': stopDictation(); break;
     case 'copy-dictation': copyText(state.dictation.lastTranscript?.text || ''); break;
     case 'copy-text': copyText(actionTarget.dataset.value || ''); break;
+    case 'studio-open-project': openStudioProject(); break;
+    case 'studio-save-project': saveStudioProject(false); break;
+    case 'studio-save-project-as': saveStudioProject(true); break;
+    case 'studio-new-project': newStudioProject(); break;
+    case 'studio-replace-media': replaceStudioMedia(); break;
+    case 'studio-restore-recovery': restoreStudioRecovery(); break;
+    case 'studio-discard-recovery': discardStudioRecovery(); break;
+    case 'studio-relink-media': relinkStudioMedia(); break;
+    case 'studio-choose-output': chooseStudioOutputDirectory(); break;
+    case 'studio-transcribe': startStudioTranscription(); break;
+    case 'studio-import-transcript': importStudioTranscript(); break;
+    case 'studio-export-transcript': exportStudioTranscript(); break;
+    case 'studio-select-segment': selectStudioSegment(actionTarget.dataset.id, Boolean(event?.shiftKey)); break;
+    case 'studio-add-clip': addStudioClip(); break;
+    case 'studio-remove-clip': removeStudioClip(actionTarget.dataset.id); break;
+    case 'studio-move-clip': moveStudioClip(actionTarget.dataset.id, Number(actionTarget.dataset.dir)); break;
+    case 'studio-preview-clip': previewStudioClip(actionTarget.dataset.id); break;
+    case 'studio-render-clips': renderStudioClips(); break;
     case 'clear-results': clearResults(tool); break;
     case 'refresh-status': refreshStatus(true); break;
     case 'update-ytdlp': updateYtdlp(actionTarget); break;
@@ -2180,7 +3102,7 @@ function bindEvents() {
     const actionTarget = event.target.closest('[data-action]');
     if (actionTarget) {
       event.preventDefault();
-      handleAction(actionTarget);
+      handleAction(actionTarget, event);
     }
   });
 
@@ -2230,6 +3152,7 @@ async function init() {
   window.addEventListener('beforeunload', () => {
     try { state.dictation.stream?.getTracks().forEach((track) => track.stop()); } catch { /* app is closing */ }
     if (state.dictation.timer) clearInterval(state.dictation.timer);
+    if (state.studio.recoveryTimer) clearTimeout(state.studio.recoveryTimer);
   });
   state.starting = false;
   bindEvents();
@@ -2245,6 +3168,12 @@ async function init() {
     updateEngineStatus();
     renderQueue();
     render();
+    api.getStudioRecovery().then((recovery) => {
+      if (!recovery) return;
+      state.studio.recovery = recovery;
+      if (state.view === 'studio') render();
+      showToast('An unsaved Studio session is available to restore.', 'info', 6500);
+    }).catch(() => {});
     autoCheckForUpdates();
   } catch (error) {
     viewEl.innerHTML = `<div class="empty-state"><div class="tool-icon" style="--icon-color:var(--danger)">${icon('alert')}</div><h3>OmniForge could not start</h3><p>${escapeHtml(error.message || String(error))}</p></div>`;

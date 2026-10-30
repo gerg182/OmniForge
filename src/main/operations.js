@@ -24,6 +24,7 @@ const {
 } = require('./utils');
 const { executeJoin, executeFrames, executeNormalize } = require('./extra-operations');
 const { executeTranscribe } = require('./speech');
+const { executeStudioClips } = require('./studio');
 const { encryptFile, decryptFile, encryptedOutputPath } = require('./encryption');
 const { executeMetadata, executeShred } = require('./privacy');
 
@@ -811,6 +812,7 @@ async function executeJob(spec, ctx, deps) {
     case 'checksum': return executeChecksum(spec, ctx);
     case 'info': return executeInfo(spec, ctx, deps);
     case 'transcribe': return executeTranscribe(spec, ctx, deps);
+    case 'studio': return executeStudioClips(spec, ctx, deps);
     case 'metadata': return executeMetadata(spec, ctx, deps);
     case 'shred': return executeShred(spec, ctx);
     default: throw new Error(`Unknown tool: ${spec.tool}`);
@@ -832,6 +834,7 @@ module.exports = {
   executeEncryptor,
   executeChecksum,
   executeInfo,
+  executeStudioClips,
   executeMetadata,
   executeShred,
   executeYouTube,

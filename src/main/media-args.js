@@ -33,7 +33,10 @@ function buildVideoArgs(target, options, media, preset) {
     return args;
   }
 
-  if (scale) args.push('-vf', scale);
+  const filters = [];
+  if (scale) filters.push(scale);
+  if (options.extraVideoFilter) filters.push(String(options.extraVideoFilter));
+  if (filters.length) args.push('-vf', filters.join(','));
   args.push('-map', '0:v:0?', '-map', '0:a:0?');
 
   if (target === 'webm') {

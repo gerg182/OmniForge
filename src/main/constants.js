@@ -93,6 +93,7 @@ const TOOL_LABELS = {
   checksum: 'Checksum Verifier',
   info: 'Media Inspector',
   transcribe: 'Audio to Text',
+  studio: 'Transcript Clip Studio',
   metadata: 'Metadata Stripper',
   shred: 'Secure Delete'
 };

@@ -6,6 +6,7 @@ const { executeJob } = require('./operations');
 const { TOOL_LABELS } = require('./constants');
 const { isCancellation, clamp } = require('./utils');
 const { isSupportedYouTubeUrl } = require('./youtube');
+const { validateStudioSpec } = require('./studio');
 
 const SUPPORTED_TOOLS = new Set(Object.keys(TOOL_LABELS));
 const FINISHED_STATUSES = new Set(['succeeded', 'failed', 'cancelled']);
@@ -151,6 +152,10 @@ class JobManager {
       options.acknowledged = true;
     } else if (tool === 'checksum' || tool === 'info') {
       if (inputPaths.length === 0) throw new Error('Choose at least one input file.');
+    } else if (tool === 'studio') {
+      const validated = validateStudioSpec({ tool, inputPaths, options });
+      Object.assign(options, validated.options);
+      options.durationMs = Math.max(0, Math.round(Number(options.durationMs) || 0));
     } else if (inputPaths.length === 0) {
       throw new Error('Choose at least one input file.');
     }

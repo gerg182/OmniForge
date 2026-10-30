@@ -2,6 +2,7 @@
 
 const path = require('path');
 const fs = require('fs');
+const { pathToFileURL } = require('url');
 const { app, BrowserWindow, ipcMain, dialog, shell, session } = require('electron');
 const { Store } = require('./store');
 const { ToolsManager } = require('./tools');
@@ -12,9 +13,22 @@ const {
   INPUT_EXTENSIONS,
   ARCHIVE_FORMATS,
   QUALITY_PRESETS,
-  TOOL_LABELS
+  TOOL_LABELS,
+  extensionOf,
+  formatCategory
 } = require('./constants');
 const { isSupportedYouTubeUrl } = require('./youtube');
+const {
+  PROJECT_EXTENSION,
+  normalizeProject,
+  writeJsonAtomic,
+  readJson,
+  loadProject,
+  saveProject,
+  suggestedProjectPath,
+  loadTranscriptFile,
+  saveTranscriptFile
+} = require('./studio-project');
 
 let mainWindow = null;
 let store = null;
@@ -180,6 +194,102 @@ function registerIpc() {
     return tools.probeYouTube(String(url).trim());
   });
   ipcMain.handle('youtube:update', () => tools.updateYouTubeEngine());
+
+  const studioRecoveryPath = () => path.join(app.getPath('userData'), 'studio-recovery.json');
+
+  ipcMain.handle('studio:media-url', async (_event, filePath) => {
+    const resolved = path.resolve(String(filePath || ''));
+    const stat = await fs.promises.stat(resolved).catch(() => null);
+    if (!stat?.isFile()) throw new Error('The Studio media file could not be found.');
+    const category = formatCategory(extensionOf(resolved));
+    if (!['audio', 'video'].includes(category)) throw new Error('Choose an audio or video file.');
+    return { url: pathToFileURL(resolved).href, path: resolved, category };
+  });
+
+  ipcMain.handle('studio:read-transcript', async (_event, filePath) => {
+    return loadTranscriptFile(String(filePath || ''));
+  });
+
+  ipcMain.handle('studio:choose-transcript', async () => {
+    const result = await dialog.showOpenDialog(mainWindow, {
+      title: 'Choose a transcript',
+      properties: ['openFile'],
+      filters: [{ name: 'Transcript', extensions: ['srt', 'vtt'] }]
+    });
+    if (result.canceled || !result.filePaths[0]) return { canceled: true };
+    return { canceled: false, ...(await loadTranscriptFile(result.filePaths[0])) };
+  });
+
+  ipcMain.handle('studio:open-project', async () => {
+    const result = await dialog.showOpenDialog(mainWindow, {
+      title: 'Open Transcript Clip Studio project',
+      properties: ['openFile'],
+      filters: [{ name: 'OmniForge Studio project', extensions: ['ofstudio'] }]
+    });
+    if (result.canceled || !result.filePaths[0]) return { canceled: true };
+    return { canceled: false, ...(await loadProject(result.filePaths[0])) };
+  });
+
+  ipcMain.handle('studio:save-project', async (_event, project, options = {}) => {
+    const normalized = normalizeProject(project);
+    let projectPath = String(options.projectPath || '');
+    if (!projectPath || options.saveAs) {
+      const result = await dialog.showSaveDialog(mainWindow, {
+        title: 'Save Transcript Clip Studio project',
+        defaultPath: projectPath || suggestedProjectPath(normalized.mediaPath),
+        filters: [{ name: 'OmniForge Studio project', extensions: ['ofstudio'] }]
+      });
+      if (result.canceled || !result.filePath) return { canceled: true };
+      projectPath = result.filePath;
+    }
+    if (!projectPath.toLowerCase().endsWith(PROJECT_EXTENSION)) projectPath += PROJECT_EXTENSION;
+    return { canceled: false, ...(await saveProject(projectPath, normalized)) };
+  });
+
+  ipcMain.handle('studio:export-transcript', async (_event, payload = {}) => {
+    const format = String(payload.format || 'srt').toLowerCase();
+    if (!['srt', 'vtt'].includes(format)) throw new Error('Choose SRT or VTT for transcript output.');
+    const mediaPath = String(payload.mediaPath || '');
+    const directory = String(payload.directory || (mediaPath ? path.dirname(mediaPath) : ''));
+    const base = mediaPath ? path.basename(mediaPath, path.extname(mediaPath)) : 'transcript';
+    const result = await dialog.showSaveDialog(mainWindow, {
+      title: 'Export transcript',
+      defaultPath: path.join(directory || app.getPath('documents'), `${base}_transcript.${format}`),
+      filters: [{ name: format.toUpperCase(), extensions: [format] }]
+    });
+    if (result.canceled || !result.filePath) return { canceled: true };
+    const outputPath = await saveTranscriptFile(result.filePath, payload.segments, format);
+    return { canceled: false, path: outputPath };
+  });
+
+  ipcMain.handle('studio:recovery-get', async () => {
+    try {
+      const stored = await readJson(studioRecoveryPath());
+      return {
+        savedAt: stored.savedAt || null,
+        projectPath: stored.projectPath || null,
+        project: normalizeProject(stored.project)
+      };
+    } catch {
+      return null;
+    }
+  });
+
+  ipcMain.handle('studio:recovery-save', async (_event, payload = {}) => {
+    const project = normalizeProject(payload.project);
+    const entry = {
+      savedAt: new Date().toISOString(),
+      projectPath: payload.projectPath ? String(payload.projectPath) : null,
+      project
+    };
+    await writeJsonAtomic(studioRecoveryPath(), entry);
+    return { saved: true, savedAt: entry.savedAt };
+  });
+
+  ipcMain.handle('studio:recovery-clear', async () => {
+    await fs.promises.rm(studioRecoveryPath(), { force: true });
+    return { cleared: true };
+  });
 
   ipcMain.handle('updates:check', () => updates.check());
   ipcMain.handle('updates:describe', (_event, installerPath) => updates.describe(String(installerPath || '')));

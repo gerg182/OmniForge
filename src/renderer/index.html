@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https:; font-src 'self' data:; media-src 'self' blob:;">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https:; font-src 'self' data:; media-src 'self' blob: file:;">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>OmniForge</title>
   <link rel="stylesheet" href="styles.css">
@@ -40,6 +40,7 @@
         </div>
         <div class="nav-group">
           <div class="nav-label">Speech</div>
+          <button class="nav-item" data-view="studio"><span class="nav-icon" data-icon="captions"></span><span>Transcript Clip Studio</span></button>
           <button class="nav-item" data-view="transcribe"><span class="nav-icon" data-icon="mic"></span><span>Audio to Text</span></button>
           <button class="nav-item" data-view="dictation"><span class="nav-icon" data-icon="mic"></span><span>Dictation</span></button>
         </div>
