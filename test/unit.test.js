@@ -6,7 +6,7 @@ const path = require('node:path');
 const { parseDelimited, parseData, serializeData } = require('../src/main/data');
 const { isSupportedYouTubeUrl, parseYouTubeProgressLine } = require('../src/main/youtube');
 const { buildMediaArgs } = require('../src/main/media-args');
-const { parsePageRanges } = require('../src/main/operations');
+const { parsePageRanges, buildYouTubeArgs } = require('../src/main/operations');
 
 test('CSV parser handles quoted commas and newlines', () => {
   const rows = parseDelimited('name,note\n"Ada, A.","hello\nworld"\nGrace,"plain"', ',');
@@ -38,6 +38,24 @@ test('YouTube progress parser handles custom and fallback output', () => {
   assert.equal(custom.speed, 1048576);
   const fallback = parseYouTubeProgressLine('[download]  12.5% of 10MiB');
   assert.equal(fallback.percent, 0.125);
+});
+
+test('YouTube download args keep live progress enabled', () => {
+  const args = buildYouTubeArgs({
+    url: 'https://www.youtube.com/watch?v=abc',
+    outputDirectory: 'C:\\out',
+    mode: 'video',
+    quality: 'best',
+    audioFormat: 'mp3',
+    paths: {
+      toolsDir: 'C:\\tools',
+      deno: 'C:\\tools\\deno.exe'
+    }
+  });
+  assert.ok(args.includes('--print'));
+  assert.ok(args.includes('--no-quiet'));
+  assert.ok(args.includes('--progress-template'));
+  assert.equal(args[args.length - 1], 'https://www.youtube.com/watch?v=abc');
 });
 
 test('media args select expected codecs', () => {

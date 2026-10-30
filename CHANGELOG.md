@@ -2,6 +2,12 @@
 
 All notable changes to OmniForge are documented here.
 
+## 1.5.1 - 2026-10-30
+
+### Fixed
+
+- Restored live YouTube download speed and progress updates. yt-dlp print mode had suppressed progress output, leaving large downloads stuck at 1% in the UI.
+
 ## 1.5.0 - 2026-10-30
 
 ### Added

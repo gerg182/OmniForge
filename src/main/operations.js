@@ -708,6 +708,33 @@ function youtubeFormatSelector(mode, quality) {
   return `bv*[height<=${height}]+ba/b[height<=${height}]/bv*+ba/b`;
 }
 
+function buildYouTubeArgs({ url, outputDirectory, mode, quality, audioFormat, paths }) {
+  const args = [
+    '--no-config',
+    '--no-playlist',
+    '--newline',
+    '--no-color',
+    '--windows-filenames',
+    '--trim-filenames', '180',
+    '--ffmpeg-location', paths.toolsDir,
+    '--js-runtimes', `deno:${paths.deno}`,
+    '-P', outputDirectory,
+    '-o', '%(title).160B [%(id)s].%(ext)s',
+    '--print', 'after_move:MTOUT|%(filepath)s',
+    '--no-quiet',
+    '--progress-template', 'download:MTDL|%(progress.downloaded_bytes)s|%(progress.total_bytes)s|%(progress.total_bytes_estimate)s|%(progress.speed)s|%(progress.eta)s',
+    '-f', youtubeFormatSelector(mode, quality)
+  ];
+
+  if (mode === 'audio') {
+    args.push('-x', '--audio-format', audioFormat, '--audio-quality', '0', '--embed-metadata');
+  } else {
+    args.push('--merge-output-format', 'mp4', '--embed-metadata');
+  }
+  args.push(url);
+  return args;
+}
+
 async function newestOutput(directory, since) {
   try {
     const entries = await fsp.readdir(directory, { withFileTypes: true });
@@ -739,28 +766,14 @@ async function executeYouTube(spec, ctx, deps) {
   let outputPath = null;
   let buffer = '';
 
-  const args = [
-    '--no-config',
-    '--no-playlist',
-    '--newline',
-    '--no-color',
-    '--windows-filenames',
-    '--trim-filenames', '180',
-    '--ffmpeg-location', paths.toolsDir,
-    '--js-runtimes', `deno:${paths.deno}`,
-    '-P', outputDirectory,
-    '-o', '%(title).160B [%(id)s].%(ext)s',
-    '--print', 'after_move:MTOUT|%(filepath)s',
-    '--progress-template', 'download:MTDL|%(progress.downloaded_bytes)s|%(progress.total_bytes)s|%(progress.total_bytes_estimate)s|%(progress.speed)s|%(progress.eta)s',
-    '-f', youtubeFormatSelector(mode, quality)
-  ];
-
-  if (mode === 'audio') {
-    args.push('-x', '--audio-format', audioFormat, '--audio-quality', '0', '--embed-metadata');
-  } else {
-    args.push('--merge-output-format', 'mp4', '--embed-metadata');
-  }
-  args.push(url);
+  const args = buildYouTubeArgs({
+    url,
+    outputDirectory,
+    mode,
+    quality,
+    audioFormat,
+    paths
+  });
 
   ctx.report({ message: 'Downloading from YouTube…', progress: 1 });
   await runProcess(paths.ytDlp, args, {
@@ -848,5 +861,6 @@ module.exports = {
   executeShred,
   executeYouTube,
   parsePageRanges,
-  youtubeFormatSelector
+  youtubeFormatSelector,
+  buildYouTubeArgs
 };
