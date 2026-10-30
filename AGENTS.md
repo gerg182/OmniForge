@@ -41,7 +41,7 @@ Requires Windows x64 and Node.js 20 or newer.
 - Update `README.md` for user-facing changes and keep `package.json`/`package-lock.json` versions synchronized.
 
 ## Architecture & Configuration Notes
-- `src/main/job-manager.js` runs one job at a time and streams progress through `ctx.report`.
+- `src/main/job-manager.js` runs a bounded parallel queue (1-3 slots, default 2) and streams progress through `ctx.report`.
 - Resolve bundled executables through `ToolsManager.paths()`; never hard-code absolute tool paths.
 - Speech and dictation run locally through whisper.cpp; microphone access is limited to the main window.
 - In-app installs work only in packaged builds; installers must be named `OmniForge-Setup-x.y.z.exe`.

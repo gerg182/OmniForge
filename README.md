@@ -11,7 +11,7 @@ Everything runs on your PC. FFmpeg, FFprobe, yt-dlp, Deno, 7-Zip, and whisper.cp
 - Audio output: MP3, WAV, FLAC, M4A, OGG, Opus
 - Image output: PNG, JPG, WebP, AVIF, BMP, TIFF, ICO
 - Data conversion: CSV, TSV, JSON, YAML, XML
-- Persistent batch queue with progress, cancellation, recovery, reordering, retry, and job history
+- Persistent parallel queue with 1-3 configurable job slots, live speed/ETA, aggregate taskbar progress, cancellation, recovery, reordering, retry, and job history
 - Compress by quality preset or approximate target file size
 - Trim video/audio and extract audio
 - Join multiple video or audio files into one result
@@ -57,7 +57,7 @@ Build the Windows installer:
 npm run dist
 ```
 
-The installer and its `OmniForge-Setup-1.3.2.exe.sha256` sidecar are written to `dist/`.
+The installer and its `OmniForge-Setup-1.4.0.exe.sha256` sidecar are written to `dist/`.
 
 ## Transcript Clip Studio
 
@@ -76,6 +76,12 @@ Use **Recipes** in the top bar to save the current tool options, apply a preset,
 
 Press `Ctrl+K` to search every tool, saved recipe, and common action from one keyboard-driven palette. Drag files onto any empty part of the OmniForge window to open the smart-drop chooser: OmniForge detects the file type, suggests compatible tools, and waits for confirmation before adding anything. `.ofenc` files preselect the decrypt flow. Existing tool dropzones continue to accept files directly.
 
+## Queue and Notifications
+
+Open **Settings -> Output behavior** to run 1, 2, or 3 jobs at once; the default is 2. Raising the limit starts queued jobs immediately, while lowering it lets active jobs finish without cancelling them. Running jobs show their current speed and estimated time when the engine provides enough progress data, and the Windows taskbar displays aggregate progress across active jobs.
+
+Failure notifications are enabled by default and can be disabled in the same settings panel. OmniForge shows one Windows notification when a background job fails; click it to focus the app and open the job queue. Successful jobs do not produce notifications.
+
 ## Updates
 
 Open **Settings -> Application updates**. The fastest path is to drag a newer `OmniForge-Setup-x.y.z.exe` onto the update drop zone: OmniForge checks the version and adjacent `.sha256` sidecar, asks for confirmation, closes, and opens the Windows installer. Finish setup to reopen OmniForge. You can also put installers in the update folder and press **Check now**, or click the drop zone to browse for an installer anywhere on the PC. You do not need to uninstall the old version first.
@@ -84,7 +90,7 @@ Updates must use the electron-builder artifact name so the version can be read f
 
 The sidecar format is `<sha256>  <filename>`. A mismatched or malformed sidecar blocks installation. A missing sidecar shows the computed SHA-256 and requires explicit confirmation. SHA-256 verifies file integrity, not publisher identity or code signing.
 
-Unfinished queue jobs are stored in `%APPDATA%\omniforge\queue.json`. Jobs interrupted by shutdown become failed history entries, while pending jobs return paused and require a manual resume. Passwords and confirmation fields are never written to disk.
+Unfinished queue jobs are stored in `%APPDATA%\omniforge\queue.json`. Jobs interrupted by shutdown become failed history entries, while pending jobs return paused and require a manual resume. Passwords, confirmation fields, and transient speed/ETA samples are never written to disk.
 
 ## Notes
 

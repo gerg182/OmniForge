@@ -55,6 +55,14 @@ async function waitForIdle(manager) {
   }
 }
 
+async function waitFor(predicate) {
+  for (let index = 0; index < 200; index += 1) {
+    if (predicate()) return;
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  throw new Error('Timed out waiting for queue state.');
+}
+
 test('queue restores pending jobs paused and records interrupted jobs as failed history', async (t) => {
   const { store } = makeStore(t);
   store.writeQueue([
@@ -181,4 +189,140 @@ test('active queue entries never persist passwords or confirmations', async (t) 
   assert.doesNotMatch(queueText, /"password"/);
   manager.cancel(started.id);
   await waitForIdle(manager);
+});
+
+test('queue runs two jobs by default and refills the freed slot', async (t) => {
+  const { store } = makeStore(t);
+  const releases = new Map();
+  const started = [];
+  let active = 0;
+  let peak = 0;
+  const manager = new JobManager({
+    store,
+    tools: {},
+    emit: () => {},
+    execute: async (spec) => {
+      started.push(spec.label);
+      active += 1;
+      peak = Math.max(peak, active);
+      await new Promise((resolve) => releases.set(spec.label, resolve));
+      active -= 1;
+      return { outputPaths: [] };
+    }
+  });
+
+  for (const label of ['one', 'two', 'three']) {
+    manager.start({ tool: 'info', inputPaths: [path.join(os.tmpdir(), `${label}.txt`)], label });
+  }
+
+  assert.deepEqual(started, ['one', 'two']);
+  assert.equal(manager.list().filter((job) => job.status === 'running').length, 2);
+  assert.equal(manager.list().filter((job) => job.status === 'queued').length, 1);
+
+  releases.get('one')();
+  await waitFor(() => started.includes('three'));
+  assert.equal(peak, 2);
+  assert.equal(manager.list().filter((job) => job.status === 'running').length, 2);
+
+  releases.get('two')();
+  releases.get('three')();
+  await waitForIdle(manager);
+  assert.equal(manager.list().filter((job) => job.status === 'succeeded').length, 3);
+});
+
+test('raising concurrency starts queued jobs immediately', async (t) => {
+  const { store } = makeStore(t);
+  store.save({ jobConcurrency: 1 });
+  const releases = new Map();
+  const started = [];
+  const manager = new JobManager({
+    store,
+    tools: {},
+    emit: () => {},
+    execute: async (spec) => {
+      started.push(spec.label);
+      await new Promise((resolve) => releases.set(spec.label, resolve));
+      return { outputPaths: [] };
+    }
+  });
+
+  for (const label of ['one', 'two', 'three']) {
+    manager.start({ tool: 'info', inputPaths: [path.join(os.tmpdir(), `${label}.txt`)], label });
+  }
+  assert.deepEqual(started, ['one']);
+
+  manager.setConcurrency(3);
+  assert.deepEqual(started, ['one', 'two', 'three']);
+  for (const release of releases.values()) release();
+  await waitForIdle(manager);
+});
+
+test('lowering concurrency lets active jobs finish without cancelling them', async (t) => {
+  const { store } = makeStore(t);
+  const releases = new Map();
+  const started = [];
+  const manager = new JobManager({
+    store,
+    tools: {},
+    emit: () => {},
+    execute: async (spec) => {
+      started.push(spec.label);
+      await new Promise((resolve) => releases.set(spec.label, resolve));
+      return { outputPaths: [] };
+    }
+  });
+
+  for (const label of ['one', 'two', 'three']) {
+    manager.start({ tool: 'info', inputPaths: [path.join(os.tmpdir(), `${label}.txt`)], label });
+  }
+  assert.deepEqual(started, ['one', 'two']);
+
+  manager.setConcurrency(1);
+  assert.equal(manager.list().filter((job) => job.status === 'running').length, 2);
+  releases.get('one')();
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(started.includes('three'), false);
+
+  releases.get('two')();
+  await waitFor(() => started.includes('three'));
+  releases.get('three')();
+  await waitForIdle(manager);
+  assert.equal(manager.list().some((job) => job.status === 'cancelled'), false);
+});
+
+test('all active jobs are persisted in queue.json', async (t) => {
+  const { store } = makeStore(t);
+  const releases = new Map();
+  const manager = new JobManager({
+    store,
+    tools: {},
+    emit: () => {},
+    execute: async (spec) => {
+      await new Promise((resolve) => releases.set(spec.label, resolve));
+      return { outputPaths: [] };
+    }
+  });
+
+  for (const label of ['one', 'two', 'three']) {
+    manager.start({ tool: 'info', inputPaths: [path.join(os.tmpdir(), `${label}.txt`)], label });
+  }
+  const persisted = JSON.parse(fs.readFileSync(store.queuePath, 'utf8'));
+  assert.deepEqual(persisted.map((job) => job.status), ['running', 'running', 'queued']);
+
+  for (const release of releases.values()) release();
+  await waitForIdle(manager);
+});
+
+test('store normalizes queue concurrency and failure notifications', (t) => {
+  const { store, folder } = makeStore(t);
+  assert.equal(store.get().jobConcurrency, 2);
+  assert.equal(store.get().notifyOnFailure, true);
+  assert.equal(store.save({ jobConcurrency: 3 }).jobConcurrency, 3);
+  assert.equal(store.save({ jobConcurrency: 99 }).jobConcurrency, 2);
+  assert.equal(store.save({ notifyOnFailure: false }).notifyOnFailure, false);
+
+  fs.writeFileSync(store.settingsPath, JSON.stringify({ jobConcurrency: 'many', notifyOnFailure: false }), 'utf8');
+  const reloaded = new Store({ getPath: () => folder });
+  assert.equal(reloaded.get().jobConcurrency, 2);
+  assert.equal(reloaded.get().notifyOnFailure, false);
 });

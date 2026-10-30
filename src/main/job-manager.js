@@ -7,6 +7,12 @@ const { TOOL_LABELS } = require('./constants');
 const { isCancellation, clamp } = require('./utils');
 const { isSupportedYouTubeUrl } = require('./youtube');
 const { validateStudioSpec } = require('./studio');
+const { normalizeJobConcurrency } = require('./store');
+const {
+  normalizeJobSpeed,
+  appendProgressSample,
+  estimateEtaMs
+} = require('./job-metrics');
 
 const SUPPORTED_TOOLS = new Set(Object.keys(TOOL_LABELS));
 const FINISHED_STATUSES = new Set(['succeeded', 'failed', 'cancelled']);
@@ -37,6 +43,8 @@ function snapshot(job) {
     status: job.status,
     progress: job.progress,
     message: job.message,
+    speed: job.speed || null,
+    etaMs: Number.isFinite(Number(job.etaMs)) ? Number(job.etaMs) : null,
     spec: snapshotSpec(job.spec),
     outputPaths: job.outputPaths || [],
     data: job.data,
@@ -55,10 +63,20 @@ class JobManager {
     this.execute = typeof execute === 'function' ? execute : executeJob;
     this.queue = [];
     this.jobs = new Map();
-    this.activeJob = null;
-    this.activeController = null;
+    this.activeJobs = new Map();
+    this.activeControllers = new Map();
+    this.concurrency = normalizeJobConcurrency(this.store?.get?.().jobConcurrency);
     this.running = false;
     this.restorePersistedQueue();
+  }
+
+  get activeJob() {
+    return this.activeJobs.values().next().value || null;
+  }
+
+  get activeController() {
+    const job = this.activeJob;
+    return job ? this.activeControllers.get(job.id) || null : null;
   }
 
   restorePersistedQueue() {
@@ -104,11 +122,17 @@ class JobManager {
   persistQueue() {
     if (typeof this.store.writeQueue !== 'function') return;
     const pending = [];
-    if (this.activeJob && !FINISHED_STATUSES.has(this.activeJob.status)) pending.push(this.activeJob);
+    const included = new Set();
+    for (const job of this.activeJobs.values()) {
+      if (FINISHED_STATUSES.has(job.status)) continue;
+      pending.push(job);
+      included.add(job.id);
+    }
     for (const job of this.queue) {
       if (!PENDING_STATUSES.has(job.status) && job.status !== 'running' && job.status !== 'cancelling') continue;
-      if (pending.some((entry) => entry.id === job.id)) continue;
+      if (included.has(job.id)) continue;
       pending.push(job);
+      included.add(job.id);
     }
     try { this.store.writeQueue(pending); } catch { /* a disk error must not stop the current job */ }
   }
@@ -181,6 +205,9 @@ class JobManager {
       status: 'queued',
       progress: 0,
       message: 'Waiting in queue...',
+      speed: null,
+      etaMs: null,
+      _progressSamples: [],
       spec,
       outputPaths: [],
       data: null,
@@ -203,9 +230,24 @@ class JobManager {
 
   update(job, update = {}) {
     if (update.message) job.message = String(update.message);
+    let progressChanged = false;
     if (Number.isFinite(Number(update.progress))) {
       const next = clamp(Math.round(Number(update.progress)), 0, 100);
-      job.progress = Math.max(job.progress, next);
+      if (next > job.progress) {
+        job.progress = next;
+        progressChanged = true;
+      }
+    }
+    const speed = normalizeJobSpeed(update.speed);
+    if (speed) job.speed = speed;
+    if (progressChanged) {
+      job._progressSamples = appendProgressSample(job._progressSamples, job.progress);
+      const estimated = estimateEtaMs(job._progressSamples);
+      if (estimated !== null) job.etaMs = estimated;
+    }
+    const explicitEta = Number(update.etaMs);
+    if (Number.isFinite(explicitEta) && explicitEta > 0) {
+      job.etaMs = Math.round(explicitEta);
     }
     if (update.data) job.data = update.data;
     this.emitJob(job);
@@ -227,11 +269,12 @@ class JobManager {
       this.persistQueue();
       return { cancelled: true };
     }
-    if (job === this.activeJob) {
+    const controller = this.activeControllers.get(job.id);
+    if (controller) {
       job.status = 'cancelling';
       job.message = 'Cancelling...';
       this.emitJob(job);
-      this.activeController?.abort();
+      controller.abort();
       return { cancelled: true };
     }
     return { cancelled: false, reason: 'Job is not running.' };
@@ -276,6 +319,9 @@ class JobManager {
     job.status = 'queued';
     job.progress = 0;
     job.message = 'Waiting in queue...';
+    job.speed = null;
+    job.etaMs = null;
+    job._progressSamples = [];
     job.error = null;
     job.completedAt = null;
     if (!this.queue.some((entry) => entry.id === job.id)) this.queue.push(job);
@@ -315,7 +361,7 @@ class JobManager {
 
   list() {
     const ordered = [];
-    if (this.activeJob) ordered.push(this.activeJob);
+    for (const job of this.activeJobs.values()) ordered.push(job);
     for (const job of this.queue) ordered.push(job);
     const finished = [...this.jobs.values()]
       .filter((job) => FINISHED_STATUSES.has(job.status) && !ordered.includes(job))
@@ -323,63 +369,76 @@ class JobManager {
     return [...ordered, ...finished].map((job, index) => ({ ...snapshot(job), queuePosition: index }));
   }
 
-  async runNext() {
-    if (this.running) return;
-    this.running = true;
-    try {
-      while (true) {
-        const index = this.queue.findIndex((job) => job.status === 'queued');
-        if (index === -1) break;
-        const [next] = this.queue.splice(index, 1);
-        this.activeJob = next;
-        this.activeController = new AbortController();
-        next.status = 'running';
-        next.startedAt = new Date().toISOString();
-        next.progress = Math.max(next.progress, 1);
-        next.message = 'Starting...';
-        this.persistQueue();
-        this.emitJob(next);
+  setConcurrency(value) {
+    this.concurrency = normalizeJobConcurrency(value);
+    this.runNext();
+    return this.concurrency;
+  }
 
-        const ctx = {
-          signal: this.activeController.signal,
-          report: (update) => this.update(next, update)
-        };
-
-        try {
-          const result = await this.execute(next.spec, ctx, { tools: this.tools, store: this.store });
-          next.outputPaths = Array.isArray(result?.outputPaths) ? result.outputPaths : [];
-          if (result?.data) next.data = result.data;
-          next.status = 'succeeded';
-          next.progress = 100;
-          next.message = next.outputPaths.length > 0
-            ? `Finished ${next.outputPaths.length} item${next.outputPaths.length === 1 ? '' : 's'}`
-            : 'Finished';
-          next.completedAt = new Date().toISOString();
-          this.store.addHistory(next);
-          this.emitJob(next);
-        } catch (error) {
-          if (isCancellation(error) || next.status === 'cancelling') {
-            next.status = 'cancelled';
-            next.message = 'Cancelled';
-            next.error = null;
-          } else {
-            next.status = 'failed';
-            next.message = 'Failed';
-            next.error = error?.message || String(error);
-          }
-          next.completedAt = new Date().toISOString();
-          this.store.addHistory(next);
-          this.emitJob(next);
-        } finally {
-          scrubSecrets(next.spec);
-          this.activeJob = null;
-          this.activeController = null;
-          this.persistQueue();
-        }
-      }
-    } finally {
-      this.running = false;
+  runNext() {
+    while (this.activeJobs.size < this.concurrency) {
+      const index = this.queue.findIndex((job) => job.status === 'queued');
+      if (index === -1) break;
+      const [job] = this.queue.splice(index, 1);
+      const controller = new AbortController();
+      this.activeJobs.set(job.id, job);
+      this.activeControllers.set(job.id, controller);
+      job.status = 'running';
+      job.startedAt = new Date().toISOString();
+      job.progress = Math.max(job.progress, 1);
+      job.message = 'Starting...';
+      job.speed = null;
+      job.etaMs = null;
+      job._progressSamples = appendProgressSample([], job.progress);
+      this.running = true;
       this.persistQueue();
+      this.emitJob(job);
+      this.executeJob(job, controller).catch(() => {});
+    }
+    this.running = this.activeJobs.size > 0;
+  }
+
+  async executeJob(job, controller) {
+    const ctx = {
+      signal: controller.signal,
+      report: (update) => this.update(job, update)
+    };
+
+    try {
+      const result = await this.execute(job.spec, ctx, { tools: this.tools, store: this.store });
+      job.outputPaths = Array.isArray(result?.outputPaths) ? result.outputPaths : [];
+      if (result?.data) job.data = result.data;
+      job.status = 'succeeded';
+      job.progress = 100;
+      job.message = job.outputPaths.length > 0
+        ? `Finished ${job.outputPaths.length} item${job.outputPaths.length === 1 ? '' : 's'}`
+        : 'Finished';
+      job.completedAt = new Date().toISOString();
+      this.store.addHistory(job);
+      this.emitJob(job);
+    } catch (error) {
+      if (isCancellation(error) || job.status === 'cancelling') {
+        job.status = 'cancelled';
+        job.message = 'Cancelled';
+        job.error = null;
+      } else {
+        job.status = 'failed';
+        job.message = 'Failed';
+        job.error = error?.message || String(error);
+      }
+      job.completedAt = new Date().toISOString();
+      this.store.addHistory(job);
+      this.emitJob(job);
+    } finally {
+      job.speed = null;
+      job.etaMs = null;
+      job._progressSamples = [];
+      scrubSecrets(job.spec);
+      this.activeJobs.delete(job.id);
+      this.activeControllers.delete(job.id);
+      this.running = this.activeJobs.size > 0;
+      this.persistQueue();
+      this.runNext();
     }
   }
 }

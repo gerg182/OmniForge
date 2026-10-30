@@ -23,6 +23,7 @@ const {
   getMediaDuration,
   clamp
 } = require('./utils');
+const { parseFfmpegSpeed } = require('./job-metrics');
 
 function assertInputs(spec) {
   if (!Array.isArray(spec.inputPaths) || spec.inputPaths.length !== 1) {
@@ -89,6 +90,7 @@ async function runFfmpeg(ctx, ffmpeg, args, options = {}) {
   let buffer = '';
   let lastPercent = -1;
   let lastSent = 0;
+  let latestSpeed = null;
 
   ctx.report({ message, progress: progressBase });
   await runProcess(
@@ -105,6 +107,10 @@ async function runFfmpeg(ctx, ffmpeg, args, options = {}) {
           if (separator === -1) continue;
           const key = line.slice(0, separator);
           const value = line.slice(separator + 1);
+          if (key === 'speed') {
+            latestSpeed = parseFfmpegSpeed(value);
+            continue;
+          }
           if (key === 'out_time_us' || key === 'out_time_ms') {
             const seconds = Number(value) / 1_000_000;
             if (duration > 0 && Number.isFinite(seconds)) {
@@ -114,7 +120,7 @@ async function runFfmpeg(ctx, ffmpeg, args, options = {}) {
               if (percent !== lastPercent && (now - lastSent > 250 || percent >= 99)) {
                 lastPercent = percent;
                 lastSent = now;
-                ctx.report({ progress: percent, message });
+                ctx.report({ progress: percent, message, speed: latestSpeed });
               }
             }
           } else if (key === 'progress' && value === 'end') {

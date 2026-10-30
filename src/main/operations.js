@@ -10,6 +10,7 @@ const { OUTPUT_FORMATS, extensionOf, formatCategory } = require('./constants');
 const { parseData, serializeData } = require('./data');
 const { buildMediaArgs } = require('./media-args');
 const { isSupportedYouTubeUrl, parseYouTubeProgressLine } = require('./youtube');
+const { parseFfmpegSpeed } = require('./job-metrics');
 const {
   ensureDir,
   baseNameWithoutExtension,
@@ -59,6 +60,7 @@ async function runFfmpeg(ctx, deps, args, options = {}) {
   let buffer = '';
   let lastPercent = -1;
   let lastSent = 0;
+  let latestSpeed = null;
 
   ctx.report({ message, progress: progressBase });
 
@@ -76,6 +78,10 @@ async function runFfmpeg(ctx, deps, args, options = {}) {
           if (separator === -1) continue;
           const key = line.slice(0, separator);
           const value = line.slice(separator + 1);
+          if (key === 'speed') {
+            latestSpeed = parseFfmpegSpeed(value);
+            continue;
+          }
           if (key === 'out_time_us' || key === 'out_time_ms') {
             const seconds = Number(value) / 1_000_000;
             if (duration > 0 && Number.isFinite(seconds)) {
@@ -85,7 +91,7 @@ async function runFfmpeg(ctx, deps, args, options = {}) {
               if (percent !== lastPercent && (now - lastSent > 250 || percent >= 99)) {
                 lastPercent = percent;
                 lastSent = now;
-                ctx.report({ progress: percent, message });
+                ctx.report({ progress: percent, message, speed: latestSpeed });
               }
             }
           } else if (key === 'progress' && value === 'end') {
@@ -773,11 +779,14 @@ async function executeYouTube(spec, ctx, deps) {
         if (parsed) {
           if (parsed.percent !== null && parsed.percent !== undefined) {
             const progress = parsed.postprocess ? 96 : Math.round(2 + parsed.percent * 93);
+            const speedValue = parsed.speed ? { value: parsed.speed, unit: 'B/s' } : null;
             const speed = parsed.speed ? `${(parsed.speed / 1024 / 1024).toFixed(1)} MB/s` : null;
             const eta = parsed.eta ? `${parsed.eta}s left` : null;
             ctx.report({
               progress,
-              message: parsed.postprocess ? 'Processing download…' : ['Downloading…', speed, eta].filter(Boolean).join(' · ')
+              message: parsed.postprocess ? 'Processing download…' : ['Downloading…', speed, eta].filter(Boolean).join(' · '),
+              speed: speedValue,
+              etaMs: parsed.eta ? parsed.eta * 1000 : null
             });
           }
         } else if (/^\[download\]/.test(line)) {

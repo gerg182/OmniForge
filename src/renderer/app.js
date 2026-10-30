@@ -1,4 +1,4 @@
-import { suggestDropTools, filterCommandItems, fitPreviewFrame, toggleAllSelection } from './workflow.mjs';
+import { suggestDropTools, filterCommandItems, fitPreviewFrame, toggleAllSelection, formatJobEta, formatJobSpeed } from './workflow.mjs';
 
 const api = window.omniforge;
 const ICONS = {
@@ -1841,6 +1841,8 @@ function infoResultCard(result) {
 
 function renderSettings() {
   const tools = state.status?.tools || {};
+  const concurrency = configuredConcurrency();
+  const notifyOnFailure = state.settings?.notifyOnFailure !== false;
   const toolRows = [
     ['ffmpeg', 'FFmpeg', 'Media conversion engine'],
     ['ffprobe', 'FFprobe', 'Media inspection engine'],
@@ -1849,7 +1851,7 @@ function renderSettings() {
     ['sevenZip', '7-Zip', 'Archive engine'],
     ['speech', 'Whisper', 'Local speech-to-text engine']
   ];
-    const appVersion = state.status?.appVersion || '1.3.2';
+    const appVersion = state.status?.appVersion || '1.4.0';
     const updateInfo = state.updateInfo;
     const latestUpdate = updateInfo?.latest;
     const updateHash = latestUpdate?.hash || null;
@@ -1904,7 +1906,8 @@ function renderSettings() {
         <div class="panel-body">
           <div class="settings-block">
             <div class="settings-row"><div class="settings-row-copy"><strong>Output location</strong><span>Choose each time a batch starts. The last folder is used as the default.</span></div><span class="settings-value">${escapeHtml(state.settings?.lastOutputDir || 'No folder chosen yet')}</span></div>
-            <div class="settings-row"><div class="settings-row-copy"><strong>Processing</strong><span>Jobs run locally, one at a time, in the background queue.</span></div><span class="status-pill succeeded">local</span></div>
+            <div class="settings-row"><div class="settings-row-copy"><strong>Parallel jobs</strong><span>Run up to three local jobs at once. Lowering this limit lets active jobs finish without cancelling them.</span></div><select class="settings-select" data-setting="jobConcurrency" aria-label="Parallel jobs">${selectOptions([{ value: '1', label: '1 job' }, { value: '2', label: '2 jobs' }, { value: '3', label: '3 jobs' }], concurrency)}</select></div>
+            <div class="settings-row"><div class="settings-row-copy"><strong>Failure notifications</strong><span>Show a Windows notification when a background job fails. Successful jobs stay quiet.</span></div><label class="check-pill"><input type="checkbox" data-setting="notifyOnFailure" ${notifyOnFailure ? 'checked' : ''}><span>Enabled</span></label></div>
             <div class="settings-row"><div class="settings-row-copy"><strong>History</strong><span>The last 50 finished jobs are remembered on this PC.</span></div><span class="settings-value">${state.history.length} saved</span></div>
           </div>
         </div>
@@ -1956,7 +1959,7 @@ function renderSettings() {
     </div>
     <aside class="panel side-panel">
       <div class="tool-icon side-icon" style="--icon-color: var(--cyan)">${icon('harddrive')}</div>
-      <h3>OmniForge ${escapeHtml(state.status?.appVersion || '1.3.2')}</h3>
+      <h3>OmniForge ${escapeHtml(state.status?.appVersion || '1.4.0')}</h3>
       <p>Windows ${escapeHtml(state.status?.arch || '')} · Electron desktop app · Local-first by design.</p>
       <div class="side-list">
         <button class="secondary-button" data-action="open-tools" style="width:100%">${icon('folder')} Open tools folder</button>
@@ -2923,8 +2926,12 @@ function updateOption(target) {
 }
 
 function handleViewChange(event) {
-  const target = event.target.closest('[data-option], [data-algorithm], [data-studio-output], [data-studio-style], [data-studio-language], [data-studio-export-format]');
+  const target = event.target.closest('[data-option], [data-algorithm], [data-studio-output], [data-studio-style], [data-studio-language], [data-studio-export-format], [data-setting]');
   if (!target) return;
+  if (target.dataset.setting) {
+    updateQueueSetting(target);
+    return;
+  }
   if (updateStudioControl(target)) {
     if (target.dataset.rerender === 'true') render();
     return;
@@ -2935,6 +2942,27 @@ function handleViewChange(event) {
     syncEncryptorFiles();
   }
   if (target.dataset.rerender === 'true') render();
+}
+
+async function updateQueueSetting(target) {
+  const key = target.dataset.setting;
+  if (!['jobConcurrency', 'notifyOnFailure'].includes(key)) return;
+  const value = key === 'jobConcurrency' ? Number(target.value) : target.checked;
+  const previous = state.settings;
+  state.settings = { ...state.settings, [key]: value };
+  updateQueueBadge();
+  renderQueue();
+  try {
+    state.settings = await api.saveSettings({ [key]: value });
+    updateQueueBadge();
+    if (key === 'jobConcurrency') showToast(`Running up to ${value} job${value === 1 ? '' : 's'} at once.`, 'success');
+  } catch (error) {
+    state.settings = previous;
+    updateQueueBadge();
+    renderQueue();
+    if (state.view === 'settings') render();
+    showToast(error.message || String(error), 'error', 7000);
+  }
 }
 
 function syncEncryptorFiles() {
@@ -3151,6 +3179,11 @@ function jobCounts(jobs = [...state.jobs.values()]) {
   };
 }
 
+function configuredConcurrency() {
+  const value = Number(state.settings?.jobConcurrency);
+  return [1, 2, 3].includes(value) ? value : 2;
+}
+
 function updateQueueBadge() {
   const counts = jobCounts();
   const badge = document.getElementById('queue-badge');
@@ -3159,7 +3192,11 @@ function updateQueueBadge() {
     badge.classList.toggle('hidden', counts.total === 0);
   }
   const summary = document.getElementById('queue-summary');
-  if (summary) summary.textContent = counts.total ? 'Local processing · one at a time' : 'Jobs run one at a time';
+  if (summary) {
+    const slots = configuredConcurrency();
+    const label = `${slots} job slot${slots === 1 ? '' : 's'}`;
+    summary.textContent = counts.total ? `Local processing · ${label}` : `${label} available`;
+  }
 }
 
 function baseName(filePath) {
@@ -3295,6 +3332,9 @@ function renderQueue() {
     const hasProgress = ['queued', 'paused', 'running', 'cancelling'].includes(job.status);
     const progress = Math.max(0, Math.min(100, Math.round(Number(job.progress) || 0)));
     const toolColor = TOOL_COLORS[job.tool] || 'var(--lime)';
+    const speed = formatJobSpeed(job.speed);
+    const eta = formatJobEta(job.etaMs);
+    const metrics = [speed ? `<span>${escapeHtml(speed)}</span>` : '', eta ? `<span>~${escapeHtml(eta)} left</span>` : ''].filter(Boolean).join('');
     const outputs = (job.outputPaths || []).map((outputPath) => `<div class="job-output"><span class="nav-icon">${icon('file')}</span><span class="name" title="${escapeHtml(outputPath)}">${escapeHtml(baseName(outputPath))}</span><button data-action="open-output" data-path="${escapeHtml(outputPath)}">Open</button><button data-action="reveal-output" data-path="${escapeHtml(outputPath)}">Show</button></div>`).join('');
     return `<div class="job-card ${escapeHtml(job.status)}">
       <div class="job-top">
@@ -3306,6 +3346,7 @@ function renderQueue() {
         <span class="status-pill ${escapeHtml(job.status)}">${escapeHtml(job.status)}</span>
       </div>
       ${hasProgress ? `<div class="job-progress-wrap"><div class="job-progress"><span style="width:${progress}%"></span></div><span class="job-percent">${progress}%</span></div>` : ''}
+      ${metrics ? `<div class="job-metrics">${metrics}</div>` : ''}
       ${job.error ? `<div class="job-error">${escapeHtml(job.error)}</div>` : ''}
       ${outputs ? `<div class="job-outputs">${outputs}</div>` : ''}
       <div class="job-actions">
@@ -3949,6 +3990,7 @@ async function init() {
   state.starting = false;
   bindEvents();
   api.onJobUpdate(handleJobUpdate);
+  api.onOpenQueue?.(() => openQueue());
   viewEl.innerHTML = `<div class="empty-state"><div class="tool-icon" style="--icon-color:var(--lime)">${icon('sparkle')}</div><h3>Starting OmniForge…</h3><p>Checking the bundled engines.</p></div>`;
   try {
     const [status, history, pendingJobs] = await Promise.all([api.getSystemStatus(), api.getHistory(), api.listJobs()]);

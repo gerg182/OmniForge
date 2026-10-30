@@ -4,6 +4,13 @@ const fs = require('fs');
 const path = require('path');
 const { sanitizeRecipes } = require('./recipes');
 
+const JOB_CONCURRENCY_OPTIONS = [1, 2, 3];
+
+function normalizeJobConcurrency(value) {
+  const count = Number(value);
+  return JOB_CONCURRENCY_OPTIONS.includes(count) ? count : 2;
+}
+
 class Store {
   constructor(app) {
     this.app = app;
@@ -31,6 +38,8 @@ class Store {
       updateFolder: this.defaultUpdateFolder(),
       theme: 'dark',
       historyLimit: 50,
+      jobConcurrency: 2,
+      notifyOnFailure: true,
       recipes: []
     };
   }
@@ -38,7 +47,11 @@ class Store {
   loadSettings() {
     try {
       const stored = JSON.parse(fs.readFileSync(this.settingsPath, 'utf8'));
-      return { ...this.defaults(), ...stored, recipes: sanitizeRecipes(stored.recipes) };
+      const merged = { ...this.defaults(), ...stored };
+      merged.jobConcurrency = normalizeJobConcurrency(merged.jobConcurrency);
+      merged.notifyOnFailure = merged.notifyOnFailure !== false;
+      merged.recipes = sanitizeRecipes(stored.recipes);
+      return merged;
     } catch {
       return this.defaults();
     }
@@ -130,6 +143,12 @@ class Store {
     if (Object.prototype.hasOwnProperty.call(patch, 'recipes')) {
       this.settings.recipes = sanitizeRecipes(patch.recipes);
     }
+    if (Object.prototype.hasOwnProperty.call(patch, 'jobConcurrency')) {
+      this.settings.jobConcurrency = normalizeJobConcurrency(patch.jobConcurrency);
+    }
+    if (Object.prototype.hasOwnProperty.call(patch, 'notifyOnFailure')) {
+      this.settings.notifyOnFailure = patch.notifyOnFailure !== false;
+    }
     this.writeSettings();
     return this.get();
   }
@@ -160,4 +179,4 @@ class Store {
   }
 }
 
-module.exports = { Store };
+module.exports = { Store, JOB_CONCURRENCY_OPTIONS, normalizeJobConcurrency };

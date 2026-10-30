@@ -60,3 +60,14 @@ test('Studio select-all toggles every transcript line', async () => {
   assert.deepEqual(toggleAllSelection([], ['a']), []);
   assert.deepEqual(toggleAllSelection(['a', 'a', '', 'b'], []), ['a', 'b']);
 });
+
+test('queue metrics format ETA and speed for display', async () => {
+  const { formatJobEta, formatJobSpeed } = await import('../src/renderer/workflow.mjs');
+  assert.equal(formatJobEta(8_000), '8s');
+  assert.equal(formatJobEta(125_000), '2m 5s');
+  assert.equal(formatJobEta(7_500_000), '2h 5m');
+  assert.equal(formatJobEta(0), '');
+  assert.equal(formatJobSpeed({ value: 1.234, unit: 'x' }), '1.23x');
+  assert.equal(formatJobSpeed({ value: 1_048_576, unit: 'B/s' }), '1.0 MB/s');
+  assert.equal(formatJobSpeed({ value: 2, unit: 'MB/s' }), '');
+});

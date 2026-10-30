@@ -43,5 +43,10 @@ contextBridge.exposeInMainWorld('omniforge', {
     const listener = (_event, payload) => callback(payload);
     ipcRenderer.on('job:update', listener);
     return () => ipcRenderer.removeListener('job:update', listener);
+  },
+  onOpenQueue: (callback) => {
+    const listener = () => callback();
+    ipcRenderer.on('queue:open', listener);
+    return () => ipcRenderer.removeListener('queue:open', listener);
   }
 });

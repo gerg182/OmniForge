@@ -2,7 +2,7 @@
 
 const path = require('path');
 const fs = require('fs');
-const { app, BrowserWindow, ipcMain, dialog, shell, session } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, session, Notification } = require('electron');
 const { Store } = require('./store');
 const { ToolsManager } = require('./tools');
 const { JobManager } = require('./job-manager');
@@ -35,6 +35,8 @@ let store = null;
 let tools = null;
 let jobs = null;
 let updates = null;
+const activeJobSnapshots = new Map();
+const notifiedFailureIds = new Set();
 
 function writeStartupLog(error) {
   try {
@@ -86,6 +88,50 @@ function registerMediaPermissions() {
 
 function send(channel, payload) {
   if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send(channel, payload);
+}
+
+function updateTaskbarProgress() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  const active = [...activeJobSnapshots.values()].filter((job) => ['running', 'cancelling'].includes(job.status));
+  if (active.length === 0) {
+    mainWindow.setProgressBar(-1);
+    return;
+  }
+  const average = active.reduce((total, job) => total + (Number(job.progress) || 0), 0) / active.length;
+  mainWindow.setProgressBar(Math.max(0, Math.min(1, average / 100)));
+}
+
+function focusQueueFromNotification() {
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  mainWindow.focus();
+  send('queue:open');
+}
+
+function notifyFailedJob(job) {
+  if (store?.get?.().notifyOnFailure === false || notifiedFailureIds.has(job.id)) return;
+  notifiedFailureIds.add(job.id);
+  try {
+    if (typeof Notification?.isSupported === 'function' && !Notification.isSupported()) return;
+    const detail = String(job.error || job.message || 'The job could not be completed.').replace(/\s+/g, ' ').trim();
+    const notification = new Notification({
+      title: 'OmniForge job failed',
+      body: `${job.label || 'Job'} · ${detail}`.slice(0, 240),
+      icon: path.join(__dirname, '..', '..', 'assets', 'icon.png')
+    });
+    notification.on('click', focusQueueFromNotification);
+    notification.show();
+  } catch { /* notifications are optional */ }
+}
+
+function handleJobEvent(job) {
+  if (!job || !job.id) return;
+  if (['running', 'cancelling'].includes(job.status)) activeJobSnapshots.set(job.id, job);
+  else activeJobSnapshots.delete(job.id);
+  updateTaskbarProgress();
+  if (job.status === 'failed') notifyFailedJob(job);
+  send('job:update', job);
 }
 
 function createWindow() {
@@ -149,7 +195,11 @@ function registerIpc() {
   });
 
   ipcMain.handle('settings:get', () => store.get());
-  ipcMain.handle('settings:save', (_event, patch) => store.save(patch || {}));
+  ipcMain.handle('settings:save', (_event, patch) => {
+    const saved = store.save(patch || {});
+    jobs.setConcurrency(saved.jobConcurrency);
+    return saved;
+  });
   ipcMain.handle('history:get', () => store.getHistory());
 
   ipcMain.handle('files:metadata', async (_event, filePaths) => {
@@ -344,7 +394,7 @@ app.whenReady().then(() => {
   app.setAppUserModelId('com.omniforge.desktop');
   store = new Store(app);
   tools = new ToolsManager(app);
-  jobs = new JobManager({ store, tools, emit: send });
+  jobs = new JobManager({ store, tools, emit: handleJobEvent });
   updates = new UpdateManager(app, store, {
     openInstaller: (installerPath) => shell.openPath(installerPath)
   });

@@ -125,3 +125,28 @@ export function toggleAllSelection(allIds, selectedIds) {
   const selected = new Set((Array.isArray(selectedIds) ? selectedIds : []).map(String));
   return ids.every((id) => selected.has(id)) ? [] : ids;
 }
+
+export function formatJobEta(etaMs) {
+  const milliseconds = Number(etaMs);
+  if (!Number.isFinite(milliseconds) || milliseconds <= 0) return '';
+  const seconds = Math.max(1, Math.round(milliseconds / 1000));
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  if (minutes < 60) return remainingSeconds ? `${minutes}m ${remainingSeconds}s` : `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  return remainingMinutes ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
+}
+
+export function formatJobSpeed(speed) {
+  const value = Number(speed?.value);
+  const unit = String(speed?.unit || '');
+  if (!Number.isFinite(value) || value <= 0) return '';
+  if (unit === 'x') return `${Number(value.toFixed(2))}x`;
+  if (unit !== 'B/s') return '';
+  const units = ['B/s', 'KB/s', 'MB/s', 'GB/s'];
+  const index = Math.min(Math.floor(Math.log(value) / Math.log(1024)), units.length - 1);
+  const scaled = value / 1024 ** index;
+  return `${scaled >= 10 || index === 0 ? scaled.toFixed(0) : scaled.toFixed(1)} ${units[index]}`;
+}
