@@ -76,3 +76,50 @@ test('in-app install is rejected outside the packaged app', async () => {
   );
   await assert.rejects(() => manager.install('C:\\fake\\OmniForge-Setup-9.9.9.exe'), /installed app/);
 });
+
+test('packaged install hands the installer to the Windows shell', async (t) => {
+  const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'omniforge-install-test-'));
+  t.after(() => fs.rmSync(folder, { recursive: true, force: true }));
+  const installer = path.join(folder, 'OmniForge-Setup-1.1.8.exe');
+  fs.writeFileSync(installer, 'installer');
+  let openedPath = '';
+  let quitCalled = false;
+  const manager = new UpdateManager(
+    {
+      isPackaged: true,
+      getVersion: () => '1.1.7',
+      getPath: () => path.join(folder, 'OmniForge.exe')
+    },
+    { get: () => ({ updateFolder: folder }) },
+    {
+      openInstaller: async (installerPath) => { openedPath = installerPath; return ''; },
+      quit: () => { quitCalled = true; },
+      quitDelayMs: 0
+    }
+  );
+
+  const result = await manager.install(installer);
+  assert.equal(result.started, true);
+  assert.equal(result.version, '1.1.8');
+  assert.equal(openedPath, installer);
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  assert.equal(quitCalled, true);
+});
+
+test('packaged install reports a Windows launch failure', async (t) => {
+  const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'omniforge-install-error-test-'));
+  t.after(() => fs.rmSync(folder, { recursive: true, force: true }));
+  const installer = path.join(folder, 'OmniForge-Setup-1.1.8.exe');
+  fs.writeFileSync(installer, 'installer');
+  const manager = new UpdateManager(
+    {
+      isPackaged: true,
+      getVersion: () => '1.1.7',
+      getPath: () => path.join(folder, 'OmniForge.exe')
+    },
+    { get: () => ({ updateFolder: folder }) },
+    { openInstaller: async () => 'Access denied.' }
+  );
+
+  await assert.rejects(() => manager.install(installer), /Access denied/);
+});

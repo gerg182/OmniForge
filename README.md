@@ -54,7 +54,7 @@ The installer is written to `dist/`.
 
 ## Updates
 
-Open **Settings -> Application updates**. The fastest path is to drag a newer `OmniForge-Setup-x.y.z.exe` onto the update drop zone: OmniForge checks the version, asks for confirmation, then closes, runs the installer silently, and restarts. You can also put installers in the update folder and press **Check now**, or click the drop zone to browse for an installer anywhere on the PC. You do not need to uninstall the old version first.
+Open **Settings -> Application updates**. The fastest path is to drag a newer `OmniForge-Setup-x.y.z.exe` onto the update drop zone: OmniForge checks the version, asks for confirmation, closes, and opens the Windows installer. Finish setup to reopen OmniForge. You can also put installers in the update folder and press **Check now**, or click the drop zone to browse for an installer anywhere on the PC. You do not need to uninstall the old version first.
 
 Updates must use the electron-builder artifact name so the version can be read from the filename.
 

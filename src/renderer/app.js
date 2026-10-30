@@ -1133,11 +1133,11 @@ function renderSettings() {
               <div class="update-dropzone-icon">${icon('upload')}</div>
               <div class="update-dropzone-copy">
                 <strong>Drop a newer installer here</strong>
-                <span>OmniForge checks the version, confirms, then installs and restarts. You can also click to browse.</span>
+                <span>OmniForge checks the version, confirms, then opens the installer. You can also click to browse.</span>
               </div>
               <span class="update-dropzone-badge">.exe</span>
             </div>
-            <div class="legal-note">${icon('alert')} Installing an update closes OmniForge, runs the installer silently, and restarts the app. Only install OmniForge builds you trust.</div>
+            <div class="legal-note">${icon('alert')} Installing an update closes OmniForge and opens the Windows installer. Finish setup to reopen OmniForge. Only install builds you trust.</div>
           </div>
         </div><div class="panel">
         <div class="panel-head"><div><h2>YouTube engine</h2><p>YouTube changes often. Update yt-dlp if downloads stop working.</p></div></div>
@@ -1696,11 +1696,11 @@ async function chooseUpdateFolder() {
 
 async function installUpdate(installerPath, version) {
   if (!installerPath) return;
-  const confirmed = window.confirm(`Install OmniForge ${version || ''}?\n\nOmniForge will close, install the update, and restart.`);
+  const confirmed = window.confirm(`Install OmniForge ${version || ''}?\n\nOmniForge will close and open the installer.`);
   if (!confirmed) return;
   try {
     await api.installUpdate(installerPath);
-    showToast(`Installing OmniForge ${version || ''}. The app will restart.`, 'success', 5000);
+    showToast(`Opening the OmniForge ${version || ''} installer.`, 'success', 5000);
   } catch (error) {
     showToast(`Update failed: ${error.message}`, 'error', 8000);
   }

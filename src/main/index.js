@@ -235,7 +235,9 @@ app.whenReady().then(() => {
   store = new Store(app);
   tools = new ToolsManager(app);
   jobs = new JobManager({ store, tools, emit: send });
-  updates = new UpdateManager(app, store);
+  updates = new UpdateManager(app, store, {
+    openInstaller: (installerPath) => shell.openPath(installerPath)
+  });
   registerIpc();
   registerMediaPermissions();
   createWindow();

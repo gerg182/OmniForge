@@ -1,19 +1,15 @@
-﻿'use strict';
+'use strict';
 
-const fs = require('fs/promises');
-const os = require('os');
 const path = require('path');
-const { spawn } = require('child_process');
 const { compareVersions, describeInstaller, scanUpdateFolder } = require('./update-utils');
 
-function psQuote(value) {
-  return `'${String(value).replace(/'/g, "''")}'`;
-}
-
 class UpdateManager {
-  constructor(app, store) {
+  constructor(app, store, options = {}) {
     this.app = app;
     this.store = store;
+    this.openInstaller = typeof options.openInstaller === 'function' ? options.openInstaller : null;
+    this.quit = typeof options.quit === 'function' ? options.quit : () => this.app.quit();
+    this.quitDelayMs = Number.isFinite(Number(options.quitDelayMs)) ? Number(options.quitDelayMs) : 1200;
   }
 
   check() {
@@ -32,6 +28,7 @@ class UpdateManager {
 
   async install(filePath) {
     if (!this.app.isPackaged) throw new Error('In-app updates are available from the installed app.');
+    if (!this.openInstaller) throw new Error('The Windows installer launcher is unavailable.');
     const installer = describeInstaller(filePath);
     const currentVersion = this.app.getVersion();
     if (compareVersions(installer.version, currentVersion) <= 0) {
@@ -40,31 +37,10 @@ class UpdateManager {
 
     const appPath = this.app.getPath('exe');
     const installDirectory = path.dirname(appPath);
-    const logPath = path.join(this.app.getPath('userData'), 'update-errors.log');
-    const scriptPath = path.join(os.tmpdir(), `omniforge-update-${Date.now()}.ps1`);
-    const script = `$ErrorActionPreference = 'Stop'
-Start-Sleep -Seconds 2
-try {
-  $installer = ${psQuote(installer.path)}
-  $appPath = ${psQuote(appPath)}
-  Start-Process -FilePath $installer -ArgumentList '/S' -Wait
-  Start-Sleep -Milliseconds 900
-  if (Test-Path -LiteralPath $appPath) {
-    Start-Process -FilePath $appPath
-  }
-} catch {
-  $_.Exception.ToString() | Add-Content -LiteralPath ${psQuote(logPath)} -Encoding UTF8
-}
-Remove-Item -LiteralPath $PSCommandPath -Force -ErrorAction SilentlyContinue
-`;
-    await fs.writeFile(scriptPath, script, 'utf8');
-    const child = spawn('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', scriptPath], {
-      detached: true,
-      stdio: 'ignore',
-      windowsHide: true
-    });
-    child.unref();
-    setTimeout(() => this.app.quit(), 500);
+    const launchError = await this.openInstaller(installer.path);
+    if (launchError) throw new Error(`Windows could not open the installer: ${launchError}`);
+    const timer = setTimeout(() => this.quit(), this.quitDelayMs);
+    timer.unref?.();
     return {
       started: true,
       version: installer.version,
