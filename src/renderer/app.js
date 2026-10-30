@@ -162,6 +162,7 @@ const state = {
     dirty: false,
     inspectorTab: 'clips',
     recovery: null,
+    matchVideo: null,
     mediaUrl: '',
     mediaError: '',
     selectionAnchor: null,
@@ -1019,6 +1020,7 @@ function renderStudio() {
 
 function renderStudioMediaPanel(project, file, category) {
   const missing = Boolean(state.studio.mediaError);
+  const matchVideo = category === 'audio' ? state.studio.matchVideo : null;
   const mediaUrl = state.studio.mediaUrl;
   const mediaElement = file && mediaUrl
     ? category === 'audio'
@@ -1029,10 +1031,11 @@ function renderStudioMediaPanel(project, file, category) {
     <div class="studio-panel-heading">
       <div><span class="studio-kicker">Preview</span><h2>${file ? escapeHtml(file.name) : 'Project media'}</h2></div>
       <div class="studio-heading-actions">
-        <span class="status-pill ${missing ? 'failed' : 'succeeded'}">${missing ? 'Media missing' : category === 'video' ? 'Video' : 'Audio'}</span>
+        <span class="status-pill ${missing ? 'failed' : 'succeeded'}">${missing ? 'Media missing' : category === 'video' ? 'Video' : 'Audio only'}</span>
         <button class="ghost-button" data-action="studio-replace-media">${icon('folder')} Replace</button>
       </div>
     </div>
+    ${!missing && category === 'audio' ? `<div class="studio-source-note">${icon(matchVideo ? 'film' : 'music')}<div><strong>Audio-only source</strong><span>${matchVideo ? `A matching video is available as ${escapeHtml(matchVideo.name)}. Switching keeps this transcript and clip queue.` : 'Preview and exports contain audio plus caption sidecars. Start from a video file to render video clips.'}</span></div>${matchVideo ? `<button class="secondary-button" data-action="studio-use-match-video">Use video</button>` : ''}</div>` : ''}
     ${missing ? `<div class="studio-media-warning">${icon('alert')}<div><strong>Project media is missing</strong><span>Relink the original file before previewing or rendering.</span></div><button class="secondary-button" data-action="studio-relink-media">Relink media</button></div>` : ''}
     <div class="studio-media-stage ${category}">
       <div class="studio-media-frame">
@@ -1450,7 +1453,7 @@ function renderSettings() {
     ['sevenZip', '7-Zip', 'Archive engine'],
     ['speech', 'Whisper', 'Local speech-to-text engine']
   ];
-    const appVersion = state.status?.appVersion || '1.2.1';
+    const appVersion = state.status?.appVersion || '1.2.2';
     const updateInfo = state.updateInfo;
     const latestUpdate = updateInfo?.latest;
     const updateHash = latestUpdate?.hash || null;
@@ -1550,7 +1553,7 @@ function renderSettings() {
     </div>
     <aside class="panel side-panel">
       <div class="tool-icon side-icon" style="--icon-color: var(--cyan)">${icon('harddrive')}</div>
-      <h3>OmniForge ${escapeHtml(state.status?.appVersion || '1.2.1')}</h3>
+      <h3>OmniForge ${escapeHtml(state.status?.appVersion || '1.2.2')}</h3>
       <p>Windows ${escapeHtml(state.status?.arch || '')} · Electron desktop app · Local-first by design.</p>
       <div class="side-list">
         <button class="secondary-button" data-action="open-tools" style="width:100%">${icon('folder')} Open tools folder</button>
@@ -1657,6 +1660,7 @@ function removeFile(tool, index) {
   if (tool === 'studio') {
     state.studio.project = null;
     state.studio.projectPath = null;
+    state.studio.matchVideo = null;
     state.studio.dirty = false;
     state.studio.mediaUrl = '';
     state.studio.mediaError = '';
@@ -1777,6 +1781,7 @@ async function applyStudioProject(project, projectPath = null, options = {}) {
   state.studio.project = JSON.parse(JSON.stringify(project));
   state.studio.projectPath = projectPath || null;
   state.studio.dirty = options.dirty === true;
+  state.studio.matchVideo = null;
   state.studio.mediaUrl = '';
   state.studio.mediaError = '';
   state.studio.pendingSeekMs = 0;
@@ -1803,6 +1808,7 @@ async function applyStudioProject(project, projectPath = null, options = {}) {
       const media = await api.getStudioMediaUrl(project.mediaPath);
       state.studio.mediaUrl = media.url;
       state.studio.project.mediaPath = media.path;
+      state.studio.matchVideo = media.matchVideo || null;
     } catch (error) {
       state.studio.mediaError = error.message || 'Media could not be loaded.';
     }
@@ -1820,6 +1826,7 @@ async function loadStudioMedia(file, createProject = false) {
   project.language = state.options.studio.language || 'auto';
   state.studio.project = project;
   state.studio.projectPath = null;
+  state.studio.matchVideo = null;
   state.studio.mediaUrl = '';
   state.studio.mediaError = '';
   state.studio.pendingSeekMs = 0;
@@ -1830,6 +1837,7 @@ async function loadStudioMedia(file, createProject = false) {
     const media = await api.getStudioMediaUrl(file.path);
     state.studio.mediaUrl = media.url;
     state.studio.project.mediaPath = media.path;
+    state.studio.matchVideo = media.matchVideo || null;
     state.studio.dirty = true;
     scheduleStudioRecovery();
   } catch (error) {
@@ -1907,10 +1915,35 @@ async function relinkStudioMedia() {
     state.studio.project.durationMs = 0;
     const media = await api.getStudioMediaUrl(meta.path);
     state.studio.mediaUrl = media.url;
+    state.studio.matchVideo = media.matchVideo || null;
     state.studio.mediaError = '';
     markStudioDirty();
     render();
     showToast('Studio media relinked.', 'success');
+  } catch (error) {
+    showToast(error.message || String(error), 'error', 7000);
+  }
+}
+
+async function useStudioMatchVideo() {
+  const match = state.studio.matchVideo;
+  if (!match) return;
+  try {
+    const media = await api.getStudioMediaUrl(match.path);
+    const metadata = await api.getFileMetadata([media.path]);
+    const meta = metadata[0];
+    const name = meta?.name || baseName(media.path);
+    const ext = extensionFor(name);
+    state.files.studio = [{ path: media.path, name, ext, category: media.category, size: Number(meta?.size) || 0 }];
+    state.studio.project.mediaPath = media.path;
+    state.studio.project.durationMs = 0;
+    state.studio.mediaUrl = media.url;
+    state.studio.mediaError = '';
+    state.studio.matchVideo = media.matchVideo || null;
+    state.studio.pendingSeekMs = 0;
+    markStudioDirty();
+    render();
+    showToast('Switched to the matching video. Transcript and clips were kept.', 'success', 5000);
   } catch (error) {
     showToast(error.message || String(error), 'error', 7000);
   }
@@ -3101,6 +3134,7 @@ function handleAction(actionTarget, event) {
       if (tool === 'studio') {
         state.studio.project = null;
         state.studio.projectPath = null;
+        state.studio.matchVideo = null;
         state.studio.dirty = false;
         state.studio.mediaUrl = '';
         state.studio.mediaError = '';
@@ -3123,6 +3157,7 @@ function handleAction(actionTarget, event) {
     case 'studio-restore-recovery': restoreStudioRecovery(); break;
     case 'studio-discard-recovery': discardStudioRecovery(); break;
     case 'studio-relink-media': relinkStudioMedia(); break;
+    case 'studio-use-match-video': useStudioMatchVideo(); break;
     case 'studio-choose-output': chooseStudioOutputDirectory(); break;
     case 'studio-transcribe': startStudioTranscription(); break;
     case 'studio-import-transcript': importStudioTranscript(); break;

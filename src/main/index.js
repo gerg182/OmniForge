@@ -2,7 +2,6 @@
 
 const path = require('path');
 const fs = require('fs');
-const { pathToFileURL } = require('url');
 const { app, BrowserWindow, ipcMain, dialog, shell, session } = require('electron');
 const { Store } = require('./store');
 const { ToolsManager } = require('./tools');
@@ -13,9 +12,7 @@ const {
   INPUT_EXTENSIONS,
   ARCHIVE_FORMATS,
   QUALITY_PRESETS,
-  TOOL_LABELS,
-  extensionOf,
-  formatCategory
+  TOOL_LABELS
 } = require('./constants');
 const { isSupportedYouTubeUrl } = require('./youtube');
 const {
@@ -29,6 +26,7 @@ const {
   loadTranscriptFile,
   saveTranscriptFile
 } = require('./studio-project');
+const { getStudioMediaSource } = require('./studio-media');
 
 let mainWindow = null;
 let store = null;
@@ -197,14 +195,7 @@ function registerIpc() {
 
   const studioRecoveryPath = () => path.join(app.getPath('userData'), 'studio-recovery.json');
 
-  ipcMain.handle('studio:media-url', async (_event, filePath) => {
-    const resolved = path.resolve(String(filePath || ''));
-    const stat = await fs.promises.stat(resolved).catch(() => null);
-    if (!stat?.isFile()) throw new Error('The Studio media file could not be found.');
-    const category = formatCategory(extensionOf(resolved));
-    if (!['audio', 'video'].includes(category)) throw new Error('Choose an audio or video file.');
-    return { url: pathToFileURL(resolved).href, path: resolved, category };
-  });
+  ipcMain.handle('studio:media-url', (_event, filePath) => getStudioMediaSource(filePath));
 
   ipcMain.handle('studio:read-transcript', async (_event, filePath) => {
     return loadTranscriptFile(String(filePath || ''));

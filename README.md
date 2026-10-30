@@ -54,7 +54,7 @@ Build the Windows installer:
 npm run dist
 ```
 
-The installer and its `OmniForge-Setup-1.2.1.exe.sha256` sidecar are written to `dist/`.
+The installer and its `OmniForge-Setup-1.2.2.exe.sha256` sidecar are written to `dist/`.
 
 ## Transcript Clip Studio
 
@@ -65,7 +65,7 @@ The installer and its `OmniForge-Setup-1.2.1.exe.sha256` sidecar are written to 
 
 Video clips support MP4, MKV, WebM, and MOV with optional burned captions. Audio clips support MP3, WAV, FLAC, M4A, OGG, and Opus; audio always uses SRT/VTT sidecars. Sidecar timing is relative to each clip. Caption style controls font size, text color, outline, and top/center/bottom placement. All Studio processing stays local.
 
-Projects are saved as `.ofstudio` files containing the media reference, editable transcript, clips, caption style, and output settings. Unsaved changes are periodically copied to a recovery draft and offered for restore after a restart. Project media can be relinked if it moves.
+Projects are saved as `.ofstudio` files containing the media reference, editable transcript, clips, caption style, and output settings. Unsaved changes are periodically copied to a recovery draft and offered for restore after a restart. Project media can be relinked if it moves. Audio-only projects identify a same-name video in the same folder and can switch to it without rebuilding the transcript.
 
 ## Updates
 

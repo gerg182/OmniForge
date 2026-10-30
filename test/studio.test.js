@@ -61,6 +61,16 @@ function probeDuration(filePath) {
   return Number(result.stdout.trim());
 }
 
+function probeStreamTypes(filePath) {
+  const result = spawnSync(ffprobe, ['-v', 'error', '-show_entries', 'stream=codec_type', '-of', 'json', filePath], {
+    windowsHide: true,
+    encoding: 'utf8',
+    timeout: 30000
+  });
+  if (result.status !== 0) throw new Error(result.stderr || result.stdout || `ffprobe failed: ${result.status}`);
+  return JSON.parse(result.stdout).streams.map((stream) => stream.codec_type);
+}
+
 async function render(spec, outputDirectory) {
   const updates = [];
   const result = await executeJob({ ...spec, outputDirectory }, {
@@ -233,6 +243,9 @@ test('Studio renders video clips with burned captions and relative SRT/VTT sidec
   for (const filePath of result.outputPaths) {
     assert.ok(fs.statSync(filePath).size > 1000);
     assert.ok(Math.abs(probeDuration(filePath) - 0.8) < 0.16, path.basename(filePath));
+    const streamTypes = probeStreamTypes(filePath);
+    assert.ok(streamTypes.includes('video'), `${path.basename(filePath)} must contain video`);
+    assert.ok(streamTypes.includes('audio'), `${path.basename(filePath)} must contain audio`);
   }
   const firstSrt = parseSrt(await fsp.readFile(result.data.clips[0].captionPaths[0], 'utf8'));
   const firstVtt = parseVtt(await fsp.readFile(result.data.clips[0].captionPaths[1], 'utf8'));
@@ -273,5 +286,6 @@ test('Studio renders audio clips with caption sidecars', { timeout: 120000 }, as
   assert.ok(fs.statSync(result.outputPaths[0]).size > 1000);
   assert.equal(result.data.clips[0].captionPaths.length, 1);
   assert.equal(path.extname(result.data.clips[0].captionPaths[0]), '.vtt');
+  assert.deepEqual(probeStreamTypes(result.outputPaths[0]), ['audio']);
   assert.equal(parseVtt(await fsp.readFile(result.data.clips[0].captionPaths[0], 'utf8'))[0].text, 'Audio caption');
 });
