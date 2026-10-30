@@ -26,7 +26,7 @@ Everything runs on your PC. FFmpeg, FFprobe, yt-dlp, Deno, 7-Zip, and whisper.cp
 - Random-data secure deletion with 1, 3, or 7 overwrite passes
 - FFprobe media inspection
 - Audio and video to text with local whisper.cpp transcription (TXT or timestamped SRT)
-- Transcript Clip Studio: transcribe or import SRT/VTT, select transcript ranges, and render multiple captioned clips
+- Transcript Clip Studio: transcribe or import SRT/VTT, select transcript ranges, and render multiple captioned clips in a three-pane preview, transcript, and clip workspace
 - Editable `.ofstudio` projects with explicit save/open, automatic recovery drafts, and clip-relative caption files
 - Microphone dictation with an in-app recording timer and transcript preview
 - In-app updates from a local update folder or a selected OmniForge installer
@@ -54,7 +54,7 @@ Build the Windows installer:
 npm run dist
 ```
 
-The installer and its `OmniForge-Setup-1.2.0.exe.sha256` sidecar are written to `dist/`.
+The installer and its `OmniForge-Setup-1.2.1.exe.sha256` sidecar are written to `dist/`.
 
 ## Transcript Clip Studio
 

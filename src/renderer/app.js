@@ -160,6 +160,7 @@ const state = {
     project: null,
     projectPath: null,
     dirty: false,
+    inspectorTab: 'clips',
     recovery: null,
     mediaUrl: '',
     mediaError: '',
@@ -327,6 +328,7 @@ function render() {
     default: html = renderHome();
   }
   viewEl.innerHTML = html;
+  viewEl.classList.toggle('studio-view', state.view === 'studio');
   if (state.view === 'studio') bindStudioPreview();
   viewEl.scrollTop = scrollTop;
   state.resetScroll = false;
@@ -982,18 +984,36 @@ function renderStudio() {
     <div class="action-buttons"><button class="secondary-button" data-action="studio-restore-recovery">Restore</button><button class="ghost-button" data-action="studio-discard-recovery">Discard</button></div>
   </div>` : '';
 
-  return `<div class="studio-layout">
-    <div class="studio-main">
+  if (!project) {
+    return `<div class="studio-shell studio-shell-empty">
       ${recoveryBanner}
-      ${renderStudioMediaPanel(project, file, category)}
-      ${project ? renderStudioTranscriptPanel(project) : `<div class="panel studio-empty-panel"><div class="empty-state"><div class="tool-icon" style="--icon-color:var(--lime)">${icon('captions')}</div><h3>Turn a transcript into clips</h3><p>Load one audio or video file, transcribe it locally, then select the sentences you want to keep.</p><div class="action-buttons"><button class="primary-button" data-action="pick-files" data-tool="studio">${icon('folder')} Choose media</button><button class="secondary-button" data-action="studio-open-project">${icon('upload')} Open project</button></div></div></div>`}
+      <section class="studio-welcome">
+        <div class="studio-welcome-copy">
+          <span class="studio-kicker">Transcript-first editing</span>
+          <h2>Turn spoken words into finished clips.</h2>
+          <p>Load one audio or video file, build a timed transcript locally, then select the lines worth keeping. Every clip, caption, and render stays on this PC.</p>
+          ${renderDropzone('studio', 'Drop audio or video to begin', 'MP3, WAV, MP4, MKV, MOV, WebM and more')}
+          <div class="studio-welcome-actions"><button class="ghost-button" data-action="studio-open-project">${icon('upload')} Open an existing .ofstudio project</button></div>
+        </div>
+        <div class="studio-welcome-steps">
+          <div class="studio-welcome-step"><span>01</span><div><strong>Build the transcript</strong><p>Transcribe with local Whisper or import SRT/VTT.</p></div></div>
+          <div class="studio-welcome-step"><span>02</span><div><strong>Select the good parts</strong><p>Click a line, then Shift-click to extend the range.</p></div></div>
+          <div class="studio-welcome-step"><span>03</span><div><strong>Render a clip queue</strong><p>Reorder, style captions, and export every clip in one run.</p></div></div>
+        </div>
+      </section>
+    </div>`;
+  }
+
+  return `<div class="studio-shell">
+    ${recoveryBanner}
+    ${renderStudioProjectBar(project, file, category)}
+    <div class="studio-workspace">
+      <div class="studio-editor">
+        ${renderStudioMediaPanel(project, file, category)}
+        ${renderStudioTranscriptPanel(project)}
+      </div>
+      <aside class="studio-inspector">${renderStudioInspector(project, category)}</aside>
     </div>
-    <aside class="studio-rail">
-      ${renderStudioProjectPanel(file)}
-      ${project ? renderStudioSettingsPanel(project, category) : ''}
-      ${project ? renderStudioClipPanel(project, category) : ''}
-      ${renderGuide('studio')}
-    </aside>
   </div>`;
 }
 
@@ -1005,14 +1025,23 @@ function renderStudioMediaPanel(project, file, category) {
       ? `<audio id="studio-media" class="studio-audio" src="${escapeHtml(mediaUrl)}" controls preload="metadata"></audio>`
       : `<video id="studio-media" class="studio-video" src="${escapeHtml(mediaUrl)}" controls preload="metadata"></video>`
     : '';
-  return `<div class="panel studio-media-panel">
-    <div class="panel-head"><div><h2>${file ? escapeHtml(file.name) : 'Choose media'}</h2><p>One audio or video file per project. Preview and transcript seeking stay on this PC.</p></div><span class="status-pill ${missing ? 'failed' : file ? 'succeeded' : ''}">${missing ? 'Media missing' : file ? (category === 'video' ? 'Video ready' : 'Audio ready') : 'No media'}</span></div>
-    <div class="panel-body">
-      ${file ? `${renderFileList('studio')}<div class="action-buttons" style="margin-bottom:10px"><button class="secondary-button" data-action="studio-replace-media">${icon('folder')} Replace media</button></div>` : renderDropzone('studio', 'Drop audio or video here', 'MP3, WAV, MP4, MKV, MOV, WebM and more')}
-      ${missing ? `<div class="legal-note">${icon('alert')} The project media could not be found. Relink it before rendering.<div class="action-buttons" style="margin-top:10px"><button class="secondary-button" data-action="studio-relink-media">Relink media</button></div></div>` : ''}
-      ${mediaElement ? `<div class="studio-media-stage ${category}"><div class="studio-media-frame">${mediaElement}<div id="studio-caption-overlay" class="studio-caption-overlay ${escapeHtml(project?.captionStyle?.position || 'bottom')}" style="${studioCaptionOverlayStyle(project)}"></div></div><div class="studio-preview-meta"><span id="studio-time-readout">0:00 / ${project?.durationMs ? formatStudioTime(project.durationMs) : '--:--'}</span><span>Click a timestamp to seek; Shift-click to select a range.</span></div></div>` : ''}
+  return `<section class="studio-preview-panel">
+    <div class="studio-panel-heading">
+      <div><span class="studio-kicker">Preview</span><h2>${file ? escapeHtml(file.name) : 'Project media'}</h2></div>
+      <div class="studio-heading-actions">
+        <span class="status-pill ${missing ? 'failed' : 'succeeded'}">${missing ? 'Media missing' : category === 'video' ? 'Video' : 'Audio'}</span>
+        <button class="ghost-button" data-action="studio-replace-media">${icon('folder')} Replace</button>
+      </div>
     </div>
-  </div>`;
+    ${missing ? `<div class="studio-media-warning">${icon('alert')}<div><strong>Project media is missing</strong><span>Relink the original file before previewing or rendering.</span></div><button class="secondary-button" data-action="studio-relink-media">Relink media</button></div>` : ''}
+    <div class="studio-media-stage ${category}">
+      <div class="studio-media-frame">
+        ${mediaElement || `<div class="studio-media-placeholder">${icon(category === 'audio' ? 'music' : 'film')}<span>Media preview unavailable</span></div>`}
+        <div id="studio-caption-overlay" class="studio-caption-overlay ${escapeHtml(project?.captionStyle?.position || 'bottom')}" style="${studioCaptionOverlayStyle(project)}"></div>
+      </div>
+    </div>
+    <div class="studio-preview-meta"><span id="studio-time-readout">0:00 / ${project?.durationMs ? formatStudioTime(project.durationMs) : '--:--'}</span><span>Click a transcript time to seek. Shift-click selects a range.</span></div>
+  </section>`;
 }
 
 function renderStudioTranscriptPanel(project) {
@@ -1021,18 +1050,35 @@ function renderStudioTranscriptPanel(project) {
   const ready = Boolean(state.status?.tools?.speech?.available);
   const progress = Number(job?.progress) || 0;
   const segments = project.segments;
-  return `<div class="panel studio-transcript-panel">
-    <div class="panel-head"><div><h2>Transcript</h2><p>Edit words freely. Timestamps stay fixed; clip selection uses the original timing.</p></div><span class="status-pill ${busy ? 'running' : segments.length ? 'succeeded' : ''}">${busy ? 'Transcribing' : segments.length ? `${segments.length} lines` : 'No transcript'}</span></div>
-    <div class="panel-body">
-      <div class="studio-transcript-tools">
-        <div class="action-buttons"><button class="primary-button" data-action="studio-transcribe" ${busy || !ready || state.studio.mediaError ? 'disabled' : ''}>${icon('mic')} ${segments.length ? 'Transcribe again' : 'Transcribe locally'}</button><button class="secondary-button" data-action="studio-import-transcript" ${busy ? 'disabled' : ''}>${icon('upload')} Import SRT/VTT</button><button class="secondary-button" data-action="studio-export-transcript" ${segments.length ? '' : 'disabled'}>${icon('file')} Export</button></div>
-        <div class="field studio-language-field"><label>Language</label><select data-studio-language>${selectOptions(SPEECH_LANGUAGES, project.language)}</select></div>
-        <div class="field studio-language-field"><label>Export as</label><select data-studio-export-format>${selectOptions([{ value: 'srt', label: 'SRT' }, { value: 'vtt', label: 'VTT' }], state.options.studio.exportFormat)}</select></div>
-      </div>
-      ${busy ? `<div class="studio-job-progress"><div class="job-progress-wrap"><div class="job-progress"><span style="width:${progress}%"></span></div><span class="job-percent">${progress}%</span></div><span>${escapeHtml(job?.message || 'Starting local transcription...')}</span></div>` : ''}
-      ${segments.length ? `<div class="studio-search-row"><span class="nav-icon">${icon('info')}</span><input data-studio-search value="${escapeHtml(state.studio.search)}" placeholder="Search transcript text" spellcheck="false"><span class="file-count">${state.studio.selectedIds.length} selected</span></div><div class="studio-segment-list" id="studio-segment-list">${segments.map((segment, index) => renderStudioSegment(segment, index)).join('')}</div>` : `<div class="studio-transcript-empty">${icon('file')} ${busy ? 'Whisper is preparing the transcript.' : 'Transcribe with Whisper or import an SRT/VTT file to begin.'}</div>`}
+  const selectedRange = studioSelectedRange();
+  const selected = studioSelectedSegments();
+  const selectedCount = state.studio.selectedIds.length;
+  return `<section class="studio-transcript-panel">
+    <div class="studio-panel-heading">
+      <div><span class="studio-kicker">Transcript</span><h2>${segments.length ? `${segments.length} timed lines` : 'No transcript yet'}</h2></div>
+      <span class="status-pill ${busy ? 'running' : segments.length ? 'succeeded' : ''}">${busy ? 'Transcribing' : segments.length ? 'Ready to edit' : 'Waiting'}</span>
     </div>
-  </div>`;
+    <div class="studio-transcript-tools">
+      <div class="studio-transcript-actions">
+        <button class="primary-button" data-action="studio-transcribe" ${busy || !ready || state.studio.mediaError ? 'disabled' : ''}>${icon('mic')} ${segments.length ? 'Transcribe again' : 'Transcribe locally'}</button>
+        <button class="secondary-button" data-action="studio-import-transcript" ${busy ? 'disabled' : ''}>${icon('upload')} Import transcript</button>
+        <button class="ghost-button" data-action="studio-export-transcript" ${segments.length ? '' : 'disabled'}>${icon('file')} Export</button>
+      </div>
+      <div class="studio-compact-fields">
+        <label class="studio-compact-field"><span>Language</span><select data-studio-language>${selectOptions(SPEECH_LANGUAGES, project.language)}</select></label>
+        ${segments.length ? `<label class="studio-compact-field"><span>Export as</span><select data-studio-export-format>${selectOptions([{ value: 'srt', label: 'SRT' }, { value: 'vtt', label: 'VTT' }], state.options.studio.exportFormat)}</select></label>` : ''}
+      </div>
+    </div>
+    ${busy ? `<div class="studio-job-progress"><div class="job-progress-wrap"><div class="job-progress"><span style="width:${progress}%"></span></div><span class="job-percent">${progress}%</span></div><span>${escapeHtml(job?.message || 'Starting local transcription...')}</span></div>` : ''}
+    ${segments.length ? `
+      <div class="studio-transcript-filter">
+        <div class="studio-search-row"><span class="nav-icon">${icon('info')}</span><input data-studio-search value="${escapeHtml(state.studio.search)}" placeholder="Search transcript" spellcheck="false"></div>
+        <span class="studio-selection-count">${selectedCount ? `${selectedCount} selected` : 'Shift-click to select a range'}</span>
+      </div>
+      ${selectedRange ? `<div class="studio-selection-bar"><div><strong>${selected.length} line${selected.length === 1 ? '' : 's'} selected</strong><span>${formatStudioTime(selectedRange.startMs)} - ${formatStudioTime(selectedRange.endMs)}</span></div><button class="primary-button" data-action="studio-add-clip" ${state.studio.mediaError ? 'disabled' : ''}>${icon('plus')} Add to queue</button></div>` : ''}
+      <div class="studio-segment-list" id="studio-segment-list">${segments.map((segment, index) => renderStudioSegment(segment, index)).join('')}</div>
+    ` : `<div class="studio-transcript-empty">${icon('file')}<div><strong>${busy ? 'Whisper is preparing the transcript.' : 'Start with a transcript.'}</strong><span>${busy ? 'Progress and the first lines will appear here.' : 'Transcribe locally or import an SRT/VTT file, then select lines to turn into clips.'}</span></div></div>`}
+  </section>`;
 }
 
 function renderStudioSegment(segment, index) {
@@ -1043,19 +1089,21 @@ function renderStudioSegment(segment, index) {
   </div>`;
 }
 
-function renderStudioProjectPanel(file) {
-  const project = state.studio.project;
-  const title = state.studio.projectPath ? baseName(state.studio.projectPath) : project ? 'Untitled Studio project' : 'No project open';
-  const status = !project ? 'Choose media to begin' : state.studio.dirty ? 'Unsaved changes' : 'Saved';
-  return `<div class="panel studio-project-panel">
-    <div class="panel-head"><div><h2>Project</h2><p>${escapeHtml(title)}</p></div><span class="status-pill ${state.studio.dirty ? 'paused' : project ? 'succeeded' : ''}">${escapeHtml(status)}</span></div>
-    <div class="panel-body"><div class="studio-project-actions">
-      <button class="secondary-button" data-action="studio-open-project">${icon('upload')} Open project</button>
-      <button class="secondary-button" data-action="studio-save-project" ${project ? '' : 'disabled'}>${icon('check')} Save</button>
-      <button class="ghost-button" data-action="studio-save-project-as" ${project ? '' : 'disabled'}>Save as</button>
-      <button class="ghost-button" data-action="studio-new-project" ${file ? '' : 'disabled'}>Start over</button>
-    </div></div>
-  </div>`;
+function renderStudioProjectBar(project, file, category) {
+  const mediaName = file?.name || baseName(project.mediaPath) || 'Project media';
+  const projectName = state.studio.projectPath ? baseName(state.studio.projectPath) : 'Untitled project';
+  return `<section class="studio-projectbar">
+    <div class="studio-project-identity">
+      <div class="studio-project-icon">${icon('captions')}</div>
+      <div class="studio-project-copy"><strong>${escapeHtml(mediaName)}</strong><div class="studio-project-meta"><span>${escapeHtml(projectName)}</span><span class="studio-meta-dot">/</span><span data-studio-save-state class="${state.studio.dirty ? 'studio-unsaved' : ''}">${state.studio.dirty ? 'Unsaved changes' : 'Saved'}</span><span class="studio-format-chip">${escapeHtml(category === 'video' ? 'Video project' : 'Audio project')}</span></div></div>
+    </div>
+    <div class="studio-project-actions">
+      <button class="ghost-button" data-action="studio-open-project">${icon('upload')} Open</button>
+      <button class="ghost-button" data-action="studio-save-project-as">Save as</button>
+      <button class="secondary-button" data-action="studio-save-project">${icon('check')} Save project</button>
+      <button class="ghost-button" data-action="studio-new-project" ${file ? '' : 'disabled'}>${icon('refresh')} Start over</button>
+    </div>
+  </section>`;
 }
 
 function renderStudioSettingsPanel(project, category) {
@@ -1063,21 +1111,21 @@ function renderStudioSettingsPanel(project, category) {
   const formats = video ? STUDIO_VIDEO_FORMATS : STUDIO_AUDIO_FORMATS;
   const selectedFormat = video ? project.output.videoFormat : project.output.audioFormat;
   const style = project.captionStyle;
-  return `<div class="panel studio-settings-panel">
-    <div class="panel-head"><div><h2>Output &amp; captions</h2><p>Clips use the source timing with extra breathing room around each selected range.</p></div></div>
-    <div class="panel-body">
+  return `<div class="studio-inspector-section">
+    <div class="studio-inspector-heading"><div><h2>Output settings</h2><p>Choose the format, caption delivery, and breathing room around each selected range.</p></div></div>
+    <div class="studio-settings-block">
       <div class="field full"><label>Output folder</label><div class="studio-path-picker"><span title="${escapeHtml(project.output.directory)}">${escapeHtml(project.output.directory || 'No folder selected')}</span><button class="ghost-button" data-action="studio-choose-output">${icon('folder')} Change</button></div></div>
       <div class="form-grid studio-settings-grid">
         <div class="field"><label>Clip format</label><select data-studio-output="outputFormat">${selectOptions(formats, selectedFormat)}</select></div>
-        <div class="field"><label>Padding around text</label><select data-studio-output="clipPaddingMs">${selectOptions([
+        <div class="field"><label>Padding</label><select data-studio-output="clipPaddingMs">${selectOptions([
           { value: '0', label: 'None' }, { value: '150', label: '150 ms' }, { value: '300', label: '300 ms' }, { value: '500', label: '500 ms' }
         ], String(project.clipPaddingMs))}</select></div>
         <div class="field"><label>Caption files</label><select data-studio-output="exportCaptions">${selectOptions([
           { value: 'srt', label: 'SRT sidecar' }, { value: 'vtt', label: 'VTT sidecar' }, { value: 'both', label: 'SRT + VTT' }, { value: 'none', label: 'No caption files' }
         ], project.output.exportCaptions)}</select></div>
-        ${video ? `<div class="field"><label>Burn into video</label><label class="check-pill studio-check"><input type="checkbox" data-studio-output="burnCaptions" ${project.output.burnCaptions ? 'checked' : ''}><span>Render captions visibly</span></label></div>` : `<div class="field"><label>Caption delivery</label><div class="field-note">Audio clips use sidecar captions only.</div></div>`}
+        ${video ? `<div class="field"><label>Burn into video</label><label class="check-pill studio-check"><input type="checkbox" data-studio-output="burnCaptions" ${project.output.burnCaptions ? 'checked' : ''}><span>Visible captions</span></label></div>` : `<div class="field"><label>Caption delivery</label><div class="field-note">Audio clips use sidecar captions only.</div></div>`}
       </div>
-      ${video ? `<div class="studio-style-block"><div class="studio-style-head"><strong>Caption style</strong><span>Preview updates live.</span></div><div class="form-grid studio-style-grid">
+      ${video ? `<div class="studio-style-block"><div class="studio-style-head"><strong>Caption style</strong><span>Updates the preview live</span></div><div class="form-grid studio-style-grid">
         <div class="field"><label>Font size</label><input type="number" min="16" max="48" step="1" value="${Number(style.fontSize) || 24}" data-studio-style="fontSize"></div>
         <div class="field"><label>Text color</label><input type="color" value="${escapeHtml(style.color || '#FFFFFF')}" data-studio-style="color"></div>
         <div class="field"><label>Outline</label><input type="number" min="0" max="4" step="1" value="${Number(style.outline) || 0}" data-studio-style="outline"></div>
@@ -1090,23 +1138,46 @@ function renderStudioSettingsPanel(project, category) {
 }
 
 function renderStudioClipPanel(project, category) {
-  const selectedRange = studioSelectedRange();
-  const selected = studioSelectedSegments();
-  const missing = Boolean(state.studio.mediaError);
-  const canAdd = Boolean(selectedRange && !missing);
-  return `<div class="panel studio-clip-panel">
-    <div class="panel-head"><div><h2>Clip list</h2><p>${selected.length ? `${selected.length} line${selected.length === 1 ? '' : 's'} selected at ${formatStudioTime(selectedRange.startMs)}-${formatStudioTime(selectedRange.endMs)}` : 'Select transcript lines to add a clip.'}</p></div><span class="status-pill">${project.clips.length} clip${project.clips.length === 1 ? '' : 's'}</span></div>
-    <div class="panel-body">
-      <button class="primary-button studio-add-clip" data-action="studio-add-clip" ${canAdd ? '' : 'disabled'}>${icon('plus')} Add selected range</button>
-      ${project.clips.length ? `<div class="studio-clip-list">${project.clips.map((clip, index) => `<div class="studio-clip-row">
-        <div class="studio-clip-top"><input value="${escapeHtml(clip.label)}" data-studio-clip-label="${escapeHtml(clip.id)}" maxlength="120" aria-label="Clip name"><span>${formatStudioTime(clip.startMs)}-${formatStudioTime(clip.endMs)}</span></div>
+  return `<div class="studio-inspector-section">
+    <div class="studio-inspector-heading"><div><h2>Clip queue</h2><p>${project.clips.length ? 'Preview or reorder clips before rendering. Outputs follow this order.' : 'Select transcript lines, then use Add to queue.'}</p></div></div>
+    ${project.clips.length ? `<div class="studio-clip-list">${project.clips.map((clip, index) => `<div class="studio-clip-row">
+      <div class="studio-clip-index">${String(index + 1).padStart(2, '0')}</div>
+      <div class="studio-clip-body">
+        <div class="studio-clip-top"><input value="${escapeHtml(clip.label)}" data-studio-clip-label="${escapeHtml(clip.id)}" maxlength="120" aria-label="Clip name"><span class="studio-time-chip">${formatStudioTime(clip.startMs)}-${formatStudioTime(clip.endMs)}</span></div>
         <p data-studio-clip-excerpt="${escapeHtml(clip.id)}">${escapeHtml(studioClipExcerpt(project, clip))}</p>
         <div class="studio-clip-actions"><button data-action="studio-preview-clip" data-id="${escapeHtml(clip.id)}">${icon('play')} Preview</button><button data-action="studio-move-clip" data-id="${escapeHtml(clip.id)}" data-dir="-1" ${index === 0 ? 'disabled' : ''}>Up</button><button data-action="studio-move-clip" data-id="${escapeHtml(clip.id)}" data-dir="1" ${index === project.clips.length - 1 ? 'disabled' : ''}>Down</button><button class="danger-text" data-action="studio-remove-clip" data-id="${escapeHtml(clip.id)}">Remove</button></div>
-      </div>`).join('')}</div>` : `<div class="studio-clip-empty">${icon('scissors')} Your selected transcript ranges will appear here.</div>`}
-      <button class="primary-button studio-render-button" data-action="studio-render-clips" ${project.clips.length && !missing ? '' : 'disabled'}>${icon('play')} Render ${project.clips.length || ''} clip${project.clips.length === 1 ? '' : 's'}</button>
-      <div class="field-note">${category === 'video' ? 'Video clips are re-encoded for accurate cuts.' : 'Audio clips are exported with the selected audio format.'} Caption sidecars use clip-relative timing.</div>
-    </div>
+      </div>
+    </div>`).join('')}</div>` : `<div class="studio-clip-empty">${icon('scissors')}<div><strong>No clips queued</strong><span>Select one or more transcript lines to add the first clip.</span></div></div>`}
+    <div class="studio-queue-note">${category === 'video' ? 'Video is re-encoded for frame-accurate cuts.' : 'Audio clips use the selected audio format.'} Caption sidecars are timed relative to each clip.</div>
   </div>`;
+}
+
+function renderStudioInspector(project, category) {
+  const tab = state.studio.inspectorTab === 'output' ? 'output' : 'clips';
+  const clipCount = project.clips.length;
+  const missing = Boolean(state.studio.mediaError);
+  return `<div class="studio-inspector-tabs" role="tablist" aria-label="Studio inspector">
+    <button class="${tab === 'clips' ? 'active' : ''}" data-action="studio-inspector-tab" data-tab="clips" role="tab" aria-selected="${tab === 'clips'}">${icon('scissors')} Clips <span>${clipCount}</span></button>
+    <button class="${tab === 'output' ? 'active' : ''}" data-action="studio-inspector-tab" data-tab="output" role="tab" aria-selected="${tab === 'output'}">${icon('captions')} Output</button>
+  </div>
+  <div class="studio-inspector-content">${tab === 'clips' ? renderStudioClipPanel(project, category) : renderStudioSettingsPanel(project, category)}</div>
+  <div class="studio-inspector-footer">
+    <div class="studio-render-summary"><strong>${clipCount ? `${clipCount} clip${clipCount === 1 ? '' : 's'}` : 'No clips queued'}</strong><span data-studio-output-summary>${studioOutputSummary(project, category)}</span></div>
+    <button class="primary-button studio-render-button" data-action="studio-render-clips" ${clipCount && !missing ? '' : 'disabled'}>${icon('play')} Render clip${clipCount === 1 ? '' : 's'}</button>
+  </div>`;
+}
+
+function studioOutputSummary(project, category) {
+  const format = (category === 'video' ? project.output.videoFormat : project.output.audioFormat).toUpperCase();
+  const captionLabels = { none: 'No sidecars', srt: 'SRT', vtt: 'VTT', both: 'SRT + VTT' };
+  const captionMode = captionLabels[project.output.exportCaptions] || 'SRT';
+  return `${format} / ${category === 'video' && project.output.burnCaptions ? `${captionMode} + burned in` : captionMode}`;
+}
+
+function updateStudioOutputSummary(project = state.studio.project) {
+  const summary = document.querySelector('[data-studio-output-summary]');
+  if (!summary || !project) return;
+  summary.textContent = studioOutputSummary(project, studioMediaCategory());
 }
 
 function renderGif() {
@@ -1379,7 +1450,7 @@ function renderSettings() {
     ['sevenZip', '7-Zip', 'Archive engine'],
     ['speech', 'Whisper', 'Local speech-to-text engine']
   ];
-    const appVersion = state.status?.appVersion || '1.2.0';
+    const appVersion = state.status?.appVersion || '1.2.1';
     const updateInfo = state.updateInfo;
     const latestUpdate = updateInfo?.latest;
     const updateHash = latestUpdate?.hash || null;
@@ -1479,7 +1550,7 @@ function renderSettings() {
     </div>
     <aside class="panel side-panel">
       <div class="tool-icon side-icon" style="--icon-color: var(--cyan)">${icon('harddrive')}</div>
-      <h3>OmniForge ${escapeHtml(state.status?.appVersion || '1.2.0')}</h3>
+      <h3>OmniForge ${escapeHtml(state.status?.appVersion || '1.2.1')}</h3>
       <p>Windows ${escapeHtml(state.status?.arch || '')} · Electron desktop app · Local-first by design.</p>
       <div class="side-list">
         <button class="secondary-button" data-action="open-tools" style="width:100%">${icon('folder')} Open tools folder</button>
@@ -1661,10 +1732,10 @@ function resetStudioSelection() {
 function markStudioDirty() {
   if (!state.studio.project) return;
   state.studio.dirty = true;
-  const pill = document.querySelector('.studio-project-panel .status-pill');
-  if (pill) {
-    pill.textContent = 'Unsaved changes';
-    pill.className = 'status-pill paused';
+  const saveState = document.querySelector('[data-studio-save-state]');
+  if (saveState) {
+    saveState.textContent = 'Unsaved changes';
+    saveState.classList.add('studio-unsaved');
   }
   scheduleStudioRecovery();
 }
@@ -1709,6 +1780,7 @@ async function applyStudioProject(project, projectPath = null, options = {}) {
   state.studio.mediaUrl = '';
   state.studio.mediaError = '';
   state.studio.pendingSeekMs = 0;
+  state.studio.inspectorTab = 'clips';
   state.options.studio.language = project.language || 'auto';
   resetStudioSelection();
   state.studio.search = '';
@@ -1751,6 +1823,7 @@ async function loadStudioMedia(file, createProject = false) {
   state.studio.mediaUrl = '';
   state.studio.mediaError = '';
   state.studio.pendingSeekMs = 0;
+  state.studio.inspectorTab = 'clips';
   resetStudioSelection();
   state.studio.search = '';
   try {
@@ -1999,6 +2072,16 @@ function selectStudioSegment(id, extend) {
   render();
 }
 
+function setStudioInspectorTab(tab) {
+  const next = tab === 'output' ? 'output' : 'clips';
+  if (state.studio.inspectorTab === next) return;
+  const media = document.getElementById('studio-media');
+  if (media) state.studio.pendingSeekMs = Math.round((Number(media.currentTime) || 0) * 1000);
+  state.studio.inspectorTab = next;
+  state.resetScroll = false;
+  render();
+}
+
 function addStudioClip() {
   const project = state.studio.project;
   const range = studioSelectedRange();
@@ -2018,6 +2101,7 @@ function addStudioClip() {
     startMs,
     endMs
   });
+  state.studio.inspectorTab = 'clips';
   markStudioDirty();
   render();
   showToast('Range added to the clip list.', 'success', 2600);
@@ -2215,6 +2299,7 @@ function updateStudioControl(target) {
       project.output.exportCaptions = target.value;
     }
     markStudioDirty();
+    updateStudioOutputSummary(project);
     return true;
   }
   if (target.hasAttribute('data-studio-style')) {
@@ -3048,6 +3133,7 @@ function handleAction(actionTarget, event) {
     case 'studio-move-clip': moveStudioClip(actionTarget.dataset.id, Number(actionTarget.dataset.dir)); break;
     case 'studio-preview-clip': previewStudioClip(actionTarget.dataset.id); break;
     case 'studio-render-clips': renderStudioClips(); break;
+    case 'studio-inspector-tab': setStudioInspectorTab(actionTarget.dataset.tab); break;
     case 'clear-results': clearResults(tool); break;
     case 'refresh-status': refreshStatus(true); break;
     case 'update-ytdlp': updateYtdlp(actionTarget); break;
