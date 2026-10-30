@@ -17,7 +17,7 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron .",
-    "test": "node --test test/*.test.js",
+    "test": "node scripts/run-tests.mjs",
     "prepare:tools": "node scripts/prepare-tools.mjs",
     "dist": "node scripts/prepare-tools.mjs && electron-builder --win nsis && node scripts/write-installer-hash.mjs",
     "pack": "node scripts/prepare-tools.mjs && electron-builder --dir"
