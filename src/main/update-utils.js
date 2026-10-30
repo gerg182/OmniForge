@@ -6,8 +6,14 @@ const path = require('path');
 
 const INSTALLER_PATTERN = /^OmniForge-Setup-(\d+)\.(\d+)\.(\d+)(?:(?:\s*\(\d+\))|(?:\s*-\s*copy))?\.exe$/i;
 
+// Installer names always come from Windows paths, so split on both separators
+// instead of trusting path.basename, which only knows the host separator.
+function installerFileName(filePath) {
+  return String(filePath || '').split(/[\\/]/).filter(Boolean).pop() || '';
+}
+
 function parseInstallerVersion(filePath) {
-  const match = INSTALLER_PATTERN.exec(path.basename(String(filePath || '')));
+  const match = INSTALLER_PATTERN.exec(installerFileName(filePath));
   if (!match) return null;
   return `${Number(match[1])}.${Number(match[2])}.${Number(match[3])}`;
 }

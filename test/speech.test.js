@@ -15,11 +15,11 @@ const {
   executeTranscribe
 } = require('../src/main/speech');
 
-const toolsDir = path.join(__dirname, '..', 'tools');
-const ffmpeg = path.join(toolsDir, 'ffmpeg.exe');
-const ffprobe = path.join(toolsDir, 'ffprobe.exe');
-const whisper = path.join(toolsDir, 'whisper-cli.exe');
-const whisperModel = path.join(toolsDir, 'ggml-base.bin');
+const toolPaths = require('./tool-paths');
+const ffmpeg = toolPaths.ffmpeg;
+const ffprobe = toolPaths.ffprobe;
+const whisper = toolPaths.whisper;
+const whisperModel = toolPaths.whisperModel;
 const sample = path.join(__dirname, 'fixtures', 'jfk.wav');
 const speechReady = fs.existsSync(ffmpeg) && fs.existsSync(ffprobe) && fs.existsSync(whisper) && fs.existsSync(whisperModel) && fs.existsSync(sample);
 
