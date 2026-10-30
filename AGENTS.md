@@ -58,6 +58,7 @@ Requires Windows x64 and Node.js 20 or newer.
 - GitHub downloads must stream to a temporary file, verify the published SHA-256, and delete incomplete or mismatched files. Never weaken fail-closed hash verification or install an update without explicit confirmation.
 - The local update folder and selected-installer flow are offline fallbacks. Keep their validation behavior compatible with GitHub-driven updates.
 - Pushing a `vX.Y.Z` tag triggers `.github/workflows/release.yml`. The tag must equal `v` plus the synchronized `package.json` version.
+- The release workflow can also be started manually from the Actions tab for an existing tag; use this when a tag was pushed before Actions was enabled.
 - The release workflow runs tests, builds the installer, verifies the embedded file/product versions and sidecar hash, and creates a draft GitHub Release. The repository owner must review and publish that draft.
 - GitHub-driven updates from the installed app only work after the repository is public and the release is published. Repository visibility is changed manually in GitHub settings.
 - Optional code signing is supplied through the `CSC_LINK` and `CSC_KEY_PASSWORD` Actions secrets. Never commit certificates or signing passwords.

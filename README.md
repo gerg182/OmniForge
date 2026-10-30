@@ -115,6 +115,10 @@ Focused fixes, tests, documentation updates, and feature proposals are welcome. 
 
 OmniForge is released under the [MIT License](LICENSE). Bundled third-party tools retain their own licenses; see [tools/THIRD_PARTY_NOTICES.md](tools/THIRD_PARTY_NOTICES.md).
 
+## Credits
+
+OmniForge has been developed with substantial assistance from [OpenAI Codex](https://openai.com/codex/), OpenAI's AI coding agent. Third-party software and model credits are listed in [tools/THIRD_PARTY_NOTICES.md](tools/THIRD_PARTY_NOTICES.md).
+
 ## Notes
 
 - YouTube downloads are limited to public, single-video URLs in this version.

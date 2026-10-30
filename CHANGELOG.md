@@ -12,6 +12,8 @@ All notable changes to OmniForge are documented here.
 - Offline installer fallback for unavailable networks.
 - Public release workflows, community templates, and security documentation.
 - Reproducible pinned tool downloads with checksum verification.
+- A manual release-workflow trigger for rebuilding an existing version tag.
+- OpenAI Codex development credit in the project documentation.
 
 ### Changed
 
@@ -23,6 +25,7 @@ All notable changes to OmniForge are documented here.
 
 - Unsigned builds disclose the Windows SmartScreen warning and require explicit installation confirmation.
 - GitHub updates reject missing, malformed, mismatched, or incorrectly named hash sidecars.
+- CI uses explicit test discovery so the suite runs correctly on Node.js 20 and newer.
 
 ## 1.4.0 - 2026-10-29
 
