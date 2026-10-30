@@ -117,7 +117,12 @@ OmniForge is released under the [MIT License](LICENSE). Bundled third-party tool
 
 ## Credits
 
-OmniForge has been developed with substantial assistance from [OpenAI Codex](https://openai.com/codex/), OpenAI's AI coding agent. Third-party software and model credits are listed in [tools/THIRD_PARTY_NOTICES.md](tools/THIRD_PARTY_NOTICES.md).
+OmniForge has been developed with substantial AI development assistance from:
+
+- [OpenAI Codex](https://openai.com/codex/), OpenAI's AI coding agent.
+- DeepSeek V4.1 Flash 1017.
+
+Third-party software and model credits are listed in [tools/THIRD_PARTY_NOTICES.md](tools/THIRD_PARTY_NOTICES.md).
 
 ## Notes
 
