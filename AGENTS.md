@@ -27,6 +27,14 @@ Requires Windows x64 and Node.js 20 or newer.
 - Use lowercase tool IDs and colon-separated IPC channels (`job:start`).
 - No linter or formatter is configured. Match surrounding code and run `node --check <file>` on changed JavaScript.
 
+## Versioning
+- OmniForge uses Semantic Versioning: `MAJOR.MINOR.PATCH`.
+- Increment `MAJOR` for incompatible changes, `MINOR` for backward-compatible features, and `PATCH` for backward-compatible fixes.
+- Keep the version synchronized in `package.json`, `package-lock.json`, the README installer filename, and the built application metadata.
+- Use `vX.Y.Z` only for Git release tags. Do not prefix the package version with `v`.
+- Name installers and update artifacts exactly `OmniForge-Setup-X.Y.Z.exe`; keep adjacent `.blockmap` and `.sha256` files on the same version.
+- Build the release installer from the tagged or committed release state, then verify the embedded file and product versions before publishing.
+
 ## Testing Guidelines
 - Tests use Node's built-in `node:test` runner, with files named `test/*.test.js`.
 - Use descriptive `test(...)` names.
