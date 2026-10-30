@@ -13,7 +13,7 @@ All notable changes to OmniForge are documented here.
 - Public release workflows, community templates, and security documentation.
 - Reproducible pinned tool downloads with checksum verification.
 - A manual release-workflow trigger for rebuilding an existing version tag.
-- OpenAI Codex and DeepSeek V4.1 Flash 1017 development credits in the project documentation.
+- Primary DeepSeek V4.1 Flash 1017 development credit and additional OpenAI Codex assistance in the project documentation.
 
 ### Changed
 
