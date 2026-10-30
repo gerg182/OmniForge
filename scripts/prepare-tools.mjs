@@ -1,15 +1,21 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
-import { createRequire } from 'node:module';
+import crypto from 'node:crypto';
+import { createReadStream } from 'node:fs';
 import { spawnSync } from 'node:child_process';
+import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
 const require = createRequire(import.meta.url);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, '..');
 const toolsDir = path.join(root, 'tools');
+const lock = JSON.parse(fs.readFileSync(path.join(__dirname, 'tools-lock.json'), 'utf8'));
+const packageVersion = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).version;
+const manifestPath = path.join(toolsDir, 'manifest.json');
 const force = process.argv.includes('--force');
+const bootstrap7za = require('7zip-bin').path7za;
 
 fs.mkdirSync(toolsDir, { recursive: true });
 
@@ -17,118 +23,209 @@ function log(message) {
   console.log(`[tools] ${message}`);
 }
 
-function copyBinary(source, destination, label) {
-  if (!source || !fs.existsSync(source)) throw new Error(`${label} source not found: ${source}`);
-  fs.copyFileSync(source, destination);
-  const size = fs.statSync(destination).size;
-  log(`${label}: ${(size / 1024 / 1024).toFixed(1)} MB`);
+function run(command, args, label) {
+  const result = spawnSync(command, args, { encoding: 'utf8', windowsHide: true, timeout: 120000 });
+  if (result.error) throw result.error;
+  if (result.status !== 0) {
+    throw new Error(`${label} failed with code ${result.status}: ${result.stderr || result.stdout}`);
+  }
+  return `${result.stdout || ''}\n${result.stderr || ''}`.trim();
 }
 
-async function download(url, destination) {
+function hashFile(filePath) {
+  return new Promise((resolve, reject) => {
+    const hash = crypto.createHash('sha256');
+    const stream = createReadStream(filePath);
+    stream.on('data', (chunk) => hash.update(chunk));
+    stream.on('error', reject);
+    stream.on('end', () => resolve(hash.digest('hex')));
+  });
+}
+
+async function hashMatches(filePath, expected) {
+  try {
+    return fs.existsSync(filePath) && (await hashFile(filePath)) === String(expected).toLowerCase();
+  } catch {
+    return false;
+  }
+}
+
+async function download(url, destination, sha256, label) {
+  if (!force && await hashMatches(destination, sha256)) {
+    log(`${label} already matches the pinned SHA-256.`);
+    return;
+  }
+  fs.mkdirSync(path.dirname(destination), { recursive: true });
   const temporary = `${destination}.download`;
-  log(`Downloading ${url}`);
+  await fs.promises.rm(temporary, { force: true });
+  log(`Downloading ${label} from ${url}`);
   const response = await fetch(url, {
     redirect: 'follow',
-    headers: { 'User-Agent': 'OmniForge/1.0 (+local desktop app)' }
+    headers: { 'User-Agent': `OmniForge/${packageVersion} (+https://github.com/gerg182/OmniForge)` }
   });
   if (!response.ok) throw new Error(`Download failed (${response.status}) for ${url}`);
-  const arrayBuffer = await response.arrayBuffer();
-  fs.writeFileSync(temporary, Buffer.from(arrayBuffer));
-  fs.renameSync(temporary, destination);
-  log(`Saved ${path.basename(destination)} (${(arrayBuffer.byteLength / 1024 / 1024).toFixed(1)} MB)`);
+  if (!response.body || typeof response.body.getReader !== 'function') {
+    throw new Error(`Download returned no readable body for ${label}.`);
+  }
+  const handle = await fs.promises.open(temporary, 'w');
+  const reader = response.body.getReader();
+  let received = 0;
+  try {
+    for (;;) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      if (chunk.value?.byteLength) {
+        received += chunk.value.byteLength;
+        await handle.write(chunk.value);
+      }
+    }
+  } catch (error) {
+    await handle.close().catch(() => {});
+    await fs.promises.rm(temporary, { force: true }).catch(() => {});
+    throw error;
+  }
+  await handle.close();
+  const actual = await hashFile(temporary);
+  if (actual !== String(sha256).toLowerCase()) {
+    await fs.promises.rm(temporary, { force: true }).catch(() => {});
+    throw new Error(`${label} SHA-256 mismatch. Expected ${sha256}, got ${actual}.`);
+  }
+  await fs.promises.rm(destination, { force: true });
+  await fs.promises.rename(temporary, destination);
+  log(`Saved ${label} (${(received / 1024 / 1024).toFixed(1)} MB).`);
 }
 
-function runVersion(command, args) {
-  const result = spawnSync(command, args, { encoding: 'utf8', windowsHide: true, timeout: 20000 });
-  if (result.error) throw result.error;
-  const output = `${result.stdout || ''}\n${result.stderr || ''}`.trim();
-  if (result.status !== 0) throw new Error(`${path.basename(command)} failed with code ${result.status}: ${output}`);
-  return output.split(/\r?\n/)[0];
+function extract(sevenZip, archive, destination, patterns = []) {
+  fs.mkdirSync(destination, { recursive: true });
+  run(sevenZip, ['x', '-y', `-o${destination}`, archive, ...patterns], 'Archive extraction');
+}
+
+function findFiles(directory, matcher) {
+  if (!fs.existsSync(directory)) return [];
+  const matches = [];
+  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+    const fullPath = path.join(directory, entry.name);
+    if (entry.isDirectory()) matches.push(...findFiles(fullPath, matcher));
+    else if (entry.isFile() && matcher(entry.name, fullPath)) matches.push(fullPath);
+  }
+  return matches;
+}
+
+function findFile(directory, name) {
+  return findFiles(directory, (fileName) => fileName.toLowerCase() === name.toLowerCase())[0] || null;
+}
+
+function copyBinary(source, destination, label) {
+  if (!source || !fs.existsSync(source)) throw new Error(`${label} source not found.`);
+  fs.copyFileSync(source, destination);
+  log(`${label}: ${(fs.statSync(destination).size / 1024 / 1024).toFixed(1)} MB`);
+}
+
+function temporaryDirectory(label) {
+  return fs.mkdtempSync(path.join(os.tmpdir(), `omniforge-${label}-`));
+}
+
+function lockedManifest(versions) {
+  return {
+    ffmpeg: lock.ffmpeg.version,
+    sevenZip: lock.sevenZip.version,
+    ytDlp: lock.ytDlp.version,
+    deno: lock.deno.version,
+    whisper: lock.whisper.version,
+    speechModel: lock.speechModel.version,
+    ...versions
+  };
+}
+
+function loadManifest() {
+  try {
+    return JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+  } catch {
+    return null;
+  }
 }
 
 async function main() {
-  const ffmpeg = require('ffmpeg-static');
-  const ffprobe = require('ffprobe-static').path;
-  const sevenZip = require('7zip-bin').path7za;
+  const previous = loadManifest();
+  const expectedFiles = ['ffmpeg.exe', 'ffprobe.exe', '7za.exe', 'yt-dlp.exe', 'deno.exe', 'whisper-cli.exe', 'ggml-base.bin'];
+  const versionsMatch = previous?.lockedVersions
+    && previous.lockedVersions.ffmpeg === lock.ffmpeg.version
+    && previous.lockedVersions.sevenZip === lock.sevenZip.version
+    && previous.lockedVersions.ytDlp === lock.ytDlp.version
+    && previous.lockedVersions.deno === lock.deno.version
+    && previous.lockedVersions.whisper === lock.whisper.version
+    && previous.lockedVersions.speechModel === lock.speechModel.version;
+  const filesPresent = expectedFiles.every((name) => fs.existsSync(path.join(toolsDir, name)));
 
-  copyBinary(ffmpeg, path.join(toolsDir, 'ffmpeg.exe'), 'FFmpeg');
-  copyBinary(ffprobe, path.join(toolsDir, 'ffprobe.exe'), 'FFprobe');
-  copyBinary(sevenZip, path.join(toolsDir, '7za.exe'), '7-Zip');
-
-  const ytDlpPath = path.join(toolsDir, 'yt-dlp.exe');
-  if (force || !fs.existsSync(ytDlpPath) || fs.statSync(ytDlpPath).size < 1024 * 1024) {
-    await download('https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe', ytDlpPath);
+  if (!force && versionsMatch && filesPresent) {
+    log('Pinned tools are already prepared; use --force to download them again.');
   } else {
-    log('yt-dlp already present; use --force to download it again.');
+    const sevenZipTemp = temporaryDirectory('7zip');
+    const sevenZipArchive = path.join(os.tmpdir(), `omniforge-7zip-${lock.sevenZip.version}.7z`);
+    await download(lock.sevenZip.url, sevenZipArchive, lock.sevenZip.sha256, '7-Zip');
+    extract(bootstrap7za, sevenZipArchive, sevenZipTemp, ['x64\\7za.exe', 'License.txt']);
+    copyBinary(findFile(sevenZipTemp, '7za.exe'), path.join(toolsDir, '7za.exe'), '7-Zip');
+    const sevenLicense = findFile(sevenZipTemp, 'License.txt');
+    if (sevenLicense) fs.copyFileSync(sevenLicense, path.join(toolsDir, '7ZIP-LICENSE.txt'));
+    fs.rmSync(sevenZipTemp, { recursive: true, force: true });
+
+    const ffmpegTemp = temporaryDirectory('ffmpeg');
+    const ffmpegArchive = path.join(os.tmpdir(), `omniforge-ffmpeg-${lock.ffmpeg.version}.zip`);
+    await download(lock.ffmpeg.url, ffmpegArchive, lock.ffmpeg.sha256, 'FFmpeg and FFprobe');
+    extract(path.join(toolsDir, '7za.exe'), ffmpegArchive, ffmpegTemp);
+    copyBinary(findFile(ffmpegTemp, 'ffmpeg.exe'), path.join(toolsDir, 'ffmpeg.exe'), 'FFmpeg');
+    copyBinary(findFile(ffmpegTemp, 'ffprobe.exe'), path.join(toolsDir, 'ffprobe.exe'), 'FFprobe');
+    const ffmpegLicense = findFiles(ffmpegTemp, (name) => /^LICENSE/i.test(name))[0];
+    if (ffmpegLicense) fs.copyFileSync(ffmpegLicense, path.join(toolsDir, 'FFMPEG-BUILD-LICENSE.txt'));
+    fs.rmSync(ffmpegTemp, { recursive: true, force: true });
+
+    await download(lock.ytDlp.url, path.join(toolsDir, 'yt-dlp.exe'), lock.ytDlp.sha256, 'yt-dlp');
+
+    const denoTemp = temporaryDirectory('deno');
+    const denoArchive = path.join(os.tmpdir(), `omniforge-deno-${lock.deno.version}.zip`);
+    await download(lock.deno.url, denoArchive, lock.deno.sha256, 'Deno');
+    extract(path.join(toolsDir, '7za.exe'), denoArchive, denoTemp, ['deno.exe']);
+    copyBinary(findFile(denoTemp, 'deno.exe'), path.join(toolsDir, 'deno.exe'), 'Deno');
+    fs.rmSync(denoTemp, { recursive: true, force: true });
+
+    const whisperTemp = temporaryDirectory('whisper');
+    const whisperArchive = path.join(os.tmpdir(), `omniforge-whisper-${lock.whisper.version}.zip`);
+    await download(lock.whisper.url, whisperArchive, lock.whisper.sha256, 'whisper.cpp');
+    extract(path.join(toolsDir, '7za.exe'), whisperArchive, whisperTemp);
+    const whisperRelease = path.join(whisperTemp, 'Release');
+    const whisperFiles = [
+      'whisper-cli.exe',
+      'whisper.dll',
+      'ggml.dll',
+      'ggml-base.dll',
+      ...fs.readdirSync(whisperRelease).filter((name) => /^ggml-cpu-.*\.dll$/i.test(name))
+    ];
+    for (const fileName of whisperFiles) {
+      const source = path.join(whisperRelease, fileName);
+      if (fs.existsSync(source)) fs.copyFileSync(source, path.join(toolsDir, fileName));
+    }
+    log('whisper.cpp runtime copied.');
+    fs.rmSync(whisperTemp, { recursive: true, force: true });
+
+    await download(lock.speechModel.url, path.join(toolsDir, 'ggml-base.bin'), lock.speechModel.sha256, 'Whisper base model');
   }
 
-  const denoPath = path.join(toolsDir, 'deno.exe');
-  if (force || !fs.existsSync(denoPath) || fs.statSync(denoPath).size < 1024 * 1024) {
-    const zipPath = path.join(os.tmpdir(), `omniforge-deno-${Date.now()}.zip`);
-    await download('https://github.com/denoland/deno/releases/latest/download/deno-x86_64-pc-windows-msvc.zip', zipPath);
-    log('Extracting Deno…');
-    const result = spawnSync(path.join(toolsDir, '7za.exe'), ['x', '-y', `-o${toolsDir}`, zipPath], {
-      encoding: 'utf8',
-      windowsHide: true
-    });
-    fs.rmSync(zipPath, { force: true });
-    if (result.status !== 0) throw new Error(`Could not extract Deno: ${result.stderr || result.stdout}`);
-  } else {
-    log('Deno already present; use --force to download it again.');
-  }
-
-  const whisperCliPath = path.join(toolsDir, 'whisper-cli.exe');
-  if (force || !fs.existsSync(whisperCliPath)) {
-    const zipPath = path.join(os.tmpdir(), `omniforge-whisper-${Date.now()}.zip`);
-    await download('https://github.com/ggml-org/whisper.cpp/releases/download/b5454/whisper-bin-x64.zip', zipPath);
-    log('Extracting Whisper...');
-    const result = spawnSync(path.join(toolsDir, '7za.exe'), [
-      'e', '-y', `-o${toolsDir}`, zipPath,
-      'Release\\whisper-cli.exe',
-      'Release\\whisper.dll',
-      'Release\\ggml.dll',
-      'Release\\ggml-base.dll',
-      'Release\\ggml-cpu-*.dll'
-    ], { encoding: 'utf8', windowsHide: true });
-    fs.rmSync(zipPath, { force: true });
-    if (result.status !== 0) throw new Error(`Could not extract Whisper: ${result.stderr || result.stdout}`);
-  } else {
-    log('Whisper already present; use --force to download it again.');
-  }
-
-  const whisperModelPath = path.join(toolsDir, 'ggml-base.bin');
-  if (force || !fs.existsSync(whisperModelPath) || fs.statSync(whisperModelPath).size < 100 * 1024 * 1024) {
-    await download('https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin', whisperModelPath);
-  } else {
-    log('Whisper base model already present; use --force to download it again.');
-  }
-
-  const licenseSources = [
-    ['node_modules/ffmpeg-static/LICENSE', 'FFMPEG-LICENSE.txt'],
-    ['node_modules/ffmpeg-static/ffmpeg.exe.LICENSE', 'FFMPEG-BUILD-LICENSE.txt'],
-    ['node_modules/ffprobe-static/LICENSE', 'FFPROBE-LICENSE.txt'],
-    ['node_modules/7zip-bin/LICENSE', '7ZIP-LICENSE.txt']
-  ];
-  for (const [relative, destination] of licenseSources) {
-    const source = path.join(root, relative);
-    if (fs.existsSync(source)) fs.copyFileSync(source, path.join(toolsDir, destination));
-  }
-
-  const notices = `# Third-party notices\n\nOmniForge bundles the following local command-line tools:\n\n- FFmpeg and FFprobe: https://ffmpeg.org/ — FFmpeg licensing information is included in FFMPEG-LICENSE.txt and FFMPEG-BUILD-LICENSE.txt.\n- yt-dlp: https://github.com/yt-dlp/yt-dlp — Unlicense. See YT-DLP-LICENSE.txt.\n- Deno: https://deno.land/ — MIT License. See DENO-LICENSE.txt.\n- 7-Zip: https://www.7-zip.org/ — GNU LGPL, with unRAR restrictions. See 7ZIP-LICENSE.txt.
-- whisper.cpp: https://github.com/ggml-org/whisper.cpp — MIT License. See WHISPER-LICENSE.txt. The bundled ggml-base model is distributed under the MIT License from OpenAI Whisper.\n\nOmniForge invokes these tools locally. yt-dlp is used only for user-requested downloads; users are responsible for complying with the source site's terms and applicable copyright law.\n`;
+  const notices = `# Third-party notices\n\nOmniForge bundles the following pinned local command-line tools:\n\n- FFmpeg and FFprobe ${lock.ffmpeg.version}: https://ffmpeg.org/ - see FFMPEG-LICENSE.txt and FFMPEG-BUILD-LICENSE.txt.\n- yt-dlp ${lock.ytDlp.version}: https://github.com/yt-dlp/yt-dlp - Unlicense. See YT-DLP-LICENSE.txt.\n- Deno ${lock.deno.version}: https://deno.land/ - MIT License. See DENO-LICENSE.txt.\n- 7-Zip ${lock.sevenZip.version}: https://www.7-zip.org/ - GNU LGPL. See 7ZIP-LICENSE.txt.\n- whisper.cpp ${lock.whisper.version}: https://github.com/ggml-org/whisper.cpp - MIT License. See WHISPER-LICENSE.txt. The bundled ggml-base model is distributed under the MIT License from OpenAI Whisper.\n\nOmniForge invokes these tools locally. yt-dlp is used only for user-requested downloads; users are responsible for complying with the source site's terms and applicable copyright law.\n`;
   fs.writeFileSync(path.join(toolsDir, 'THIRD_PARTY_NOTICES.md'), notices, 'utf8');
 
   const versions = {
-    ffmpeg: runVersion(path.join(toolsDir, 'ffmpeg.exe'), ['-version']),
-    ffprobe: runVersion(path.join(toolsDir, 'ffprobe.exe'), ['-version']),
-    sevenZip: runVersion(path.join(toolsDir, '7za.exe'), ['i']),
-    ytDlp: runVersion(ytDlpPath, ['--version']),
-    deno: runVersion(denoPath, ['--version']),
-    whisper: runVersion(whisperCliPath, ['--version']),
-    preparedAt: new Date().toISOString()
+    ffmpeg: run(path.join(toolsDir, 'ffmpeg.exe'), ['-version'], 'FFmpeg').split(/\r?\n/)[0],
+    ffprobe: run(path.join(toolsDir, 'ffprobe.exe'), ['-version'], 'FFprobe').split(/\r?\n/)[0],
+    sevenZip: run(path.join(toolsDir, '7za.exe'), ['i'], '7-Zip').split(/\r?\n/)[0],
+    ytDlp: run(path.join(toolsDir, 'yt-dlp.exe'), ['--version'], 'yt-dlp').split(/\r?\n/)[0],
+    deno: run(path.join(toolsDir, 'deno.exe'), ['--version'], 'Deno').split(/\r?\n/)[0],
+    whisper: run(path.join(toolsDir, 'whisper-cli.exe'), ['--version'], 'whisper.cpp').split(/\r?\n/)[0],
+    speechModel: lock.speechModel.version,
+    preparedAt: new Date().toISOString(),
+    lockedVersions: lockedManifest({})
   };
-  fs.writeFileSync(path.join(toolsDir, 'manifest.json'), `${JSON.stringify(versions, null, 2)}\n`, 'utf8');
-  log('All bundled tools are ready.');
+  fs.writeFileSync(manifestPath, `${JSON.stringify(versions, null, 2)}\n`, 'utf8');
+  log('All pinned tools are ready.');
   console.log(JSON.stringify(versions, null, 2));
 }
 

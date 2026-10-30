@@ -4,8 +4,6 @@ test/.tmp/
 tools/*.exe
 tools/*.zip
 tools/manifest.json
-build/icon.ico
-build/icon.png
 *.log
 .DS_Store
 tools/*.dll

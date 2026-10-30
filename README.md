@@ -32,16 +32,27 @@ Everything runs on your PC. FFmpeg, FFprobe, yt-dlp, Deno, 7-Zip, and whisper.cp
 - Saved tool recipes for reusable option presets, plus a `Ctrl+K` command palette for tools, recipes, and actions
 - Smart drag-and-drop anywhere in the window with file-type detection and a confirm-first compatible-tool chooser
 - Microphone dictation with an in-app recording timer and transcript preview
-- In-app updates from a local update folder or a selected OmniForge installer
+- GitHub Releases update discovery with SHA-256 verification, plus an offline installer fallback
 - Choose an output folder for every batch
+
+## Installation
+
+Download the newest `OmniForge-Setup-1.5.0.exe` from [GitHub Releases](https://github.com/gerg182/OmniForge/releases/latest), then verify it before running:
+
+```powershell
+Get-FileHash .\OmniForge-Setup-1.5.0.exe -Algorithm SHA256
+Get-Content .\OmniForge-Setup-1.5.0.exe.sha256
+```
+
+The hashes must match. The current installer is unsigned, so Windows SmartScreen may warn. Only continue when the installer came from this repository and its SHA-256 matches. OmniForge requires Windows 10/11 x64 and installs per user; administrator access is not required.
 
 ## Development
 
 Requirements: Windows 10/11 x64 and Node.js 20 or newer.
 
 ```powershell
-cmd /c "npm install"
-node scripts/prepare-tools.mjs
+npm ci
+npm run prepare:tools
 npm start
 ```
 
@@ -57,7 +68,7 @@ Build the Windows installer:
 npm run dist
 ```
 
-The installer and its `OmniForge-Setup-1.4.0.exe.sha256` sidecar are written to `dist/`.
+The installer and its `OmniForge-Setup-1.5.0.exe.sha256` sidecar are written to `dist/`. Release builds are produced by the tag-driven GitHub Actions workflow after the version is synchronized in `package.json`, `package-lock.json`, this README, and `CHANGELOG.md`.
 
 ## Transcript Clip Studio
 
@@ -84,13 +95,25 @@ Failure notifications are enabled by default and can be disabled in the same set
 
 ## Updates
 
-Open **Settings -> Application updates**. The fastest path is to drag a newer `OmniForge-Setup-x.y.z.exe` onto the update drop zone: OmniForge checks the version and adjacent `.sha256` sidecar, asks for confirmation, closes, and opens the Windows installer. Finish setup to reopen OmniForge. You can also put installers in the update folder and press **Check now**, or click the drop zone to browse for an installer anywhere on the PC. You do not need to uninstall the old version first.
+Open **Settings -> Application updates** and choose **Check now**. OmniForge reads the latest published GitHub Release for this repository, requires the exact `OmniForge-Setup-X.Y.Z.exe` and matching `.sha256` asset, streams download progress, and verifies SHA-256 before offering **Install**. Missing or mismatched hashes block GitHub-driven installation. Updates always require explicit confirmation and never install silently. Use **View release notes** to open the GitHub release page.
 
-Updates must use the electron-builder artifact name so the version can be read from the filename.
+If GitHub is unavailable, use the offline fallback: drag a newer installer onto the update drop zone, point OmniForge at a local update folder, or browse for the installer. Offline installers must still use the versioned filename. A malformed or mismatched sidecar blocks installation. If a sidecar is missing, OmniForge displays the computed hash and requires explicit confirmation; GitHub-driven downloads never allow this fallback.
 
-The sidecar format is `<sha256>  <filename>`. A mismatched or malformed sidecar blocks installation. A missing sidecar shows the computed SHA-256 and requires explicit confirmation. SHA-256 verifies file integrity, not publisher identity or code signing.
+The sidecar format is `<sha256>  <filename>`. SHA-256 verifies file integrity and transfer integrity, not publisher identity or code signing. Windows SmartScreen may warn because the current build is unsigned.
 
 Unfinished queue jobs are stored in `%APPDATA%\omniforge\queue.json`. Jobs interrupted by shutdown become failed history entries, while pending jobs return paused and require a manual resume. Passwords, confirmation fields, and transient speed/ETA samples are never written to disk.
+
+## Privacy and Security
+
+OmniForge does not include telemetry or analytics. User media is processed locally and is not uploaded. Network access is used only for GitHub release checks and downloads, optional yt-dlp engine updates, and the YouTube downloads users request. Passwords are held in memory while a job runs and are not saved in queue history. Report vulnerabilities through GitHub private vulnerability reporting as described in [SECURITY.md](SECURITY.md).
+
+## Contributing
+
+Focused fixes, tests, documentation updates, and feature proposals are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, validation, versioning, and pull request requirements. Run `npm test` before opening a pull request.
+
+## License
+
+OmniForge is released under the [MIT License](LICENSE). Bundled third-party tools retain their own licenses; see [tools/THIRD_PARTY_NOTICES.md](tools/THIRD_PARTY_NOTICES.md).
 
 ## Notes
 

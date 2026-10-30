@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Windows tests
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Restore pinned tools
+        uses: actions/cache@v4
+        with:
+          path: tools
+          key: ${{ runner.os }}-tools-${{ hashFiles('scripts/tools-lock.json', 'scripts/prepare-tools.mjs') }}
+
+      - name: Prepare pinned tools
+        run: npm run prepare:tools
+
+      - name: Syntax-check JavaScript
+        shell: pwsh
+        run: |
+          $files = @(
+            'src/main/github-updates.js',
+            'src/main/index.js',
+            'src/main/store.js',
+            'src/main/updates.js',
+            'src/preload.js',
+            'scripts/prepare-tools.mjs',
+            'scripts/write-installer-hash.mjs'
+          )
+          foreach ($file in $files) {
+            node --check $file
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+          New-Item -ItemType Directory -Force test/.tmp | Out-Null
+          Copy-Item src/renderer/app.js test/.tmp/renderer-app.mjs -Force
+          node --check test/.tmp/renderer-app.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Remove-Item test/.tmp/renderer-app.mjs -Force
+
+      - name: Run tests
+        run: npm test

@@ -8,10 +8,12 @@ OmniForge is a local-first Electron desktop app for media conversion, YouTube do
 - `src/renderer/` - vanilla HTML/CSS/JavaScript UI (`app.js`, `index.html`, `styles.css`).
 - `test/` - Node test files plus `fixtures/jfk.wav`.
 - `scripts/prepare-tools.mjs` - prepares bundled FFmpeg, yt-dlp, Deno, 7-Zip, whisper.cpp, and the speech model.
+- `scripts/tools-lock.json` - pinned third-party versions, URLs, and SHA-256 checksums.
+- `.github/workflows/` - Windows CI and tag-driven draft release automation.
 - `tools/` - bundled binaries/models (mostly ignored); `assets/` and `build/` hold icon resources.
 
 ## Build, Test, and Development Commands
-- `npm install` - install dependencies.
+- `npm ci` - install the lockfile-exact dependencies.
 - `npm start` or `npm run dev` - run the Electron app locally.
 - `npm test` - run the complete Node test suite.
 - `npm run prepare:tools` - refresh bundled tools; add `-- --force` to re-download them.
@@ -31,6 +33,7 @@ Requires Windows x64 and Node.js 20 or newer.
 - OmniForge uses Semantic Versioning: `MAJOR.MINOR.PATCH`.
 - Increment `MAJOR` for incompatible changes, `MINOR` for backward-compatible features, and `PATCH` for backward-compatible fixes.
 - Keep the version synchronized in `package.json`, `package-lock.json`, the README installer filename, and the built application metadata.
+- Update `CHANGELOG.md` for every release, and keep its top version aligned with `package.json`.
 - Use `vX.Y.Z` only for Git release tags. Do not prefix the package version with `v`.
 - Name installers and update artifacts exactly `OmniForge-Setup-X.Y.Z.exe`; keep adjacent `.blockmap` and `.sha256` files on the same version.
 - Build the release installer from the tagged or committed release state, then verify the embedded file and product versions before publishing.
@@ -40,6 +43,7 @@ Requires Windows x64 and Node.js 20 or newer.
 - Use descriptive `test(...)` names.
 - Integration tests call bundled FFmpeg, 7-Zip, PDF, and whisper.cpp; run `npm run prepare:tools` first.
 - Run `npm test` before every commit. No coverage threshold is enforced.
+- GitHub Actions runs `npm ci`, restores the pinned tool cache, prepares the tools, syntax-checks changed entry points, and runs `npm test`.
 
 ## Commit & Pull Request Guidelines
 - Write concise, imperative commit subjects such as `Add drag-and-drop installer updates`.
@@ -47,6 +51,17 @@ Requires Windows x64 and Node.js 20 or newer.
 - Keep commits focused. Do not commit `node_modules/`, `dist/`, or large `tools/` binaries.
 - Pull requests should include a summary, `npm test` results, version impact, and screenshots for UI changes.
 - Update `README.md` for user-facing changes and keep `package.json`/`package-lock.json` versions synchronized.
+
+## Updates & Release Workflow
+
+- `src/main/github-updates.js` checks `https://api.github.com/repos/gerg182/OmniForge/releases/latest` and requires a published `vX.Y.Z` release with exactly one `OmniForge-Setup-X.Y.Z.exe` and one matching `.exe.sha256`.
+- GitHub downloads must stream to a temporary file, verify the published SHA-256, and delete incomplete or mismatched files. Never weaken fail-closed hash verification or install an update without explicit confirmation.
+- The local update folder and selected-installer flow are offline fallbacks. Keep their validation behavior compatible with GitHub-driven updates.
+- Pushing a `vX.Y.Z` tag triggers `.github/workflows/release.yml`. The tag must equal `v` plus the synchronized `package.json` version.
+- The release workflow runs tests, builds the installer, verifies the embedded file/product versions and sidecar hash, and creates a draft GitHub Release. The repository owner must review and publish that draft.
+- GitHub-driven updates from the installed app only work after the repository is public and the release is published. Repository visibility is changed manually in GitHub settings.
+- Optional code signing is supplied through the `CSC_LINK` and `CSC_KEY_PASSWORD` Actions secrets. Never commit certificates or signing passwords.
+- Do not commit `dist/`, installer artifacts, downloaded `tools/*.exe`, `tools/*.dll`, `tools/*.bin`, or `tools/manifest.json`.
 
 ## Architecture & Configuration Notes
 - `src/main/job-manager.js` runs a bounded parallel queue (1-3 slots, default 2) and streams progress through `ctx.report`.

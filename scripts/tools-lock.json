@@ -1,0 +1,33 @@
+{
+  "ffmpeg": {
+    "version": "9.0.2",
+    "url": "https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-9.0.2-essentials_build.zip",
+    "sha256": "60f467265b1e312373dbcd92200c2618a74850f98d3d078e94296bb3fa2047ba"
+  },
+  "sevenZip": {
+    "version": "26.05",
+    "url": "https://github.com/ip7z/7zip/releases/download/26.05/7z2605-extra.7z",
+    "sha256": "f27a8f103c84785026edcba1f67faf1357225df9d19ddb0b7760d55947141bc7"
+  },
+  "ytDlp": {
+    "version": "2026.10.26",
+    "url": "https://github.com/yt-dlp/yt-dlp/releases/download/2026.10.26/yt-dlp.exe",
+    "sha256": "f5389d3698ecde4ef06f4e6b1ce0294fe9ac1396228c8990b8d3416d6d177a7d"
+  },
+  "deno": {
+    "version": "2.9.8",
+    "url": "https://github.com/denoland/deno/releases/download/v2.9.8/deno-x86_64-pc-windows-msvc.zip",
+    "sha256": "cba84b26e0df5ae7f74fc66b86a95b866872a86292ebd84fa1e959927edd93bf"
+  },
+  "whisper": {
+    "version": "1.9.5",
+    "url": "https://github.com/ggml-org/whisper.cpp/releases/download/b5454/whisper-bin-x64.zip",
+    "sha256": "6ba69e3482d7826214f90a6a9c84ca07782aec1e1d0c6a7c30c994fd5d816ccb"
+  },
+  "speechModel": {
+    "version": "ggml-base-2026-10",
+    "revision": "5359861c739e955e79d9a303bcbc70fb988958b1",
+    "url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-base.bin",
+    "sha256": "60ed5bc3dd14eea856493d334349b405782ddcaf0028d4b5df4088345fba2efe"
+  }
+}

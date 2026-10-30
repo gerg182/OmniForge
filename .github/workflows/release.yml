@@ -1,0 +1,127 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build Windows release
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out release tag
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate release version
+        shell: pwsh
+        run: |
+          $package = Get-Content package.json -Raw | ConvertFrom-Json
+          $tag = $env:GITHUB_REF_NAME
+          $expectedTag = "v$($package.version)"
+          if ($tag -ne $expectedTag) {
+            throw "Release tag $tag does not match package version $($package.version). Expected $expectedTag."
+          }
+          $lockVersion = node -p "require('./package-lock.json').version"
+          $lockRootVersion = node -p "require('./package-lock.json').packages[''].version"
+          if ($lockVersion -ne $package.version -or $lockRootVersion -ne $package.version) {
+            throw 'package-lock.json versions must match package.json.'
+          }
+          $readme = Get-Content README.md -Raw
+          if ($readme -notmatch [regex]::Escape("OmniForge-Setup-$($package.version).exe")) {
+            throw 'README.md must reference the release installer filename.'
+          }
+          $changelog = Get-Content CHANGELOG.md -Raw
+          if ($changelog -notmatch "(?m)^## $([regex]::Escape($package.version)) ") {
+            throw 'CHANGELOG.md must contain a section for the release version.'
+          }
+
+      - name: Restore pinned tools
+        uses: actions/cache@v4
+        with:
+          path: tools
+          key: ${{ runner.os }}-tools-${{ hashFiles('scripts/tools-lock.json', 'scripts/prepare-tools.mjs') }}
+
+      - name: Prepare pinned tools
+        run: npm run prepare:tools
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build installer
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+        run: npm run dist
+
+      - name: Verify installer metadata and hash
+        shell: pwsh
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $installer = Join-Path dist "OmniForge-Setup-$version.exe"
+          $sidecar = "$installer.sha256"
+          if (-not (Test-Path -LiteralPath $installer)) {
+            throw "Expected installer was not created: $installer"
+          }
+          if (-not (Test-Path -LiteralPath $sidecar)) {
+            throw "Expected hash sidecar was not created: $sidecar"
+          }
+
+          $info = (Get-Item -LiteralPath $installer).VersionInfo
+          $expectedVersion = "^$([regex]::Escape($version))(\.0)?$"
+          if ($info.FileVersion -notmatch $expectedVersion) {
+            throw "Installer FileVersion is $($info.FileVersion), expected $version."
+          }
+          if ($info.ProductVersion -notmatch $expectedVersion) {
+            throw "Installer ProductVersion is $($info.ProductVersion), expected $version."
+          }
+
+          $actualHash = (Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash.ToLowerInvariant()
+          $sidecarText = (Get-Content -LiteralPath $sidecar -Raw).Trim()
+          if ($sidecarText -notmatch '^([0-9a-fA-F]{64})\s{2}(.+)$') {
+            throw 'Installer SHA-256 sidecar is malformed.'
+          }
+          if ($Matches[1].ToLowerInvariant() -ne $actualHash) {
+            throw 'Installer SHA-256 sidecar does not match the built installer.'
+          }
+          if ($Matches[2] -ne "OmniForge-Setup-$version.exe") {
+            throw "Installer sidecar names $($Matches[2]) instead of the versioned installer."
+          }
+
+          $blockmap = "$installer.blockmap"
+          Write-Host "Verified OmniForge $version installer and SHA-256: $actualHash"
+          if (-not (Test-Path -LiteralPath $blockmap)) {
+            Write-Warning 'No NSIS blockmap was produced; the custom updater does not require one.'
+          }
+
+      - name: Create draft GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: OmniForge ${{ github.ref_name }}
+          draft: true
+          prerelease: false
+          generate_release_notes: true
+          fail_on_unmatched_files: false
+          files: |
+            dist/OmniForge-Setup-*.exe
+            dist/OmniForge-Setup-*.exe.sha256
+            dist/OmniForge-Setup-*.exe.blockmap
+            dist/latest.yml
