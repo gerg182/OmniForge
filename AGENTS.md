@@ -35,6 +35,7 @@ Requires Windows x64 and Node.js 20 or newer.
 
 ## Commit & Pull Request Guidelines
 - Write concise, imperative commit subjects such as `Add drag-and-drop installer updates`.
+- After completing and validating a task that changed files, create focused commit(s) and push them to the current upstream branch unless the user explicitly says not to commit or push. Never rewrite history or force-push as part of this workflow.
 - Keep commits focused. Do not commit `node_modules/`, `dist/`, or large `tools/` binaries.
 - Pull requests should include a summary, `npm test` results, version impact, and screenshots for UI changes.
 - Update `README.md` for user-facing changes and keep `package.json`/`package-lock.json` versions synchronized.
