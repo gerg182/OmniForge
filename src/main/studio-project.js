@@ -9,6 +9,7 @@ const {
   parseTranscript,
   serializeTranscript
 } = require('./transcript');
+const { normalizeStudioRatios, normalizeStudioFraming } = require('./studio-framing');
 
 const PROJECT_VERSION = 1;
 const PROJECT_EXTENSION = '.ofstudio';
@@ -47,7 +48,9 @@ function normalizeOutput(input = {}) {
     videoFormat: VIDEO_FORMATS.includes(input.videoFormat) ? input.videoFormat : 'mp4',
     audioFormat: AUDIO_FORMATS.includes(input.audioFormat) ? input.audioFormat : 'mp3',
     burnCaptions: input.burnCaptions !== false,
-    exportCaptions: CAPTION_EXPORTS.includes(input.exportCaptions) ? input.exportCaptions : 'srt'
+    exportCaptions: CAPTION_EXPORTS.includes(input.exportCaptions) ? input.exportCaptions : 'srt',
+    ratios: normalizeStudioRatios(input.ratios),
+    framing: normalizeStudioFraming(input.framing)
   };
 }
 

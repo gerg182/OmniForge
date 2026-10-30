@@ -2,6 +2,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const { sanitizeRecipes } = require('./recipes');
 
 class Store {
   constructor(app) {
@@ -29,14 +30,15 @@ class Store {
       lastOutputDir: null,
       updateFolder: this.defaultUpdateFolder(),
       theme: 'dark',
-      historyLimit: 50
+      historyLimit: 50,
+      recipes: []
     };
   }
 
   loadSettings() {
     try {
       const stored = JSON.parse(fs.readFileSync(this.settingsPath, 'utf8'));
-      return { ...this.defaults(), ...stored };
+      return { ...this.defaults(), ...stored, recipes: sanitizeRecipes(stored.recipes) };
     } catch {
       return this.defaults();
     }
@@ -124,6 +126,9 @@ class Store {
       if (Object.prototype.hasOwnProperty.call(patch, key)) {
         this.settings[key] = typeof patch[key] === 'string' ? patch[key] : null;
       }
+    }
+    if (Object.prototype.hasOwnProperty.call(patch, 'recipes')) {
+      this.settings.recipes = sanitizeRecipes(patch.recipes);
     }
     this.writeSettings();
     return this.get();

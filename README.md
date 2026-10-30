@@ -27,7 +27,10 @@ Everything runs on your PC. FFmpeg, FFprobe, yt-dlp, Deno, 7-Zip, and whisper.cp
 - FFprobe media inspection
 - Audio and video to text with local whisper.cpp transcription (TXT or timestamped SRT)
 - Transcript Clip Studio: transcribe or import SRT/VTT, select transcript ranges, and render multiple captioned clips in a three-pane preview, transcript, and clip workspace
+- Studio creator presets for 16:9, 9:16 Shorts, 1:1 square, and 4:5 portrait output, with Fill, Fit, and Blur framing and multi-ratio export
 - Editable `.ofstudio` projects with explicit save/open, automatic recovery drafts, and clip-relative caption files
+- Saved tool recipes for reusable option presets, plus a `Ctrl+K` command palette for tools, recipes, and actions
+- Smart drag-and-drop anywhere in the window with file-type detection and a confirm-first compatible-tool chooser
 - Microphone dictation with an in-app recording timer and transcript preview
 - In-app updates from a local update folder or a selected OmniForge installer
 - Choose an output folder for every batch
@@ -54,18 +57,24 @@ Build the Windows installer:
 npm run dist
 ```
 
-The installer and its `OmniForge-Setup-1.2.2.exe.sha256` sidecar are written to `dist/`.
+The installer and its `OmniForge-Setup-1.3.0.exe.sha256` sidecar are written to `dist/`.
 
 ## Transcript Clip Studio
 
 1. Open **Transcript Clip Studio**, then choose one audio or video file and an output folder.
 2. Transcribe locally with whisper.cpp or import an existing SRT/VTT transcript.
 3. Edit transcript text if needed, click a line, then Shift-click another line to select a contiguous range. Add as many clips as you need and arrange them in the clip list.
-4. Choose the clip format, caption sidecars, and optional burned-in caption style, then render the ordered clip queue.
+4. Choose the clip format, creator aspect ratios, Fill/Fit/Blur framing, caption sidecars, and optional burned-in caption style, then render the ordered clip queue.
 
-Video clips support MP4, MKV, WebM, and MOV with optional burned captions. Audio clips support MP3, WAV, FLAC, M4A, OGG, and Opus; audio always uses SRT/VTT sidecars. Sidecar timing is relative to each clip. Caption style controls font size, text color, outline, and top/center/bottom placement. All Studio processing stays local.
+Video clips support MP4, MKV, WebM, and MOV with optional burned captions. The preview can switch between the source ratio, 16:9 landscape, 9:16 Shorts, 1:1 square, and 4:5 portrait; selected ratios render as separate files with matching suffixes. Fill crops to the frame, Fit preserves the whole image with letterboxing, and Blur adds a synchronized blurred backdrop. Audio clips support MP3, WAV, FLAC, M4A, OGG, and Opus; audio always uses SRT/VTT sidecars. Sidecar timing is relative to each clip. Caption style controls font size, text color, outline, and top/center/bottom placement. All Studio processing stays local.
 
 Projects are saved as `.ofstudio` files containing the media reference, editable transcript, clips, caption style, and output settings. Unsaved changes are periodically copied to a recovery draft and offered for restore after a restart. Project media can be relinked if it moves. Audio-only projects identify a same-name video in the same folder and can switch to it without rebuilding the transcript.
+
+## Recipes, Palette, and Smart Drop
+
+Use **Recipes** in the top bar to save the current tool options, apply a preset, or manage saved recipes in Settings. Recipes never store passwords, URLs, output folders, file lists, recordings, or Studio project data.
+
+Press `Ctrl+K` to search every tool, saved recipe, and common action from one keyboard-driven palette. Drag files onto any empty part of the OmniForge window to open the smart-drop chooser: OmniForge detects the file type, suggests compatible tools, and waits for confirmation before adding anything. `.ofenc` files preselect the decrypt flow. Existing tool dropzones continue to accept files directly.
 
 ## Updates
 

@@ -1,3 +1,5 @@
+import { suggestDropTools, filterCommandItems } from './workflow.mjs';
+
 const api = window.omniforge;
 const ICONS = {
   home: '<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M9 21v-6h6v6"/>',
@@ -80,6 +82,20 @@ const TOOL_COLORS = {
   metadata: '#c9ff51', shred: '#ff8c8c'
 };
 
+const STUDIO_RATIOS = [
+  { id: 'original', label: 'Original', shortLabel: 'Original', suffix: '', width: null, height: null },
+  { id: 'landscape', label: '16:9 · Landscape', shortLabel: '16:9', suffix: '16x9', width: 1920, height: 1080 },
+  { id: 'portrait', label: '9:16 · Shorts', shortLabel: '9:16', suffix: '9x16', width: 1080, height: 1920 },
+  { id: 'square', label: '1:1 · Square', shortLabel: '1:1', suffix: '1x1', width: 1080, height: 1080 },
+  { id: 'portrait45', label: '4:5 · Portrait', shortLabel: '4:5', suffix: '4x5', width: 1080, height: 1350 }
+];
+
+const STUDIO_FRAMING_MODES = [
+  { id: 'fill', label: 'Fill', description: 'Crop to fill the frame.' },
+  { id: 'fit', label: 'Fit', description: 'Keep the whole frame with letterboxing.' },
+  { id: 'blur', label: 'Blur', description: 'Fill the frame with a blurred backdrop.' }
+];
+
 const ALLOWED_CATEGORIES = {
   convert: ['video', 'audio', 'image', 'data'],
   compress: ['video', 'audio', 'image'],
@@ -156,6 +172,10 @@ const state = {
   updateInfo: null,
   updateChecking: false,
   resetScroll: true,
+  command: { open: false, index: 0, query: '', items: [], restoreFocus: null },
+  recipesPopoverOpen: false,
+  dropPicker: null,
+  draggingFiles: false,
   studio: {
     project: null,
     projectPath: null,
@@ -172,7 +192,8 @@ const state = {
     auditionEndMs: 0,
     pendingSeekMs: 0,
     recoveryTimer: null,
-    search: ''
+    search: '',
+    previewRatio: 'original'
   },
   dictation: {
     recording: false,
@@ -193,6 +214,7 @@ const $ = (selector) => document.querySelector(selector);
 const viewEl = $('#view');
 const queueDrawer = $('#queue-drawer');
 const queueOverlay = $('#queue-overlay');
+let fileDragDepth = 0;
 
 function escapeHtml(value) {
   return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
@@ -279,6 +301,7 @@ function currentMeta() {
 
 function navigate(view) {
   if (!VIEW_META[view]) return;
+  closeRecipesPopover();
   if (state.view === 'encryptor' && view !== 'encryptor') {
     state.options.encryptor.password = '';
     state.options.encryptor.confirm = '';
@@ -297,6 +320,239 @@ function updateShell() {
   document.querySelectorAll('.nav-item').forEach((item) => item.classList.toggle('active', item.dataset.view === state.view));
   const engineCard = $('#engine-card');
   engineCard.classList.toggle('active', state.view === 'settings');
+}
+
+function availableRecipeTools() {
+  return Array.isArray(state.status?.recipeTools)
+    ? state.status.recipeTools
+    : ['youtube', 'convert', 'compress', 'trim', 'join', 'extract', 'normalize', 'gif', 'frames', 'pdf', 'archive', 'checksum', 'transcribe'];
+}
+
+function savedRecipes() {
+  return Array.isArray(state.settings?.recipes) ? state.settings.recipes : [];
+}
+
+function recipeToolLabel(tool) {
+  return VIEW_META[tool]?.[1] || tool;
+}
+
+function updateRecipeBadge() {
+  const count = savedRecipes().length;
+  document.querySelectorAll('#recipe-count, [data-recipe-count]').forEach((element) => {
+    element.textContent = String(count);
+  });
+}
+
+async function persistRecipes(recipes) {
+  state.settings = await api.saveSettings({ recipes });
+  updateRecipeBadge();
+  if (state.recipesPopoverOpen) renderRecipesPopover();
+  if (state.view === 'settings') render();
+}
+
+function recipeRowsMarkup(recipes, compact = false) {
+  if (!recipes.length) {
+    return `<div class="recipe-empty">${icon('file')}<div><strong>No saved recipes</strong><span>Configure a tool, then save those options as a reusable preset.</span></div></div>`;
+  }
+  return recipes.map((recipe) => `<div class="recipe-item ${compact ? 'compact' : ''}">
+    <span class="recipe-item-icon" style="--icon-color:${TOOL_COLORS[recipe.tool] || 'var(--muted)'}">${icon(TOOL_ICONS[recipe.tool] || 'file')}</span>
+    <div class="recipe-item-copy"><strong>${escapeHtml(recipe.name)}</strong><span>${escapeHtml(recipeToolLabel(recipe.tool))} · ${Object.keys(recipe.options || {}).length} settings</span></div>
+    <div class="recipe-item-actions"><button class="secondary-button" data-action="recipe-apply" data-id="${escapeHtml(recipe.id)}">Use</button><button class="ghost-button danger-text" data-action="recipe-delete" data-id="${escapeHtml(recipe.id)}">Delete</button></div>
+  </div>`).join('');
+}
+
+function renderRecipesPopover() {
+  const popover = $('#recipe-popover');
+  if (!popover) return;
+  const recipes = savedRecipes();
+  const currentTool = state.view;
+  const canSave = availableRecipeTools().includes(currentTool);
+  const currentRecipes = recipes.filter((recipe) => recipe.tool === currentTool);
+  const otherRecipes = recipes.filter((recipe) => recipe.tool !== currentTool);
+  popover.innerHTML = `<div class="recipe-popover-head">
+      <div><span class="eyebrow">Reusable options</span><h2>Tool recipes</h2></div>
+      <button class="icon-button" data-action="recipe-popover-close" aria-label="Close recipes">${icon('x')}</button>
+    </div>
+    <div class="recipe-save-current">
+      <div><strong>${canSave ? escapeHtml(recipeToolLabel(currentTool)) : 'Current view'}</strong><span>${canSave ? 'Save the settings on this page as a preset.' : 'Open a configurable tool to save its current settings.'}</span></div>
+      <button class="primary-button" data-action="recipe-save-current" ${canSave ? '' : 'disabled'}>${icon('plus')} Save current</button>
+    </div>
+    <div class="recipe-list-label">${currentRecipes.length ? 'For this tool' : 'Saved recipes'}</div>
+    ${recipeRowsMarkup(currentRecipes, true)}
+    ${otherRecipes.length ? `<div class="recipe-list-label">Other tools</div>${recipeRowsMarkup(otherRecipes, true)}` : ''}
+    <button class="recipe-manage-link" data-view="settings">Manage recipes in Settings</button>`;
+}
+
+function positionRecipesPopover() {
+  const popover = $('#recipe-popover');
+  const button = $('#recipes-button');
+  if (!popover || !button) return;
+  const rect = button.getBoundingClientRect();
+  const width = Math.min(380, window.innerWidth - 24);
+  popover.style.width = `${width}px`;
+  popover.style.top = `${Math.round(rect.bottom + 8)}px`;
+  popover.style.left = `${Math.round(Math.max(12, Math.min(window.innerWidth - width - 12, rect.right - width)))}px`;
+}
+
+function openRecipesPopover() {
+  const popover = $('#recipe-popover');
+  if (!popover) return;
+  state.recipesPopoverOpen = true;
+  renderRecipesPopover();
+  popover.hidden = false;
+  positionRecipesPopover();
+}
+
+function closeRecipesPopover() {
+  const popover = $('#recipe-popover');
+  state.recipesPopoverOpen = false;
+  if (popover) popover.hidden = true;
+}
+
+function toggleRecipesPopover() {
+  if (state.recipesPopoverOpen) closeRecipesPopover();
+  else openRecipesPopover();
+}
+
+async function saveCurrentRecipe() {
+  const tool = state.view;
+  if (!availableRecipeTools().includes(tool)) {
+    showToast('Open a configurable tool before saving a recipe.', 'error');
+    return;
+  }
+  const suggested = `${recipeToolLabel(tool)} preset`;
+  const entered = window.prompt('Name this recipe', suggested);
+  const name = String(entered || '').trim().replace(/\s+/g, ' ').slice(0, 40);
+  if (!name) return;
+  try {
+    const now = new Date().toISOString();
+    const existing = savedRecipes().find((recipe) => recipe.tool === tool && recipe.name.toLowerCase() === name.toLowerCase());
+    const recipe = {
+      id: existing?.id || globalThis.crypto?.randomUUID?.() || `recipe-${Date.now()}`,
+      name,
+      tool,
+      options: JSON.parse(JSON.stringify(state.options[tool] || {})),
+      createdAt: existing?.createdAt || now,
+      updatedAt: now
+    };
+    const next = [recipe, ...savedRecipes().filter((entry) => entry.id !== recipe.id)];
+    await persistRecipes(next);
+    renderRecipesPopover();
+    showToast(`Saved “${name}” for ${recipeToolLabel(tool)}.`, 'success');
+  } catch (error) {
+    showToast(error.message || String(error), 'error', 7000);
+  }
+}
+
+function applyRecipe(id) {
+  const recipe = savedRecipes().find((entry) => entry.id === id);
+  if (!recipe || !state.options[recipe.tool]) return;
+  state.options[recipe.tool] = { ...state.options[recipe.tool], ...JSON.parse(JSON.stringify(recipe.options || {})) };
+  closeRecipesPopover();
+  navigate(recipe.tool);
+  showToast(`Applied “${recipe.name}”.`, 'success', 2600);
+}
+
+async function deleteRecipe(id) {
+  const recipe = savedRecipes().find((entry) => entry.id === id);
+  if (!recipe) return;
+  if (!window.confirm(`Delete the “${recipe.name}” recipe?`)) return;
+  try {
+    await persistRecipes(savedRecipes().filter((entry) => entry.id !== id));
+    showToast('Recipe deleted.', 'success', 2400);
+  } catch (error) {
+    showToast(error.message || String(error), 'error', 7000);
+  }
+}
+
+function commandItems() {
+  const items = Object.entries(VIEW_META).map(([view, [eyebrow, title]]) => ({
+    id: `view:${view}`,
+    label: title,
+    description: `${eyebrow} workspace`,
+    keywords: [view, eyebrow, 'open', 'go', 'tool'],
+    icon: TOOL_ICONS[view] || 'file',
+    color: TOOL_COLORS[view] || 'var(--muted)',
+    run: () => navigate(view)
+  }));
+  items.push(
+    { id: 'action:queue', label: 'Open job queue', description: 'Review active and finished jobs', keywords: ['activity', 'jobs', 'queue'], icon: 'queue', color: 'var(--cyan)', run: openQueue },
+    { id: 'action:updates', label: 'Check for updates', description: 'Look for a newer installer', keywords: ['update', 'installer', 'version'], icon: 'refresh', color: 'var(--warning)', run: () => checkForUpdates(true) }
+  );
+  if (availableRecipeTools().includes(state.view)) {
+    items.push({ id: 'action:save-recipe', label: 'Save current settings as a recipe', description: `Capture ${recipeToolLabel(state.view)} options`, keywords: ['recipe', 'preset', 'save'], icon: 'plus', color: 'var(--lime)', run: saveCurrentRecipe });
+  }
+  for (const recipe of savedRecipes()) {
+    items.push({
+      id: `recipe:${recipe.id}`,
+      label: `Apply recipe: ${recipe.name}`,
+      description: recipeToolLabel(recipe.tool),
+      keywords: [recipe.tool, 'recipe', 'preset', recipe.name],
+      icon: TOOL_ICONS[recipe.tool] || 'file',
+      color: TOOL_COLORS[recipe.tool] || 'var(--muted)',
+      run: () => applyRecipe(recipe.id)
+    });
+  }
+  return items;
+}
+
+function filteredCommandItems() {
+  return filterCommandItems(state.command.items, state.command.query, 20);
+}
+
+function renderCommandResults() {
+  const results = filteredCommandItems();
+  const container = $('#command-results');
+  if (!container) return;
+  if (state.command.index >= results.length) state.command.index = Math.max(0, results.length - 1);
+  container.innerHTML = results.length ? results.map((item, index) => `<button class="command-result ${index === state.command.index ? 'active' : ''}" data-command-index="${index}" role="option" aria-selected="${index === state.command.index}">
+      <span class="command-result-icon" style="--icon-color:${item.color || 'var(--muted)'}">${icon(item.icon || 'file')}</span>
+      <span class="command-result-copy"><strong>${escapeHtml(item.label)}</strong><span>${escapeHtml(item.description || '')}</span></span>
+      ${index === state.command.index ? '<kbd>Enter</kbd>' : ''}
+    </button>`).join('') : `<div class="command-empty">${icon('info')}<span>No matching tools, recipes, or actions.</span></div>`;
+  const hint = $('#command-hint');
+  if (hint) hint.textContent = `${results.length} result${results.length === 1 ? '' : 's'}`;
+}
+
+function openCommandPalette() {
+  const overlay = $('#command-overlay');
+  const input = $('#command-input');
+  if (!overlay || !input) return;
+  state.command.open = true;
+  state.command.index = 0;
+  state.command.query = '';
+  state.command.items = commandItems();
+  state.command.restoreFocus = document.activeElement;
+  overlay.classList.add('open');
+  overlay.setAttribute('aria-hidden', 'false');
+  input.value = '';
+  renderCommandResults();
+  setTimeout(() => input.focus(), 0);
+}
+
+function closeCommandPalette() {
+  const overlay = $('#command-overlay');
+  if (!overlay || !state.command.open) return;
+  state.command.open = false;
+  overlay.classList.remove('open');
+  overlay.setAttribute('aria-hidden', 'true');
+  try { state.command.restoreFocus?.focus?.(); } catch { /* focus target may be gone */ }
+}
+
+function executeCommand(index = state.command.index) {
+  const item = filteredCommandItems()[index];
+  if (!item) return;
+  closeCommandPalette();
+  setTimeout(() => {
+    try { item.run(); } catch (error) { showToast(error.message || String(error), 'error', 7000); }
+  }, 0);
+}
+
+function moveCommandSelection(delta) {
+  const results = filteredCommandItems();
+  if (!results.length) return;
+  state.command.index = (state.command.index + delta + results.length) % results.length;
+  renderCommandResults();
 }
 
 function render() {
@@ -917,9 +1173,27 @@ function defaultStudioProject(mediaPath = '') {
       videoFormat: 'mp4',
       audioFormat: 'mp3',
       burnCaptions: true,
-      exportCaptions: 'srt'
+      exportCaptions: 'srt',
+      ratios: ['original'],
+      framing: 'fill'
     }
   };
+}
+
+function studioRatioDefinitions() {
+  return Array.isArray(state.status?.studioRatios) && state.status.studioRatios.length
+    ? state.status.studioRatios
+    : STUDIO_RATIOS;
+}
+
+function studioRatioDefinition(id) {
+  return studioRatioDefinitions().find((ratio) => ratio.id === id) || STUDIO_RATIOS[0];
+}
+
+function studioFramingDefinitions() {
+  return Array.isArray(state.status?.studioFramingModes) && state.status.studioFramingModes.length
+    ? state.status.studioFramingModes.map((id) => STUDIO_FRAMING_MODES.find((mode) => mode.id === id) || { id, label: id, description: '' })
+    : STUDIO_FRAMING_MODES;
 }
 
 function studioMediaCategory() {
@@ -1022,11 +1296,22 @@ function renderStudioMediaPanel(project, file, category) {
   const missing = Boolean(state.studio.mediaError);
   const matchVideo = category === 'audio' ? state.studio.matchVideo : null;
   const mediaUrl = state.studio.mediaUrl;
+  const previewRatio = studioRatioDefinition(state.studio.previewRatio);
+  const framing = project?.output?.framing || 'fill';
+  const frameStyle = previewRatio.width ? `aspect-ratio:${previewRatio.width} / ${previewRatio.height};` : '';
   const mediaElement = file && mediaUrl
     ? category === 'audio'
       ? `<audio id="studio-media" class="studio-audio" src="${escapeHtml(mediaUrl)}" controls preload="metadata"></audio>`
-      : `<video id="studio-media" class="studio-video" src="${escapeHtml(mediaUrl)}" controls preload="metadata"></video>`
+      : `<video id="studio-media" class="studio-video studio-video-foreground" src="${escapeHtml(mediaUrl)}" controls preload="metadata"></video>`
     : '';
+  const backdrop = category === 'video' && mediaElement
+    ? `<video id="studio-media-backdrop" class="studio-video studio-video-backdrop" src="${escapeHtml(mediaUrl)}" muted aria-hidden="true" preload="metadata"></video>`
+    : '';
+  const ratioChips = category === 'video' ? `<div class="studio-preview-toolbar">
+      <span>Preview aspect</span>
+      <div class="studio-ratio-chips">${studioRatioDefinitions().map((ratio) => `<button class="${state.studio.previewRatio === ratio.id ? 'active' : ''}" data-action="studio-preview-ratio" data-ratio="${escapeHtml(ratio.id)}">${escapeHtml(ratio.shortLabel || ratio.label)}</button>`).join('')}</div>
+      <span class="studio-framing-current">${escapeHtml(studioFramingDefinitions().find((mode) => mode.id === framing)?.label || framing)}</span>
+    </div>` : '';
   return `<section class="studio-preview-panel">
     <div class="studio-panel-heading">
       <div><span class="studio-kicker">Preview</span><h2>${file ? escapeHtml(file.name) : 'Project media'}</h2></div>
@@ -1037,8 +1322,10 @@ function renderStudioMediaPanel(project, file, category) {
     </div>
     ${!missing && category === 'audio' ? `<div class="studio-source-note">${icon(matchVideo ? 'film' : 'music')}<div><strong>Audio-only source</strong><span>${matchVideo ? `A matching video is available as ${escapeHtml(matchVideo.name)}. Switching keeps this transcript and clip queue.` : 'Preview and exports contain audio plus caption sidecars. Start from a video file to render video clips.'}</span></div>${matchVideo ? `<button class="secondary-button" data-action="studio-use-match-video">Use video</button>` : ''}</div>` : ''}
     ${missing ? `<div class="studio-media-warning">${icon('alert')}<div><strong>Project media is missing</strong><span>Relink the original file before previewing or rendering.</span></div><button class="secondary-button" data-action="studio-relink-media">Relink media</button></div>` : ''}
+    ${ratioChips}
     <div class="studio-media-stage ${category}">
-      <div class="studio-media-frame">
+      <div class="studio-media-frame framing-${escapeHtml(framing)}" data-studio-frame style="${frameStyle}">
+        ${backdrop}
         ${mediaElement || `<div class="studio-media-placeholder">${icon(category === 'audio' ? 'music' : 'film')}<span>Media preview unavailable</span></div>`}
         <div id="studio-caption-overlay" class="studio-caption-overlay ${escapeHtml(project?.captionStyle?.position || 'bottom')}" style="${studioCaptionOverlayStyle(project)}"></div>
       </div>
@@ -1113,6 +1400,16 @@ function renderStudioSettingsPanel(project, category) {
   const video = category === 'video';
   const formats = video ? STUDIO_VIDEO_FORMATS : STUDIO_AUDIO_FORMATS;
   const selectedFormat = video ? project.output.videoFormat : project.output.audioFormat;
+  const selectedRatios = video && Array.isArray(project.output.ratios) && project.output.ratios.length ? project.output.ratios : ['original'];
+  const framing = project.output.framing || 'fill';
+  const presets = [
+    { id: 'source', label: 'Source', ratios: ['original'] },
+    { id: 'longform', label: 'Long-form', ratios: ['landscape'] },
+    { id: 'shorts', label: 'Shorts', ratios: ['portrait'] },
+    { id: 'square', label: 'Square', ratios: ['square'] },
+    { id: 'social', label: 'Social pack', ratios: ['landscape', 'portrait', 'square'] }
+  ];
+  const activePreset = presets.find((preset) => preset.ratios.slice().sort().join(',') === selectedRatios.slice().sort().join(','));
   const style = project.captionStyle;
   return `<div class="studio-inspector-section">
     <div class="studio-inspector-heading"><div><h2>Output settings</h2><p>Choose the format, caption delivery, and breathing room around each selected range.</p></div></div>
@@ -1128,6 +1425,12 @@ function renderStudioSettingsPanel(project, category) {
         ], project.output.exportCaptions)}</select></div>
         ${video ? `<div class="field"><label>Burn into video</label><label class="check-pill studio-check"><input type="checkbox" data-studio-output="burnCaptions" ${project.output.burnCaptions ? 'checked' : ''}><span>Visible captions</span></label></div>` : `<div class="field"><label>Caption delivery</label><div class="field-note">Audio clips use sidecar captions only.</div></div>`}
       </div>
+      ${video ? `<div class="studio-creator-block">
+        <div class="studio-style-head"><strong>Creator presets</strong><span>${activePreset ? escapeHtml(activePreset.label) : `${selectedRatios.length} formats selected`}</span></div>
+        <div class="studio-preset-row">${presets.map((preset) => `<button class="${activePreset?.id === preset.id ? 'active' : ''}" data-action="studio-ratio-preset" data-ratios="${preset.ratios.join(',')}">${escapeHtml(preset.label)}</button>`).join('')}</div>
+        <div class="studio-ratio-options">${studioRatioDefinitions().map((ratio) => `<label class="studio-ratio-option ${selectedRatios.includes(ratio.id) ? 'selected' : ''}"><input type="checkbox" data-studio-output="ratio" data-ratio="${escapeHtml(ratio.id)}" ${selectedRatios.includes(ratio.id) ? 'checked' : ''}><span>${icon(ratio.id === 'original' ? 'film' : ratio.id === 'portrait' || ratio.id === 'portrait45' ? 'captions' : 'frames')}<strong>${escapeHtml(ratio.shortLabel || ratio.label)}</strong><small>${ratio.width ? `${ratio.width}×${ratio.height}` : 'Source size'}</small></span></label>`).join('')}</div>
+        <div class="studio-framing-options"><span>Framing</span><div>${studioFramingDefinitions().map((mode) => `<button class="${framing === mode.id ? 'active' : ''}" data-action="studio-framing" data-framing="${escapeHtml(mode.id)}" title="${escapeHtml(mode.description || '')}">${escapeHtml(mode.label)}</button>`).join('')}</div></div>
+      </div>` : ''}
       ${video ? `<div class="studio-style-block"><div class="studio-style-head"><strong>Caption style</strong><span>Updates the preview live</span></div><div class="form-grid studio-style-grid">
         <div class="field"><label>Font size</label><input type="number" min="16" max="48" step="1" value="${Number(style.fontSize) || 24}" data-studio-style="fontSize"></div>
         <div class="field"><label>Text color</label><input type="color" value="${escapeHtml(style.color || '#FFFFFF')}" data-studio-style="color"></div>
@@ -1158,6 +1461,8 @@ function renderStudioClipPanel(project, category) {
 function renderStudioInspector(project, category) {
   const tab = state.studio.inspectorTab === 'output' ? 'output' : 'clips';
   const clipCount = project.clips.length;
+  const ratioCount = category === 'video' ? Math.max(1, project.output.ratios?.length || 1) : 1;
+  const outputCount = clipCount * ratioCount;
   const missing = Boolean(state.studio.mediaError);
   return `<div class="studio-inspector-tabs" role="tablist" aria-label="Studio inspector">
     <button class="${tab === 'clips' ? 'active' : ''}" data-action="studio-inspector-tab" data-tab="clips" role="tab" aria-selected="${tab === 'clips'}">${icon('scissors')} Clips <span>${clipCount}</span></button>
@@ -1166,7 +1471,7 @@ function renderStudioInspector(project, category) {
   <div class="studio-inspector-content">${tab === 'clips' ? renderStudioClipPanel(project, category) : renderStudioSettingsPanel(project, category)}</div>
   <div class="studio-inspector-footer">
     <div class="studio-render-summary"><strong>${clipCount ? `${clipCount} clip${clipCount === 1 ? '' : 's'}` : 'No clips queued'}</strong><span data-studio-output-summary>${studioOutputSummary(project, category)}</span></div>
-    <button class="primary-button studio-render-button" data-action="studio-render-clips" ${clipCount && !missing ? '' : 'disabled'}>${icon('play')} Render clip${clipCount === 1 ? '' : 's'}</button>
+    <button class="primary-button studio-render-button" data-action="studio-render-clips" ${clipCount && !missing ? '' : 'disabled'}>${icon('play')} Render ${outputCount || 0} file${outputCount === 1 ? '' : 's'}</button>
   </div>`;
 }
 
@@ -1174,13 +1479,76 @@ function studioOutputSummary(project, category) {
   const format = (category === 'video' ? project.output.videoFormat : project.output.audioFormat).toUpperCase();
   const captionLabels = { none: 'No sidecars', srt: 'SRT', vtt: 'VTT', both: 'SRT + VTT' };
   const captionMode = captionLabels[project.output.exportCaptions] || 'SRT';
-  return `${format} / ${category === 'video' && project.output.burnCaptions ? `${captionMode} + burned in` : captionMode}`;
+  const ratios = category === 'video' && Array.isArray(project.output.ratios) && project.output.ratios.length ? project.output.ratios : ['original'];
+  const ratioLabel = ratios.length === 1
+    ? (studioRatioDefinition(ratios[0]).shortLabel || studioRatioDefinition(ratios[0]).label)
+    : `${ratios.length} aspects`;
+  const count = project.clips.length * ratios.length;
+  return `${format} · ${ratioLabel} · ${category === 'video' && project.output.burnCaptions ? `${captionMode} + burned in` : captionMode} · ${count} file${count === 1 ? '' : 's'}`;
 }
 
 function updateStudioOutputSummary(project = state.studio.project) {
   const summary = document.querySelector('[data-studio-output-summary]');
   if (!summary || !project) return;
   summary.textContent = studioOutputSummary(project, studioMediaCategory());
+}
+
+function applyStudioPreviewFrame() {
+  const project = state.studio.project;
+  const frame = document.querySelector('[data-studio-frame]');
+  if (!project || !frame) return;
+  const ratio = studioRatioDefinition(state.studio.previewRatio);
+  const framing = project.output.framing || 'fill';
+  const media = document.getElementById('studio-media');
+  const naturalRatio = Number(media?.videoWidth) > 0 && Number(media?.videoHeight) > 0 ? `${media.videoWidth} / ${media.videoHeight}` : '';
+  frame.style.aspectRatio = ratio.width ? `${ratio.width} / ${ratio.height}` : naturalRatio;
+  for (const mode of STUDIO_FRAMING_MODES) frame.classList.remove(`framing-${mode.id}`);
+  frame.classList.add(`framing-${framing}`);
+  const backdrop = document.getElementById('studio-media-backdrop');
+  if (backdrop && media) {
+    try {
+      backdrop.currentTime = Number(media.currentTime) || 0;
+      backdrop.playbackRate = media.playbackRate;
+      if (media.paused) backdrop.pause();
+      else backdrop.play().catch(() => {});
+    } catch { /* the backdrop is optional preview decoration */ }
+  }
+  document.querySelectorAll('[data-action="studio-preview-ratio"]').forEach((button) => {
+    button.classList.toggle('active', button.dataset.ratio === ratio.id);
+  });
+  document.querySelectorAll('[data-action="studio-framing"]').forEach((button) => {
+    button.classList.toggle('active', button.dataset.framing === framing);
+  });
+  const current = document.querySelector('.studio-framing-current');
+  if (current) current.textContent = studioFramingDefinitions().find((mode) => mode.id === framing)?.label || framing;
+}
+
+function setStudioPreviewRatio(id) {
+  const ratio = studioRatioDefinition(id);
+  state.studio.previewRatio = ratio.id;
+  applyStudioPreviewFrame();
+}
+
+function setStudioFraming(id) {
+  const project = state.studio.project;
+  const mode = studioFramingDefinitions().find((entry) => entry.id === id);
+  if (!project || !mode) return;
+  project.output.framing = mode.id;
+  markStudioDirty();
+  applyStudioPreviewFrame();
+  updateStudioOutputSummary(project);
+}
+
+function applyStudioRatioPreset(value) {
+  const project = state.studio.project;
+  if (!project) return;
+  const available = new Set(studioRatioDefinitions().map((ratio) => ratio.id));
+  const ratios = String(value || '').split(',').map((entry) => entry.trim()).filter((entry) => available.has(entry));
+  if (!ratios.length) return;
+  project.output.ratios = [...new Set(ratios)];
+  if (!ratios.includes(state.studio.previewRatio)) state.studio.previewRatio = ratios[0];
+  markStudioDirty();
+  render();
 }
 
 function renderGif() {
@@ -1453,7 +1821,7 @@ function renderSettings() {
     ['sevenZip', '7-Zip', 'Archive engine'],
     ['speech', 'Whisper', 'Local speech-to-text engine']
   ];
-    const appVersion = state.status?.appVersion || '1.2.2';
+    const appVersion = state.status?.appVersion || '1.3.0';
     const updateInfo = state.updateInfo;
     const latestUpdate = updateInfo?.latest;
     const updateHash = latestUpdate?.hash || null;
@@ -1513,6 +1881,13 @@ function renderSettings() {
           </div>
         </div>
       </div>
+      <div class="panel">
+        <div class="panel-head"><div><h2>Tool recipes</h2><p>Save frequently used option combinations and apply them from any tool or the command palette.</p></div><span class="status-pill" data-recipe-count>${savedRecipes().length}</span></div>
+        <div class="panel-body">
+          <div class="recipe-manager">${recipeRowsMarkup(savedRecipes())}</div>
+          <div class="legal-note">${icon('shield')} Recipes only store tool options. URLs, output folders, passwords, file lists, and Studio project data are never saved.</div>
+        </div>
+      </div>
               <div class="panel">
           <div class="panel-head"><div><h2>Application updates</h2><p>Install a newer build without uninstalling OmniForge.</p></div><span class="status-pill">v${escapeHtml(appVersion)}</span></div>
           <div class="panel-body">
@@ -1553,7 +1928,7 @@ function renderSettings() {
     </div>
     <aside class="panel side-panel">
       <div class="tool-icon side-icon" style="--icon-color: var(--cyan)">${icon('harddrive')}</div>
-      <h3>OmniForge ${escapeHtml(state.status?.appVersion || '1.2.2')}</h3>
+      <h3>OmniForge ${escapeHtml(state.status?.appVersion || '1.3.0')}</h3>
       <p>Windows ${escapeHtml(state.status?.arch || '')} · Electron desktop app · Local-first by design.</p>
       <div class="side-list">
         <button class="secondary-button" data-action="open-tools" style="width:100%">${icon('folder')} Open tools folder</button>
@@ -1786,6 +2161,8 @@ async function applyStudioProject(project, projectPath = null, options = {}) {
   state.studio.mediaError = '';
   state.studio.pendingSeekMs = 0;
   state.studio.inspectorTab = 'clips';
+  const ratios = Array.isArray(project.output?.ratios) && project.output.ratios.length ? project.output.ratios : ['original'];
+  state.studio.previewRatio = ratios.includes('original') ? 'original' : ratios[0];
   state.options.studio.language = project.language || 'auto';
   resetStudioSelection();
   state.studio.search = '';
@@ -1831,6 +2208,7 @@ async function loadStudioMedia(file, createProject = false) {
   state.studio.mediaError = '';
   state.studio.pendingSeekMs = 0;
   state.studio.inspectorTab = 'clips';
+  state.studio.previewRatio = 'original';
   resetStudioSelection();
   state.studio.search = '';
   try {
@@ -2177,6 +2555,7 @@ async function renderStudioClips() {
     const outputDirectory = await ensureStudioOutputDirectory();
     if (!outputDirectory) return;
     const category = studioMediaCategory();
+    const outputCount = project.clips.length * (category === 'video' ? Math.max(1, project.output.ratios?.length || 1) : 1);
     const spec = makeSpec('studio', [project.mediaPath], outputDirectory, {
       durationMs: project.durationMs,
       outputFormat: category === 'video' ? project.output.videoFormat : project.output.audioFormat,
@@ -2184,15 +2563,17 @@ async function renderStudioClips() {
       burnCaptions: project.output.burnCaptions,
       exportCaptions: project.output.exportCaptions,
       captionStyle: project.captionStyle,
+      ratios: project.output.ratios,
+      framing: project.output.framing,
       clips: project.clips,
       segments: project.segments
-    }, `Transcript Clip Studio · ${project.clips.length} clip${project.clips.length === 1 ? '' : 's'}`);
+    }, `Transcript Clip Studio · ${outputCount} file${outputCount === 1 ? '' : 's'}`);
     const job = await api.startJob(spec);
     state.jobs.set(job.id, job);
     openQueue();
     updateQueueBadge();
     renderQueue();
-    showToast(`${project.clips.length} Studio clip${project.clips.length === 1 ? '' : 's'} queued.`, 'success');
+    showToast(`${outputCount} Studio file${outputCount === 1 ? '' : 's'} queued.`, 'success');
   } catch (error) {
     showToast(error.message || String(error), 'error', 7000);
   } finally {
@@ -2245,8 +2626,20 @@ function updateStudioPreview() {
 
 function bindStudioPreview() {
   const media = document.getElementById('studio-media');
+  const backdrop = document.getElementById('studio-media-backdrop');
   const project = state.studio.project;
   if (!media || !project) return;
+  const syncBackdrop = () => {
+    if (!backdrop) return;
+    try {
+      if (Math.abs((Number(backdrop.currentTime) || 0) - (Number(media.currentTime) || 0)) > 0.08) {
+        backdrop.currentTime = Number(media.currentTime) || 0;
+      }
+      backdrop.playbackRate = media.playbackRate;
+      if (media.paused) backdrop.pause();
+      else backdrop.play().catch(() => {});
+    } catch { /* the hidden backdrop can lag without blocking playback */ }
+  };
   const onMetadata = () => {
     const durationMs = Math.round((Number(media.duration) || 0) * 1000);
     if (durationMs > 0 && Math.abs(durationMs - Number(project.durationMs || 0)) > 250) {
@@ -2259,10 +2652,17 @@ function bindStudioPreview() {
       try { media.currentTime = target / 1000; } catch { /* ignore invalid seek */ }
     }
     updateStudioPreview();
+    applyStudioPreviewFrame();
+    syncBackdrop();
   };
   media.addEventListener('loadedmetadata', onMetadata);
   if (media.readyState >= 1) onMetadata();
   media.addEventListener('timeupdate', updateStudioPreview);
+  media.addEventListener('timeupdate', syncBackdrop);
+  media.addEventListener('play', syncBackdrop);
+  media.addEventListener('pause', syncBackdrop);
+  media.addEventListener('seeking', syncBackdrop);
+  media.addEventListener('ratechange', syncBackdrop);
   media.addEventListener('ended', () => { state.studio.auditionEndMs = 0; });
   media.addEventListener('error', () => {
     if (!state.studio.mediaError) {
@@ -2330,6 +2730,22 @@ function updateStudioControl(target) {
       project.output.burnCaptions = Boolean(target.checked);
     } else if (field === 'exportCaptions') {
       project.output.exportCaptions = target.value;
+    } else if (field === 'ratio') {
+      const ratio = String(target.dataset.ratio || '');
+      const current = Array.isArray(project.output.ratios) ? project.output.ratios.slice() : [];
+      if (target.checked && ratio && !current.includes(ratio)) current.push(ratio);
+      if (!target.checked) {
+        const next = current.filter((entry) => entry !== ratio);
+        if (!next.length) {
+          target.checked = true;
+          showToast('Keep at least one output aspect ratio selected.', 'error');
+          return true;
+        }
+        project.output.ratios = next;
+      } else {
+        project.output.ratios = current;
+      }
+      target.closest('.studio-ratio-option')?.classList.toggle('selected', target.checked);
     }
     markStudioDirty();
     updateStudioOutputSummary(project);
@@ -2495,6 +2911,111 @@ function handleViewInput(event) {
     const button = document.querySelector('[data-action="start-tool"][data-tool="youtube"]');
     if (button) button.disabled = !target.value.trim();
   }
+}
+
+function dropCategoryLabel(category) {
+  return {
+    video: 'Video files', audio: 'Audio files', image: 'Images', data: 'Structured data',
+    pdf: 'PDF documents', archive: 'Archives', encrypted: 'Encrypted files', mixed: 'Mixed file types'
+  }[category] || 'Files';
+}
+
+function closeSmartDropPicker() {
+  state.dropPicker = null;
+  const overlay = $('#smart-drop-overlay');
+  if (overlay) overlay.hidden = true;
+}
+
+function renderSmartDropPicker() {
+  const picker = state.dropPicker;
+  const overlay = $('#smart-drop-overlay');
+  const content = $('#smart-drop-content');
+  if (!picker || !overlay || !content) return;
+  const totalSize = picker.files.reduce((total, file) => total + (Number(file?.size) || 0), 0);
+  content.innerHTML = `<div class="smart-drop-head">
+      <span class="eyebrow">Smart drop</span>
+      <h2 id="smart-drop-title">Choose what to do with these files</h2>
+      <p>${picker.paths.length} ${dropCategoryLabel(picker.category).toLowerCase()} detected. Compatible tools are suggested first; nothing is added until you confirm.</p>
+    </div>
+    <div class="smart-drop-files">${picker.names.slice(0, 6).map((name) => `<span title="${escapeHtml(name)}">${icon('file')}${escapeHtml(name)}</span>`).join('')}${picker.names.length > 6 ? `<span>+${picker.names.length - 6} more</span>` : ''}${totalSize ? `<b>${formatBytes(totalSize)}</b>` : ''}</div>
+    <div class="smart-drop-tools" role="radiogroup" aria-label="Compatible tools">
+      ${picker.suggestions.map((suggestion, index) => `<label class="smart-drop-tool ${picker.selected === suggestion.tool ? 'selected' : ''}">
+        <input type="radio" name="smart-drop-tool" value="${escapeHtml(suggestion.tool)}" ${picker.selected === suggestion.tool ? 'checked' : ''}>
+        <span class="smart-drop-tool-icon" style="--icon-color:${TOOL_COLORS[suggestion.tool] || 'var(--muted)'}">${icon(TOOL_ICONS[suggestion.tool] || 'file')}</span>
+        <span class="smart-drop-tool-copy"><strong>${escapeHtml(recipeToolLabel(suggestion.tool))}</strong><span>${escapeHtml(suggestion.reason || '')}</span></span>
+        ${suggestion.recommended || index === 0 ? '<span class="smart-drop-recommended">Suggested</span>' : ''}
+      </label>`).join('')}
+    </div>
+    <div class="smart-drop-actions"><button class="ghost-button" data-action="smart-drop-cancel">Cancel</button><button class="primary-button" data-action="smart-drop-confirm">${icon('plus')} Add to ${escapeHtml(recipeToolLabel(picker.selected))}</button></div>`;
+  overlay.hidden = false;
+}
+
+function showSmartDropPicker(paths, files) {
+  if (!paths.length) {
+    showToast('Could not read the dropped file paths.', 'error');
+    return;
+  }
+  const names = paths.map((filePath, index) => files[index]?.name || baseName(filePath));
+  const detected = suggestDropTools(names, state.status?.inputExtensions);
+  let suggestions = detected.suggestions.slice();
+  const encryptedOnly = names.length > 0 && names.every((name) => extensionFor(name) === 'ofenc');
+  if (encryptedOnly) {
+    suggestions = [{ tool: 'encryptor', reason: 'Decrypt OmniForge .ofenc files', recommended: true }, ...suggestions.filter((entry) => entry.tool !== 'encryptor')];
+  }
+  if (!suggestions.length) {
+    suggestions = [
+      { tool: 'checksum', reason: 'Hash the files without changing them', recommended: true },
+      { tool: 'archive', reason: 'Pack the files into an archive' },
+      { tool: 'encryptor', reason: 'Encrypt the files locally' }
+    ];
+  }
+  state.dropPicker = {
+    paths,
+    files,
+    names,
+    category: encryptedOnly ? 'encrypted' : detected.category,
+    suggestions,
+    selected: suggestions[0].tool
+  };
+  hideDropOverlay();
+  renderSmartDropPicker();
+}
+
+async function confirmSmartDrop() {
+  const picker = state.dropPicker;
+  if (!picker) return;
+  const tool = picker.selected;
+  closeSmartDropPicker();
+  try {
+    if (tool === 'encryptor') {
+      const decrypting = picker.names.every((name) => extensionFor(name) === 'ofenc');
+      state.options.encryptor.mode = decrypting ? 'decrypt' : 'encrypt';
+      state.options.encryptor.password = '';
+      state.options.encryptor.confirm = '';
+      syncEncryptorFiles();
+    }
+    if (state.view !== tool) navigate(tool);
+    await addPaths(tool, picker.paths, picker.files);
+  } catch (error) {
+    showToast(error.message || String(error), 'error', 7000);
+  }
+}
+
+function showDropOverlay() {
+  const overlay = $('#drop-overlay');
+  if (!overlay || state.dropPicker) return;
+  state.draggingFiles = true;
+  overlay.hidden = false;
+}
+
+function eventHasFiles(event) {
+  return Boolean(event.dataTransfer?.files?.length) || [...(event.dataTransfer?.types || [])].includes('Files');
+}
+
+function hideDropOverlay() {
+  state.draggingFiles = false;
+  const overlay = $('#drop-overlay');
+  if (overlay) overlay.hidden = true;
 }
 
 function handleDrop(event) {
@@ -3167,8 +3688,17 @@ function handleAction(actionTarget, event) {
     case 'studio-remove-clip': removeStudioClip(actionTarget.dataset.id); break;
     case 'studio-move-clip': moveStudioClip(actionTarget.dataset.id, Number(actionTarget.dataset.dir)); break;
     case 'studio-preview-clip': previewStudioClip(actionTarget.dataset.id); break;
+    case 'studio-preview-ratio': setStudioPreviewRatio(actionTarget.dataset.ratio); break;
+    case 'studio-framing': setStudioFraming(actionTarget.dataset.framing); break;
+    case 'studio-ratio-preset': applyStudioRatioPreset(actionTarget.dataset.ratios); break;
     case 'studio-render-clips': renderStudioClips(); break;
     case 'studio-inspector-tab': setStudioInspectorTab(actionTarget.dataset.tab); break;
+    case 'recipe-apply': applyRecipe(actionTarget.dataset.id); break;
+    case 'recipe-delete': deleteRecipe(actionTarget.dataset.id); break;
+    case 'recipe-save-current': saveCurrentRecipe(); break;
+    case 'recipe-popover-close': closeRecipesPopover(); break;
+    case 'smart-drop-cancel': closeSmartDropPicker(); break;
+    case 'smart-drop-confirm': confirmSmartDrop(); break;
     case 'clear-results': clearResults(tool); break;
     case 'refresh-status': refreshStatus(true); break;
     case 'update-ytdlp': updateYtdlp(actionTarget); break;
@@ -3214,6 +3744,7 @@ function handleAction(actionTarget, event) {
 
 function bindEvents() {
   document.addEventListener('click', (event) => {
+    if (state.recipesPopoverOpen && !event.target.closest('#recipe-popover, #recipes-button')) closeRecipesPopover();
     const viewTarget = event.target.closest('[data-view]');
     if (viewTarget) {
       event.preventDefault();
@@ -3247,10 +3778,84 @@ function bindEvents() {
     event.preventDefault();
     chooseUpdateInstaller();
   });
-  document.addEventListener('dragover', (event) => { if (event.target.closest('.dropzone, .update-dropzone')) event.preventDefault(); });
-  document.addEventListener('drop', (event) => { if (event.target.closest('.dropzone, .update-dropzone')) event.preventDefault(); });
+  document.addEventListener('dragenter', (event) => {
+    if (!eventHasFiles(event)) return;
+    if (event.target.closest('.dropzone, .update-dropzone')) {
+      fileDragDepth = 0;
+      hideDropOverlay();
+      return;
+    }
+    fileDragDepth += 1;
+    showDropOverlay();
+  });
+  document.addEventListener('dragover', (event) => {
+    if (!eventHasFiles(event)) return;
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+    if (event.target.closest('.dropzone, .update-dropzone')) hideDropOverlay();
+    else showDropOverlay();
+  });
+  document.addEventListener('dragleave', (event) => {
+    if (!eventHasFiles(event)) return;
+    if (!event.relatedTarget) {
+      fileDragDepth = 0;
+      hideDropOverlay();
+      return;
+    }
+    fileDragDepth = Math.max(0, fileDragDepth - 1);
+    if (!fileDragDepth) hideDropOverlay();
+  });
+  document.addEventListener('drop', (event) => {
+    const zone = event.target.closest('.dropzone, .update-dropzone');
+    fileDragDepth = 0;
+    hideDropOverlay();
+    if (zone) {
+      event.preventDefault();
+      return;
+    }
+    if (!eventHasFiles(event)) return;
+    event.preventDefault();
+    const files = [...(event.dataTransfer?.files || [])];
+    const paths = [];
+    const fileObjects = [];
+    for (const file of files) {
+      const filePath = api.getPathForFile(file);
+      if (filePath) {
+        paths.push(filePath);
+        fileObjects.push(file);
+      }
+    }
+    showSmartDropPicker(paths, fileObjects);
+  });
 
   document.getElementById('queue-button').addEventListener('click', openQueue);
+  document.getElementById('command-button').addEventListener('click', openCommandPalette);
+  document.getElementById('recipes-button').addEventListener('click', (event) => {
+    event.stopPropagation();
+    toggleRecipesPopover();
+  });
+  const commandOverlay = document.getElementById('command-overlay');
+  const commandInput = document.getElementById('command-input');
+  const commandResults = document.getElementById('command-results');
+  commandOverlay.addEventListener('click', (event) => { if (event.target === commandOverlay) closeCommandPalette(); });
+  commandInput.addEventListener('input', () => {
+    state.command.query = commandInput.value;
+    state.command.index = 0;
+    renderCommandResults();
+  });
+  commandResults.addEventListener('click', (event) => {
+    const result = event.target.closest('[data-command-index]');
+    if (result) executeCommand(Number(result.dataset.commandIndex));
+  });
+  const smartDropOverlay = document.getElementById('smart-drop-overlay');
+  smartDropOverlay.addEventListener('click', (event) => { if (event.target === smartDropOverlay) closeSmartDropPicker(); });
+  smartDropOverlay.addEventListener('change', (event) => {
+    const choice = event.target.closest('input[name="smart-drop-tool"]');
+    if (!choice || !state.dropPicker) return;
+    state.dropPicker.selected = choice.value;
+    renderSmartDropPicker();
+  });
+  window.addEventListener('resize', () => { if (state.recipesPopoverOpen) positionRecipesPopover(); });
   queueOverlay.addEventListener('click', closeQueue);
   document.querySelectorAll('[data-queue-filter]').forEach((button) => button.addEventListener('click', () => {
     state.queueFilter = button.dataset.queueFilter;
@@ -3264,7 +3869,23 @@ function bindEvents() {
     updateQueueBadge();
   });
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && state.queueOpen) closeQueue();
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+      event.preventDefault();
+      if (state.command.open) closeCommandPalette();
+      else openCommandPalette();
+      return;
+    }
+    if (state.command.open) {
+      if (event.key === 'ArrowDown') { event.preventDefault(); moveCommandSelection(1); return; }
+      if (event.key === 'ArrowUp') { event.preventDefault(); moveCommandSelection(-1); return; }
+      if (event.key === 'Enter') { event.preventDefault(); executeCommand(); return; }
+      if (event.key === 'Escape') { event.preventDefault(); closeCommandPalette(); return; }
+    }
+    if (event.key !== 'Escape') return;
+    if (state.command.open) closeCommandPalette();
+    else if (state.dropPicker) closeSmartDropPicker();
+    else if (state.recipesPopoverOpen) closeRecipesPopover();
+    else if (state.queueOpen) closeQueue();
   });
 }
 
@@ -3283,6 +3904,7 @@ async function init() {
     const [status, history, pendingJobs] = await Promise.all([api.getSystemStatus(), api.getHistory(), api.listJobs()]);
     state.status = status;
     state.settings = status.settings;
+    updateRecipeBadge();
     state.history = history;
     mergeHistoryJobs(history);
     applyJobSnapshots(pendingJobs);

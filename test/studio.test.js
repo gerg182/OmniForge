@@ -71,6 +71,17 @@ function probeStreamTypes(filePath) {
   return JSON.parse(result.stdout).streams.map((stream) => stream.codec_type);
 }
 
+function probeDimensions(filePath) {
+  const result = spawnSync(ffprobe, ['-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=width,height', '-of', 'json', filePath], {
+    windowsHide: true,
+    encoding: 'utf8',
+    timeout: 30000
+  });
+  if (result.status !== 0) throw new Error(result.stderr || result.stdout || `ffprobe failed: ${result.status}`);
+  const stream = JSON.parse(result.stdout).streams[0];
+  return { width: Number(stream.width), height: Number(stream.height) };
+}
+
 async function render(spec, outputDirectory) {
   const updates = [];
   const result = await executeJob({ ...spec, outputDirectory }, {
@@ -101,6 +112,8 @@ test('Studio project normalization validates and clamps saved state', () => {
   assert.equal(project.output.videoFormat, 'mkv');
   assert.equal(project.output.exportCaptions, 'both');
   assert.equal(project.output.burnCaptions, false);
+  assert.deepEqual(project.output.ratios, ['original']);
+  assert.equal(project.output.framing, 'fill');
   assert.throws(() => normalizeProject({ version: 99, mediaPath: 'a.mp4' }), /Unsupported/);
   assert.throws(() => normalizeProject({ version: 1, mediaPath: 'a.png' }), /audio or video/);
   assert.throws(() => normalizeProject({
@@ -257,6 +270,47 @@ test('Studio renders video clips with burned captions and relative SRT/VTT sidec
   assert.deepEqual(secondSrt.map(({ startMs, endMs, text }) => ({ startMs, endMs, text })), [
     { startMs: 50, endMs: 750, text: 'Second studio line' }
   ]);
+});
+
+test('Studio renders creator aspect-ratio variants with blur framing', { timeout: 180000 }, async (t) => {
+  const temp = await fsp.mkdtemp(path.join(os.tmpdir(), 'omniforge-studio-ratios-'));
+  t.after(() => fsp.rm(temp, { recursive: true, force: true }));
+  const output = path.join(temp, 'output');
+  const sample = path.join(temp, 'sample.mp4');
+  runTool([
+    '-hide_banner', '-y',
+    '-f', 'lavfi', '-i', 'testsrc2=size=320x180:rate=24',
+    '-f', 'lavfi', '-i', 'sine=frequency=440:sample_rate=48000',
+    '-t', '1.4', '-c:v', 'libx264', '-preset', 'veryfast', '-pix_fmt', 'yuv420p',
+    '-c:a', 'aac', '-b:a', '96k', sample
+  ]);
+  const { result } = await render({
+    tool: 'studio',
+    inputPaths: [sample],
+    options: {
+      durationMs: 1400,
+      outputFormat: 'mp4',
+      quality: 'high',
+      burnCaptions: true,
+      exportCaptions: 'srt',
+      ratios: ['landscape', 'portrait'],
+      framing: 'blur',
+      captionStyle: { fontSize: 24, color: '#FFFFFF', outline: 2, position: 'bottom' },
+      segments: [{ id: 'a', startMs: 150, endMs: 1050, text: 'Creator caption' }],
+      clips: [{ id: 'one', label: 'Spot', startMs: 100, endMs: 1100 }]
+    }
+  }, output);
+
+  assert.deepEqual(result.outputPaths.map((filePath) => path.basename(filePath)), ['Spot - 16x9.mp4', 'Spot - 9x16.mp4']);
+  assert.deepEqual(result.data.clips.map((clip) => ({ ratio: clip.ratio, width: clip.width, height: clip.height, framing: clip.framing })), [
+    { ratio: 'landscape', width: 1920, height: 1080, framing: 'blur' },
+    { ratio: 'portrait', width: 1080, height: 1920, framing: 'blur' }
+  ]);
+  assert.deepEqual(result.data.clips.map((clip) => probeDimensions(clip.outputPath)), [
+    { width: 1920, height: 1080 },
+    { width: 1080, height: 1920 }
+  ]);
+  assert.deepEqual(result.data.clips.map((clip) => path.basename(clip.captionPaths[0])), ['Spot - 16x9.srt', 'Spot - 9x16.srt']);
 });
 
 test('Studio renders audio clips with caption sidecars', { timeout: 120000 }, async (t) => {

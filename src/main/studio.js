@@ -9,6 +9,13 @@ const { buildMediaArgs } = require('./media-args');
 const { clipSegments, buildAss, serializeTranscript, normalizeCaptionStyle } = require('./transcript');
 const { normalizeClips, VIDEO_FORMATS, AUDIO_FORMATS, CAPTION_EXPORTS } = require('./studio-project');
 const {
+  studioRatio,
+  normalizeStudioRatios,
+  normalizeStudioFraming,
+  buildStudioFramingFilter,
+  fitAssToFrame
+} = require('./studio-framing');
+const {
   ensureDir,
   sanitizeFilename,
   runProcess,
@@ -42,6 +49,8 @@ function normalizeStudioOptions(options = {}, category) {
     quality: ['high', 'balanced', 'small'].includes(options.quality) ? options.quality : 'high',
     burnCaptions: category === 'video' && options.burnCaptions !== false,
     exportCaptions,
+    ratios: category === 'video' ? normalizeStudioRatios(options.ratios) : ['original'],
+    framing: normalizeStudioFraming(options.framing),
     captionStyle: normalizeCaptionStyle(options.captionStyle),
     clips,
     segments
@@ -122,8 +131,8 @@ function sidecarExtensions(mode) {
   return ['srt', 'vtt'].includes(mode) ? [mode] : [];
 }
 
-function uniqueClipPaths(outputDirectory, label, outputFormat, captionMode) {
-  const safeBase = sanitizeFilename(label, 'clip');
+function uniqueClipPaths(outputDirectory, label, outputFormat, captionMode, variantSuffix = '') {
+  const safeBase = sanitizeFilename(variantSuffix ? `${label} - ${variantSuffix}` : label, 'clip');
   let index = 1;
   while (true) {
     const suffix = index === 1 ? '' : ` (${index})`;
@@ -146,13 +155,17 @@ async function executeStudioClips(spec, ctx, deps) {
   const mediaPath = spec.inputPaths[0];
   const mediaDuration = await getMediaDuration(paths.ffprobe, mediaPath);
   const mediaInfo = await probeMedia(paths.ffprobe, mediaPath).catch(() => null);
-  const height = Number((mediaInfo?.streams || []).find((stream) => stream.codec_type === 'video')?.height) || 0;
+  const videoStream = (mediaInfo?.streams || []).find((stream) => stream.codec_type === 'video');
+  const sourceWidth = Number(videoStream?.width) || 0;
+  const height = Number(videoStream?.height) || 0;
   const outputPaths = [];
   const clipResults = [];
-  const total = options.clips.length;
+  const ratios = category === 'video' ? options.ratios.map(studioRatio) : [studioRatio('original')];
+  const total = options.clips.length * ratios.length;
+  let completed = 0;
 
   try {
-    for (let index = 0; index < total; index += 1) {
+    for (let index = 0; index < options.clips.length; index += 1) {
       const clip = options.clips[index];
       const startMs = Math.max(0, Math.round(clip.startMs));
       const endMs = mediaDuration > 0
@@ -160,69 +173,83 @@ async function executeStudioClips(spec, ctx, deps) {
         : Math.round(clip.endMs);
       if (endMs <= startMs) throw new Error(`Clip "${clip.label}" has an invalid time range.`);
       const duration = (endMs - startMs) / 1000;
-      const targetPaths = uniqueClipPaths(outputDirectory, clip.label, options.outputFormat, options.exportCaptions);
       const captionSegments = clipSegments(options.segments, startMs, endMs);
-      const base = (index / total) * 100;
-      const span = 100 / total;
-      const message = `Rendering ${clip.label}`;
-      let currentOutput = targetPaths.outputPath;
+      for (const ratio of ratios) {
+        const targetPaths = uniqueClipPaths(outputDirectory, clip.label, options.outputFormat, options.exportCaptions, ratio.suffix);
+        const base = (completed / total) * 100;
+        const span = 100 / total;
+        const variantLabel = ratio.id === 'original' ? '' : ` - ${ratio.shortLabel || ratio.label}`;
+        const message = `Rendering ${clip.label}${variantLabel}`;
+        let currentOutput = targetPaths.outputPath;
 
-      try {
-        let captionFilter = '';
-        if (category === 'video' && options.burnCaptions && captionSegments.length > 0) {
-          const assPath = path.join(tempRoot, `captions-${index}.ass`);
-          await fsp.writeFile(assPath, buildAss(captionSegments, options.captionStyle), 'utf8');
-          captionFilter = `ass='${escapeFilterPath(assPath)}'`;
-        }
-
-        const args = buildMediaArgs({
-          input: mediaPath,
-          output: targetPaths.outputPath,
-          target: options.outputFormat,
-          options: {
-            quality: options.quality,
-            extraVideoFilter: captionFilter || undefined
-          },
-          media: { height, duration: mediaDuration },
-          trim: { start: startMs / 1000, duration }
-        });
-        await runFfmpeg(ctx, paths.ffmpeg, args, {
-          duration,
-          progressBase: base,
-          progressSpan: span,
-          message
-        });
-        if (!fs.existsSync(targetPaths.outputPath)) {
-          throw new Error(`Clip "${clip.label}" finished without creating an output file.`);
-        }
-
-        const captionPaths = [];
-        for (const sidecar of targetPaths.sidecars) {
-          const format = extensionOf(sidecar);
-          await fsp.writeFile(sidecar, serializeTranscript(captionSegments, format), 'utf8');
-          captionPaths.push(sidecar);
-        }
-
-        outputPaths.push(targetPaths.outputPath);
-        clipResults.push({
-          id: clip.id,
-          label: clip.label,
-          startMs,
-          endMs,
-          outputPath: targetPaths.outputPath,
-          captionPaths
-        });
-      } catch (error) {
         try {
-          await Promise.all([currentOutput, ...targetPaths.sidecars].map(async (candidate) => {
-            if (fs.existsSync(candidate)) await fsp.unlink(candidate);
-          }));
-        } catch {
-          // The source error is more useful than a cleanup failure.
+          let captionFilter = '';
+          if (category === 'video' && options.burnCaptions && captionSegments.length > 0) {
+            const assPath = path.join(tempRoot, `captions-${index}-${ratio.id}.ass`);
+            const ass = fitAssToFrame(buildAss(captionSegments, options.captionStyle), ratio.id);
+            await fsp.writeFile(assPath, ass, 'utf8');
+            captionFilter = `ass='${escapeFilterPath(assPath)}'`;
+          }
+
+          const framingFilter = category === 'video'
+            ? buildStudioFramingFilter(ratio.id, options.framing, captionFilter)
+            : '';
+          const complexGraph = framingFilter.includes(';') ? `[0:v]${framingFilter}[vout]` : undefined;
+          const args = buildMediaArgs({
+            input: mediaPath,
+            output: targetPaths.outputPath,
+            target: options.outputFormat,
+            options: {
+              quality: options.quality,
+              extraVideoFilter: complexGraph ? undefined : framingFilter || undefined,
+              videoFilterComplex: complexGraph
+            },
+            media: { height, duration: mediaDuration },
+            trim: { start: startMs / 1000, duration }
+          });
+          await runFfmpeg(ctx, paths.ffmpeg, args, {
+            duration,
+            progressBase: base,
+            progressSpan: span,
+            message
+          });
+          if (!fs.existsSync(targetPaths.outputPath)) {
+            throw new Error(`Clip "${clip.label}" finished without creating an output file.`);
+          }
+
+          const captionPaths = [];
+          for (const sidecar of targetPaths.sidecars) {
+            const format = extensionOf(sidecar);
+            await fsp.writeFile(sidecar, serializeTranscript(captionSegments, format), 'utf8');
+            captionPaths.push(sidecar);
+          }
+
+          outputPaths.push(targetPaths.outputPath);
+          clipResults.push({
+            id: clip.id,
+            label: clip.label,
+            ratio: ratio.id,
+            width: ratio.width || sourceWidth || null,
+            height: ratio.height || height || null,
+            framing: options.framing,
+            startMs,
+            endMs,
+            outputPath: targetPaths.outputPath,
+            captionPaths
+          });
+        } catch (error) {
+          try {
+            await Promise.all([currentOutput, ...targetPaths.sidecars].map(async (candidate) => {
+              if (fs.existsSync(candidate)) await fsp.unlink(candidate);
+            }));
+          } catch {
+            // The source error is more useful than a cleanup failure.
+          }
+          throw error;
         }
-        throw error;
+        completed += 1;
+        ctx.report({ progress: Math.round((completed / total) * 100), message: `${clip.label}${variantLabel} complete.` });
       }
-      ctx.report({ progress: Math.round(base + span), message: `${clip.label} complete.` });
     }
   } finally {
     await fsp.rm(tempRoot, { recursive: true, force: true }).catch(() => {});

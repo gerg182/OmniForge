@@ -75,6 +75,16 @@
           <h1 id="page-title">Overview</h1>
         </div>
         <div class="topbar-actions">
+          <button class="topbar-utility command-button" id="command-button" aria-label="Open command palette" title="Command palette (Ctrl+K)">
+            <span class="nav-icon" data-icon="sparkle"></span>
+            <span>Command</span>
+            <kbd>Ctrl K</kbd>
+          </button>
+          <button class="topbar-utility" id="recipes-button" aria-label="Open saved tool recipes" title="Saved tool recipes">
+            <span class="nav-icon" data-icon="file"></span>
+            <span>Recipes</span>
+            <span class="recipe-count" id="recipe-count">0</span>
+          </button>
           <div class="local-chip"><span class="status-dot"></span> Local processing</div>
           <button class="queue-button" id="queue-button" aria-label="Open job queue">
             <span class="nav-icon" data-icon="queue"></span>
@@ -111,6 +121,35 @@
       <span class="muted" id="queue-summary">Jobs run one at a time</span>
     </div>
   </aside>
+
+  <div class="command-overlay" id="command-overlay" aria-hidden="true">
+    <div class="command-dialog" role="dialog" aria-modal="true" aria-labelledby="command-title">
+      <div class="command-search">
+        <span class="nav-icon" data-icon="sparkle"></span>
+        <input id="command-input" type="search" placeholder="Search tools, recipes, and actions..." autocomplete="off" spellcheck="false" aria-label="Search commands">
+        <kbd>Esc</kbd>
+      </div>
+      <div class="command-heading" id="command-title">Commands</div>
+      <div class="command-results" id="command-results" role="listbox"></div>
+      <div class="command-footer"><span id="command-hint">Type to filter everything in OmniForge.</span><span><kbd>Up</kbd><kbd>Down</kbd> Navigate <kbd>Enter</kbd> Run</span></div>
+    </div>
+  </div>
+
+  <div class="recipe-popover" id="recipe-popover" hidden aria-label="Saved tool recipes"></div>
+
+  <div class="drop-overlay" id="drop-overlay" hidden>
+    <div class="drop-overlay-card">
+      <div class="drop-overlay-icon"><span class="nav-icon" data-icon="upload"></span></div>
+      <strong>Drop anywhere to choose a tool</strong>
+      <span>OmniForge will inspect the files and suggest compatible jobs before anything is added.</span>
+    </div>
+  </div>
+
+  <div class="smart-drop-overlay" id="smart-drop-overlay" hidden>
+    <div class="smart-drop-dialog" role="dialog" aria-modal="true" aria-labelledby="smart-drop-title">
+      <div id="smart-drop-content"></div>
+    </div>
+  </div>
 
   <div class="toast-stack" id="toasts" aria-live="assertive"></div>
 
