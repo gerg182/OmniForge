@@ -74,7 +74,18 @@ jobs:
         run: npm run prepare:tools
 
       - name: Run tests
-        run: npm test
+        shell: pwsh
+        run: |
+          if (Test-Path scripts/run-tests.mjs) {
+            node scripts/run-tests.mjs
+          } else {
+            $tests = Get-ChildItem -LiteralPath test -Filter '*.test.js' -File |
+              Sort-Object Name |
+              ForEach-Object { $_.FullName }
+            if (-not $tests) { throw 'No test files were found.' }
+            node --test @tests
+          }
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Build installer
         env:
