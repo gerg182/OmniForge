@@ -940,6 +940,7 @@ h1, h2, h3, p { margin: 0; }
 .studio-search-row .nav-icon { color: var(--muted-2); }
 .studio-search-row input { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--text-soft); font-size: 9px; }
 .studio-selection-count { flex: 0 0 auto; color: var(--muted-2); font-size: 8px; white-space: nowrap; }
+.studio-select-all-button { flex: 0 0 auto; min-height: 29px; padding: 0 9px; font-size: 8px; white-space: nowrap; }
 .studio-selection-bar { display: flex; flex: 0 0 auto; align-items: center; justify-content: space-between; gap: 10px; margin: 8px 14px 0; padding: 8px 9px 8px 11px; border: 1px solid rgba(201, 255, 81, 0.2); border-radius: 10px; background: rgba(201, 255, 81, 0.065); }
 .studio-selection-bar strong, .studio-selection-bar span { display: block; }
 .studio-selection-bar strong { color: var(--text-soft); font-size: 9px; }

@@ -1,4 +1,4 @@
-import { suggestDropTools, filterCommandItems, fitPreviewFrame } from './workflow.mjs';
+import { suggestDropTools, filterCommandItems, fitPreviewFrame, toggleAllSelection } from './workflow.mjs';
 
 const api = window.omniforge;
 const ICONS = {
@@ -1348,6 +1348,7 @@ function renderStudioTranscriptPanel(project) {
   const selectedRange = studioSelectedRange();
   const selected = studioSelectedSegments();
   const selectedCount = state.studio.selectedIds.length;
+  const allSelected = segments.length > 0 && selectedCount === segments.length;
   return `<section class="studio-transcript-panel">
     <div class="studio-panel-heading">
       <div><span class="studio-kicker">Transcript</span><h2>${segments.length ? `${segments.length} timed lines` : 'No transcript yet'}</h2></div>
@@ -1369,6 +1370,7 @@ function renderStudioTranscriptPanel(project) {
       <div class="studio-transcript-filter">
         <div class="studio-search-row"><span class="nav-icon">${icon('info')}</span><input data-studio-search value="${escapeHtml(state.studio.search)}" placeholder="Search transcript" spellcheck="false"></div>
         <span class="studio-selection-count">${selectedCount ? `${selectedCount} selected` : 'Shift-click to select a range'}</span>
+        <button class="ghost-button studio-select-all-button" data-action="studio-select-all" title="${allSelected ? 'Clear the transcript selection' : 'Select every transcript line'}">${allSelected ? 'Clear all' : 'Select all'}</button>
       </div>
       ${selectedRange ? `<div class="studio-selection-bar"><div><strong>${selected.length} line${selected.length === 1 ? '' : 's'} selected</strong><span>${formatStudioTime(selectedRange.startMs)} - ${formatStudioTime(selectedRange.endMs)}</span></div><button class="primary-button" data-action="studio-add-clip" ${state.studio.mediaError ? 'disabled' : ''}>${icon('plus')} Add to queue</button></div>` : ''}
       <div class="studio-segment-list" id="studio-segment-list">${segments.map((segment, index) => renderStudioSegment(segment, index)).join('')}</div>
@@ -1847,7 +1849,7 @@ function renderSettings() {
     ['sevenZip', '7-Zip', 'Archive engine'],
     ['speech', 'Whisper', 'Local speech-to-text engine']
   ];
-    const appVersion = state.status?.appVersion || '1.3.1';
+    const appVersion = state.status?.appVersion || '1.3.2';
     const updateInfo = state.updateInfo;
     const latestUpdate = updateInfo?.latest;
     const updateHash = latestUpdate?.hash || null;
@@ -1954,7 +1956,7 @@ function renderSettings() {
     </div>
     <aside class="panel side-panel">
       <div class="tool-icon side-icon" style="--icon-color: var(--cyan)">${icon('harddrive')}</div>
-      <h3>OmniForge ${escapeHtml(state.status?.appVersion || '1.3.1')}</h3>
+      <h3>OmniForge ${escapeHtml(state.status?.appVersion || '1.3.2')}</h3>
       <p>Windows ${escapeHtml(state.status?.arch || '')} · Electron desktop app · Local-first by design.</p>
       <div class="side-list">
         <button class="secondary-button" data-action="open-tools" style="width:100%">${icon('folder')} Open tools folder</button>
@@ -2506,6 +2508,21 @@ function selectStudioSegment(id, extend) {
     state.studio.selectedIds = project.segments.slice(start, end + 1).map((segment) => segment.id);
   }
   state.studio.pendingSeekMs = project.segments[index].startMs;
+  render();
+}
+
+function toggleStudioSelectAll() {
+  const project = state.studio.project;
+  if (!project?.segments.length) return;
+  const allIds = project.segments.map((segment) => segment.id);
+  const nextSelection = toggleAllSelection(allIds, state.studio.selectedIds);
+  if (!nextSelection.length) {
+    resetStudioSelection();
+  } else {
+    state.studio.selectedIds = nextSelection;
+    state.studio.selectionAnchor = nextSelection[0];
+    state.studio.pendingSeekMs = project.segments[0].startMs;
+  }
   render();
 }
 
@@ -3716,6 +3733,7 @@ function handleAction(actionTarget, event) {
     case 'studio-import-transcript': importStudioTranscript(); break;
     case 'studio-export-transcript': exportStudioTranscript(); break;
     case 'studio-select-segment': selectStudioSegment(actionTarget.dataset.id, Boolean(event?.shiftKey)); break;
+    case 'studio-select-all': toggleStudioSelectAll(); break;
     case 'studio-add-clip': addStudioClip(); break;
     case 'studio-remove-clip': removeStudioClip(actionTarget.dataset.id); break;
     case 'studio-move-clip': moveStudioClip(actionTarget.dataset.id, Number(actionTarget.dataset.dir)); break;

@@ -118,3 +118,10 @@ export function fitPreviewFrame(containerWidth, containerHeight, width, height) 
     height: Math.max(1, Math.floor(fittedHeight))
   };
 }
+
+export function toggleAllSelection(allIds, selectedIds) {
+  const ids = [...new Set((Array.isArray(allIds) ? allIds : []).map(String).filter(Boolean))];
+  if (!ids.length) return [];
+  const selected = new Set((Array.isArray(selectedIds) ? selectedIds : []).map(String));
+  return ids.every((id) => selected.has(id)) ? [] : ids;
+}

@@ -52,3 +52,11 @@ test('Studio preview frames fit unusual source ratios inside the stage', async (
   assert.equal(fitPreviewFrame(0, 400, 1920, 1080), null);
   assert.equal(fitPreviewFrame(1000, 400, 0, 1080), null);
 });
+
+test('Studio select-all toggles every transcript line', async () => {
+  const { toggleAllSelection } = await import('../src/renderer/workflow.mjs');
+  assert.deepEqual(toggleAllSelection(['a', 'b', 'c'], ['b']), ['a', 'b', 'c']);
+  assert.deepEqual(toggleAllSelection(['a', 'b', 'c'], ['c', 'a', 'b']), []);
+  assert.deepEqual(toggleAllSelection([], ['a']), []);
+  assert.deepEqual(toggleAllSelection(['a', 'a', '', 'b'], []), ['a', 'b']);
+});

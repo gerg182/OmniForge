@@ -26,7 +26,7 @@ Everything runs on your PC. FFmpeg, FFprobe, yt-dlp, Deno, 7-Zip, and whisper.cp
 - Random-data secure deletion with 1, 3, or 7 overwrite passes
 - FFprobe media inspection
 - Audio and video to text with local whisper.cpp transcription (TXT or timestamped SRT)
-- Transcript Clip Studio: transcribe or import SRT/VTT, select transcript ranges, and render multiple captioned clips in a three-pane preview, transcript, and clip workspace
+- Transcript Clip Studio: transcribe or import SRT/VTT, select individual lines or all subtitles at once, and render multiple captioned clips in a three-pane preview, transcript, and clip workspace
 - Studio creator presets for 16:9, 9:16 Shorts, 1:1 square, and 4:5 portrait output, with Fill, Fit, and Blur framing and multi-ratio export
 - Editable `.ofstudio` projects with explicit save/open, automatic recovery drafts, and clip-relative caption files
 - Saved tool recipes for reusable option presets, plus a `Ctrl+K` command palette for tools, recipes, and actions
@@ -57,13 +57,13 @@ Build the Windows installer:
 npm run dist
 ```
 
-The installer and its `OmniForge-Setup-1.3.1.exe.sha256` sidecar are written to `dist/`.
+The installer and its `OmniForge-Setup-1.3.2.exe.sha256` sidecar are written to `dist/`.
 
 ## Transcript Clip Studio
 
 1. Open **Transcript Clip Studio**, then choose one audio or video file and an output folder.
 2. Transcribe locally with whisper.cpp or import an existing SRT/VTT transcript.
-3. Edit transcript text if needed, click a line, then Shift-click another line to select a contiguous range. Add as many clips as you need and arrange them in the clip list.
+3. Edit transcript text if needed, click a line, then Shift-click another line to select a contiguous range, or use **Select all** to choose every subtitle. Add as many clips as you need and arrange them in the clip list.
 4. Choose the clip format, creator aspect ratios, Fill/Fit/Blur framing, caption sidecars, and optional burned-in caption style, then render the ordered clip queue.
 
 Video clips support MP4, MKV, WebM, and MOV with optional burned captions. The preview can switch between the source ratio, 16:9 landscape, 9:16 Shorts, 1:1 square, and 4:5 portrait; selected ratios render as separate files with matching suffixes. Fill crops to the frame, Fit preserves the whole image with letterboxing, and Blur adds a synchronized blurred backdrop. Audio clips support MP3, WAV, FLAC, M4A, OGG, and Opus; audio always uses SRT/VTT sidecars. Sidecar timing is relative to each clip. Caption style controls font size, text color, outline, and top/center/bottom placement. All Studio processing stays local.
