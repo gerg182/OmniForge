@@ -2,6 +2,17 @@
 
 All notable changes to OmniForge are documented here.
 
+## Unreleased
+
+### Added
+
+- Linux x64 support: an AppImage build via `npm run dist:linux`, platform-aware executable names, and a `PATH` fallback for tools that are not bundled.
+
+### Fixed
+
+- Installer version parsing no longer depends on the host path separator.
+- Non-Windows windows keep their native title bar instead of a hidden one without window controls.
+
 ## 1.5.1 - 2026-10-30
 
 ### Fixed

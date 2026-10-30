@@ -122,8 +122,8 @@ test('metadata job writes cleaned image copies with a _clean suffix', async (t) 
 
 test('audio metadata stripping uses FFmpeg stream copy when available', async (t) => {
   const root = path.resolve(__dirname, '..');
-  const ffmpeg = path.join(root, 'tools', 'ffmpeg.exe');
-  if (!fs.existsSync(ffmpeg)) t.skip('Bundled FFmpeg is unavailable.');
+  const ffmpeg = require('./tool-paths').ffmpeg;
+  if (!fs.existsSync(ffmpeg)) t.skip('FFmpeg is unavailable.');
   const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'omniforge-metadata-media-'));
   t.after(() => fs.rmSync(folder, { recursive: true, force: true }));
   const source = path.join(root, 'test', 'fixtures', 'jfk.wav');

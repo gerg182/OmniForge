@@ -46,9 +46,26 @@ Get-Content .\OmniForge-Setup-1.5.1.exe.sha256
 
 The hashes must match. The current installer is unsigned, so Windows SmartScreen may warn. Only continue when the installer came from this repository and its SHA-256 matches. OmniForge requires Windows 10/11 x64 and installs per user; administrator access is not required.
 
+## Linux
+
+Linux builds are produced from source; there is no published Linux release yet. Only the Windows installer bundles the pinned third-party binaries, so a Linux build uses the FFmpeg, FFprobe, 7-Zip, yt-dlp, Deno, and whisper.cpp executables installed on the system, while the speech model is still bundled. FFmpeg and 7-Zip are enough for the media, PDF, archive, checksum, and inspection tools; yt-dlp and Deno are needed for YouTube downloads, and whisper.cpp is needed for transcription and dictation.
+
+```bash
+npm ci
+npm run prepare:tools
+npm run dist:linux
+```
+
+The result is an unsigned AppImage and an unpacked directory in `dist/`. Run the AppImage directly, or use `npm start` for development. Tools are resolved from the bundled `tools/` folder first and then from `PATH`, so installing a tool later requires only an app restart.
+
+```bash
+sudo apt install ffmpeg 7zip        # Debian/Ubuntu; use your distribution's package manager elsewhere
+pipx install yt-dlp                 # optional YouTube support
+```
+
 ## Development
 
-Requirements: Windows 10/11 x64 and Node.js 20 or newer.
+Requirements: Windows 10/11 x64 or Linux x64, and Node.js 20 or newer.
 
 ```powershell
 npm ci
@@ -68,7 +85,13 @@ Build the Windows installer:
 npm run dist
 ```
 
-The installer and its `OmniForge-Setup-1.5.1.exe.sha256` sidecar are written to `dist/`. Release builds are produced by the tag-driven GitHub Actions workflow after the version is synchronized in `package.json`, `package-lock.json`, this README, and `CHANGELOG.md`.
+Build the Linux AppImage:
+
+```bash
+npm run dist:linux
+```
+
+The installer and its `OmniForge-Setup-1.5.1.exe.sha256` sidecar are written to `dist/`, as are `OmniForge-1.5.1.AppImage` and `linux-unpacked/`. Linux builds have no in-app update support: the updater looks for the published Windows installer, so update a Linux build by rebuilding it. Release builds are produced by the tag-driven GitHub Actions workflow after the version is synchronized in `package.json`, `package-lock.json`, this README, and `CHANGELOG.md`. Release builds are produced by the tag-driven GitHub Actions workflow after the version is synchronized in `package.json`, `package-lock.json`, this README, and `CHANGELOG.md`.
 
 ## Transcript Clip Studio
 
@@ -133,6 +156,8 @@ Third-party software and model credits are listed in [tools/THIRD_PARTY_NOTICES.
 - Metadata stripping supports JPEG/PNG/WebP images plus audio/video containers handled by FFmpeg. PDF and Office metadata are not included in this release.
 - Secure Delete overwrites, truncates, renames, and removes each file. SSD wear leveling, snapshots, backups, cloud sync, and journaling may retain copies; this tool cannot guarantee physical erasure.
 - Office document conversion is not included.
-- Download only content you own or have permission to download. Respect YouTube's terms and applicable copyright law.
+- Linux builds are unsigned AppImages and rely on the system `ffmpeg`, `7z`, `yt-dlp`, `deno`, and `whisper-cli` binaries, whose versions are not pinned by this repository.
+
+Download only content you own or have permission to download. Respect YouTube's terms and applicable copyright law.
 - Speech recognition uses the bundled `ggml-base.bin` multilingual model and runs entirely offline. Long recordings take longer to transcribe; the queue reports progress.
 - Bundled third-party licenses and notices are in `tools/THIRD_PARTY_NOTICES.md`.

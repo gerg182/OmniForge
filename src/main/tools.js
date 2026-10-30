@@ -4,8 +4,54 @@ const fs = require('fs');
 const path = require('path');
 const { runProcess } = require('./utils');
 
+const EXECUTABLE_SUFFIX = process.platform === 'win32' ? '.exe' : '';
+
+// Bundled names stay stable per platform; the PATH names cover a Linux install
+// where the pinned tools were installed by the package manager instead.
+const TOOL_BINARIES = {
+  ffmpeg: { bundled: 'ffmpeg', path: ['ffmpeg'] },
+  ffprobe: { bundled: 'ffprobe', path: ['ffprobe'] },
+  ytDlp: { bundled: 'yt-dlp', path: ['yt-dlp'] },
+  deno: { bundled: 'deno', path: ['deno'] },
+  sevenZip: { bundled: '7za', path: ['7zz', '7z', '7za'] },
+  whisper: { bundled: 'whisper-cli', path: ['whisper-cli', 'main'] }
+};
+
 function firstLine(text) {
   return String(text || '').trim().split(/\r?\n/)[0] || '';
+}
+
+function isFile(filePath) {
+  try {
+    return fs.statSync(filePath).isFile();
+  } catch {
+    return false;
+  }
+}
+
+function findOnPath(names) {
+  const directories = String(process.env.PATH || '').split(path.delimiter).filter(Boolean);
+  for (const name of names) {
+    const fileName = `${name}${EXECUTABLE_SUFFIX}`;
+    for (const directory of directories) {
+      const candidate = path.join(directory, fileName);
+      if (isFile(candidate)) return candidate;
+    }
+  }
+  return null;
+}
+
+function bundledToolPath(toolsDir, tool) {
+  return path.join(toolsDir, `${TOOL_BINARIES[tool].bundled}${EXECUTABLE_SUFFIX}`);
+}
+
+// Resolve a tool by preferring the bundled copy, then the platform PATH.
+function resolveToolPath(toolsDir, tool) {
+  const definition = TOOL_BINARIES[tool];
+  if (!definition) throw new Error(`Unknown tool: ${tool}`);
+  const bundled = bundledToolPath(toolsDir, tool);
+  if (isFile(bundled)) return bundled;
+  return findOnPath(definition.path) || bundled;
 }
 
 class ToolsManager {
@@ -23,8 +69,8 @@ class ToolsManager {
   ensureRuntime() {
     try {
       fs.mkdirSync(this.runtimeDir, { recursive: true });
-      const bundled = path.join(this.toolsDir, 'yt-dlp.exe');
-      const runtime = path.join(this.runtimeDir, 'yt-dlp.exe');
+      const bundled = bundledToolPath(this.toolsDir, 'ytDlp');
+      const runtime = path.join(this.runtimeDir, path.basename(bundled));
       if (fs.existsSync(bundled) && (!fs.existsSync(runtime) || fs.statSync(runtime).size < 1024 * 1024)) {
         fs.copyFileSync(bundled, runtime);
       }
@@ -34,17 +80,17 @@ class ToolsManager {
   }
 
   paths() {
-    const bundledYtDlp = path.join(this.toolsDir, 'yt-dlp.exe');
-    const runtimeYtDlp = path.join(this.runtimeDir, 'yt-dlp.exe');
+    const bundledYtDlp = resolveToolPath(this.toolsDir, 'ytDlp');
+    const runtimeYtDlp = path.join(this.runtimeDir, path.basename(bundledYtDlp));
     return {
-      ffmpeg: path.join(this.toolsDir, 'ffmpeg.exe'),
-      ffprobe: path.join(this.toolsDir, 'ffprobe.exe'),
+      ffmpeg: resolveToolPath(this.toolsDir, 'ffmpeg'),
+      ffprobe: resolveToolPath(this.toolsDir, 'ffprobe'),
       ytDlp: fs.existsSync(runtimeYtDlp) ? runtimeYtDlp : bundledYtDlp,
       bundledYtDlp,
       runtimeYtDlp,
-      deno: path.join(this.toolsDir, 'deno.exe'),
-      sevenZip: path.join(this.toolsDir, '7za.exe'),
-      whisper: path.join(this.toolsDir, 'whisper-cli.exe'),
+      deno: resolveToolPath(this.toolsDir, 'deno'),
+      sevenZip: resolveToolPath(this.toolsDir, 'sevenZip'),
+      whisper: resolveToolPath(this.toolsDir, 'whisper'),
       whisperModel: path.join(this.toolsDir, 'ggml-base.bin'),
       toolsDir: this.toolsDir,
       runtimeDir: this.runtimeDir
@@ -153,4 +199,10 @@ class ToolsManager {
   }
 }
 
-module.exports = { ToolsManager };
+module.exports = {
+  ToolsManager,
+  TOOL_BINARIES,
+  EXECUTABLE_SUFFIX,
+  bundledToolPath,
+  resolveToolPath
+};

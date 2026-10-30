@@ -12,16 +12,17 @@ const { executeJob } = require('../src/main/operations');
 
 const root = path.join(__dirname, '..');
 const toolsDir = path.join(root, 'tools');
-const ffmpeg = path.join(toolsDir, 'ffmpeg.exe');
+const toolPaths = require('./tool-paths');
+const ffmpeg = toolPaths.ffmpeg;
 
 const deps = {
   tools: {
     paths: () => ({
       ffmpeg,
-      ffprobe: path.join(toolsDir, 'ffprobe.exe'),
-      ytDlp: path.join(toolsDir, 'yt-dlp.exe'),
-      deno: path.join(toolsDir, 'deno.exe'),
-      sevenZip: path.join(toolsDir, '7za.exe'),
+      ffprobe: toolPaths.ffprobe,
+      ytDlp: toolPaths.ytDlp,
+      deno: toolPaths.deno,
+      sevenZip: toolPaths.sevenZip,
       toolsDir,
       runtimeDir: path.join(os.tmpdir(), 'omniforge-runtime-test')
     })

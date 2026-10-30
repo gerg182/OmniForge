@@ -10,15 +10,16 @@ const { executeJob } = require('../src/main/operations');
 
 const root = path.join(__dirname, '..');
 const toolsDir = path.join(root, 'tools');
-const ffmpeg = path.join(toolsDir, 'ffmpeg.exe');
+const toolPaths = require('./tool-paths');
+const ffmpeg = toolPaths.ffmpeg;
 const deps = {
   tools: {
     paths: () => ({
       ffmpeg,
-      ffprobe: path.join(toolsDir, 'ffprobe.exe'),
-      ytDlp: path.join(toolsDir, 'yt-dlp.exe'),
-      deno: path.join(toolsDir, 'deno.exe'),
-      sevenZip: path.join(toolsDir, '7za.exe'),
+      ffprobe: toolPaths.ffprobe,
+      ytDlp: toolPaths.ytDlp,
+      deno: toolPaths.deno,
+      sevenZip: toolPaths.sevenZip,
       toolsDir,
       runtimeDir: path.join(os.tmpdir(), 'omniforge-runtime-extra-test')
     })
@@ -60,7 +61,7 @@ test('join, normalize, and frame extraction work', { timeout: 180000 }, async (t
     assert.equal(result.outputPaths.length, 1);
     assert.ok(fs.existsSync(result.outputPaths[0]));
     assert.ok(fs.statSync(result.outputPaths[0]).size > 5000);
-    const probe = spawnSync(path.join(toolsDir, 'ffprobe.exe'), ['-v', 'error', '-show_entries', 'format=duration', '-of', 'default=nw=1:nk=1', result.outputPaths[0]], { encoding: 'utf8' });
+    const probe = spawnSync(toolPaths.ffprobe, ['-v', 'error', '-show_entries', 'format=duration', '-of', 'default=nw=1:nk=1', result.outputPaths[0]], { encoding: 'utf8' });
     assert.ok(Number(probe.stdout.trim()) > 2, probe.stdout);
   });
 

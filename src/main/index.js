@@ -136,6 +136,18 @@ function handleJobEvent(job) {
 
 function createWindow() {
   const iconPath = path.join(__dirname, '..', '..', 'assets', 'icon.png');
+  // The window-controls overlay only exists on Windows, so other platforms keep
+  // their native frame instead of a hidden title bar with no window buttons.
+  const windowChrome = process.platform === 'win32'
+    ? {
+        titleBarStyle: 'hidden',
+        titleBarOverlay: {
+          color: '#080a0e',
+          symbolColor: '#d8dee9',
+          height: 42
+        }
+      }
+    : {};
   mainWindow = new BrowserWindow({
     width: 1420,
     height: 900,
@@ -143,12 +155,7 @@ function createWindow() {
     minHeight: 720,
     backgroundColor: '#080a0e',
     title: 'OmniForge',
-    titleBarStyle: 'hidden',
-    titleBarOverlay: {
-      color: '#080a0e',
-      symbolColor: '#d8dee9',
-      height: 42
-    },
+    ...windowChrome,
     icon: fs.existsSync(iconPath) ? iconPath : undefined,
     show: false,
     webPreferences: {
@@ -407,7 +414,7 @@ function registerIpc() {
 }
 
 app.whenReady().then(() => {
-  app.setAppUserModelId('com.omniforge.desktop');
+  if (process.platform === 'win32') app.setAppUserModelId('com.omniforge.desktop');
   store = new Store(app);
   tools = new ToolsManager(app);
   jobs = new JobManager({ store, tools, emit: handleJobEvent });

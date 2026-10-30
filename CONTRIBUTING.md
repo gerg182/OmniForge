@@ -4,18 +4,18 @@ Thanks for helping improve OmniForge. Bug reports, focused fixes, documentation 
 
 ## Development Setup
 
-Requirements: Windows 10/11 x64 and Node.js 20 or newer.
+Requirements: Windows 10/11 x64 or Linux x64, and Node.js 20 or newer.
 
-```powershell
+```bash
 npm ci
 npm run prepare:tools
 npm test
 npm start
 ```
 
-`npm run prepare:tools` downloads the pinned FFmpeg, FFprobe, 7-Zip, yt-dlp, Deno, whisper.cpp, and speech-model artifacts. The downloader verifies every pinned SHA-256 checksum.
+On Windows, `npm run prepare:tools` downloads the pinned FFmpeg, FFprobe, 7-Zip, yt-dlp, Deno, whisper.cpp, and speech-model artifacts, verifying every pinned SHA-256 checksum. On Linux it downloads only the speech model: the other tools are resolved from `PATH` (install `ffmpeg`, `7zip`, and, for YouTube, `yt-dlp` plus `deno`). The integration tests use those same resolved paths, so they run on both platforms once the tools are available.
 
-Build the installer with `npm run dist`. The output is written to `dist/` and must be named `OmniForge-Setup-X.Y.Z.exe`.
+Build the Windows installer with `npm run dist`; the output is written to `dist/` and must be named `OmniForge-Setup-X.Y.Z.exe`. Build the Linux AppImage with `npm run dist:linux`; the output is `dist/OmniForge-X.Y.Z.AppImage` plus `dist/linux-unpacked/`.
 
 ## Changes
 

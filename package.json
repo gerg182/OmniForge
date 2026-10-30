@@ -3,6 +3,7 @@
   "version": "1.5.1",
   "description": "A local-first media downloader, converter, and file utility workbench.",
   "main": "src/main/index.js",
+  "desktopName": "omniforge.desktop",
   "author": "OmniForge",
   "license": "MIT",
   "repository": {
@@ -20,7 +21,9 @@
     "test": "node scripts/run-tests.mjs",
     "prepare:tools": "node scripts/prepare-tools.mjs",
     "dist": "node scripts/prepare-tools.mjs && electron-builder --win nsis && node scripts/write-installer-hash.mjs",
-    "pack": "node scripts/prepare-tools.mjs && electron-builder --dir"
+    "dist:linux": "node scripts/prepare-tools.mjs && electron-builder --linux",
+    "pack": "node scripts/prepare-tools.mjs && electron-builder --dir",
+    "pack:linux": "node scripts/prepare-tools.mjs && electron-builder --linux dir"
   },
   "dependencies": {
     "fast-xml-parser": "^5.3.1",
@@ -61,6 +64,21 @@
         }
       ],
       "artifactName": "OmniForge-Setup-${version}.${ext}"
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "category": "Utility;AudioVideo",
+      "icon": "build/icon.png",
+      "executableName": "omniforge",
+      "syncDesktopName": true,
+      "artifactName": "OmniForge-${version}.${ext}"
     },
     "nsis": {
       "oneClick": false,
