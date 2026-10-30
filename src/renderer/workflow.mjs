@@ -99,3 +99,22 @@ export function filterCommandItems(items, query, limit = 12) {
     .slice(0, Math.max(1, limit))
     .map((entry) => entry.item);
 }
+
+export function fitPreviewFrame(containerWidth, containerHeight, width, height) {
+  const availableWidth = Math.max(0, Number(containerWidth) || 0);
+  const availableHeight = Math.max(0, Number(containerHeight) || 0);
+  const sourceWidth = Math.max(0, Number(width) || 0);
+  const sourceHeight = Math.max(0, Number(height) || 0);
+  if (!availableWidth || !availableHeight || !sourceWidth || !sourceHeight) return null;
+  const aspectRatio = sourceWidth / sourceHeight;
+  let fittedWidth = availableWidth;
+  let fittedHeight = fittedWidth / aspectRatio;
+  if (fittedHeight > availableHeight) {
+    fittedHeight = availableHeight;
+    fittedWidth = fittedHeight * aspectRatio;
+  }
+  return {
+    width: Math.max(1, Math.floor(fittedWidth)),
+    height: Math.max(1, Math.floor(fittedHeight))
+  };
+}

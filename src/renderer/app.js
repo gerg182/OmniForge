@@ -1,4 +1,4 @@
-import { suggestDropTools, filterCommandItems } from './workflow.mjs';
+import { suggestDropTools, filterCommandItems, fitPreviewFrame } from './workflow.mjs';
 
 const api = window.omniforge;
 const ICONS = {
@@ -192,6 +192,7 @@ const state = {
     auditionEndMs: 0,
     pendingSeekMs: 0,
     recoveryTimer: null,
+    previewObserver: null,
     search: '',
     previewRatio: 'original'
   },
@@ -556,6 +557,10 @@ function moveCommandSelection(delta) {
 }
 
 function render() {
+  if (state.studio.previewObserver) {
+    state.studio.previewObserver.disconnect();
+    state.studio.previewObserver = null;
+  }
   updateShell();
   const resetScroll = state.resetScroll !== false;
   const scrollTop = resetScroll ? 0 : viewEl.scrollTop;
@@ -1499,9 +1504,30 @@ function applyStudioPreviewFrame() {
   if (!project || !frame) return;
   const ratio = studioRatioDefinition(state.studio.previewRatio);
   const framing = project.output.framing || 'fill';
+  const stage = frame.closest('.studio-media-stage');
   const media = document.getElementById('studio-media');
-  const naturalRatio = Number(media?.videoWidth) > 0 && Number(media?.videoHeight) > 0 ? `${media.videoWidth} / ${media.videoHeight}` : '';
-  frame.style.aspectRatio = ratio.width ? `${ratio.width} / ${ratio.height}` : naturalRatio;
+  const naturalWidth = Number(media?.videoWidth) || 0;
+  const naturalHeight = Number(media?.videoHeight) || 0;
+  const sourceWidth = Number(ratio.width) || naturalWidth || 16;
+  const sourceHeight = Number(ratio.height) || naturalHeight || 9;
+  const audio = Boolean(stage?.classList.contains('audio'));
+  frame.style.aspectRatio = audio ? '' : `${sourceWidth} / ${sourceHeight}`;
+  if (audio || !stage) {
+    frame.style.width = '';
+    frame.style.height = '';
+  } else {
+    const stageStyle = getComputedStyle(stage);
+    const horizontalPadding = (Number.parseFloat(stageStyle.paddingLeft) || 0) + (Number.parseFloat(stageStyle.paddingRight) || 0);
+    const verticalPadding = (Number.parseFloat(stageStyle.paddingTop) || 0) + (Number.parseFloat(stageStyle.paddingBottom) || 0);
+    const fitted = fitPreviewFrame(
+      stage.clientWidth - horizontalPadding,
+      stage.clientHeight - verticalPadding,
+      sourceWidth,
+      sourceHeight
+    );
+    frame.style.width = fitted ? `${fitted.width}px` : '';
+    frame.style.height = fitted ? `${fitted.height}px` : '';
+  }
   for (const mode of STUDIO_FRAMING_MODES) frame.classList.remove(`framing-${mode.id}`);
   frame.classList.add(`framing-${framing}`);
   const backdrop = document.getElementById('studio-media-backdrop');
@@ -1821,7 +1847,7 @@ function renderSettings() {
     ['sevenZip', '7-Zip', 'Archive engine'],
     ['speech', 'Whisper', 'Local speech-to-text engine']
   ];
-    const appVersion = state.status?.appVersion || '1.3.0';
+    const appVersion = state.status?.appVersion || '1.3.1';
     const updateInfo = state.updateInfo;
     const latestUpdate = updateInfo?.latest;
     const updateHash = latestUpdate?.hash || null;
@@ -1928,7 +1954,7 @@ function renderSettings() {
     </div>
     <aside class="panel side-panel">
       <div class="tool-icon side-icon" style="--icon-color: var(--cyan)">${icon('harddrive')}</div>
-      <h3>OmniForge ${escapeHtml(state.status?.appVersion || '1.3.0')}</h3>
+      <h3>OmniForge ${escapeHtml(state.status?.appVersion || '1.3.1')}</h3>
       <p>Windows ${escapeHtml(state.status?.arch || '')} · Electron desktop app · Local-first by design.</p>
       <div class="side-list">
         <button class="secondary-button" data-action="open-tools" style="width:100%">${icon('folder')} Open tools folder</button>
@@ -2670,6 +2696,12 @@ function bindStudioPreview() {
       showToast(state.studio.mediaError, 'error', 7000);
     }
   });
+  applyStudioPreviewFrame();
+  const stage = document.querySelector('.studio-media-stage');
+  if (stage && typeof ResizeObserver === 'function') {
+    state.studio.previewObserver = new ResizeObserver(() => applyStudioPreviewFrame());
+    state.studio.previewObserver.observe(stage);
+  }
 }
 
 function filterStudioSegments(query) {

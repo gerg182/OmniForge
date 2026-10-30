@@ -57,7 +57,7 @@ Build the Windows installer:
 npm run dist
 ```
 
-The installer and its `OmniForge-Setup-1.3.0.exe.sha256` sidecar are written to `dist/`.
+The installer and its `OmniForge-Setup-1.3.1.exe.sha256` sidecar are written to `dist/`.
 
 ## Transcript Clip Studio
 
