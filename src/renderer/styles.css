@@ -679,6 +679,18 @@ h1, h2, h3, p { margin: 0; }
 .update-status-copy strong { font-size: 10px; font-weight: 600; }
 .update-status-copy span { color: var(--muted-2); font-size: 9px; line-height: 1.45; }
 .update-status-card .primary-button, .update-status-card .secondary-button { flex: 0 0 auto; min-height: 34px; }
+.update-progress { margin: -2px 0 14px; padding: 12px; border: 1px solid rgba(102, 233, 255, 0.15); border-radius: 12px; background: rgba(102, 233, 255, 0.025); }
+.update-progress-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--text-soft); font-size: 9px; font-weight: 600; }
+.update-progress-track { height: 6px; margin-top: 9px; overflow: hidden; border-radius: 999px; background: rgba(255, 255, 255, 0.06); }
+.update-progress-track span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--cyan), var(--lime)); transition: width 180ms ease; }
+.update-progress-meta { margin-top: 7px; color: var(--muted-2); font-family: var(--mono); font-size: 8px; word-break: break-all; }
+.update-hash-row { display: flex; align-items: center; gap: 9px; margin: 0 0 14px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 9px; background: rgba(0, 0, 0, 0.14); }
+.update-hash-row > span { flex: 0 0 auto; color: var(--muted-2); font-size: 8px; text-transform: uppercase; letter-spacing: 0.07em; }
+.update-hash-row code { flex: 1; min-width: 0; overflow: hidden; color: var(--text-soft); font-family: var(--mono); font-size: 8.5px; text-overflow: ellipsis; white-space: nowrap; }
+.update-offline { margin-top: 4px; padding-top: 14px; border-top: 1px solid var(--line); }
+.update-offline-head { margin-bottom: 2px; }
+.update-offline-head strong { display: block; font-size: 10px; font-weight: 600; }
+.update-offline-head span { display: block; margin-top: 3px; color: var(--muted-2); font-size: 9px; line-height: 1.45; }
 .engine-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
 .engine-item { display: flex; align-items: center; gap: 10px; padding: 11px; border: 1px solid var(--line); border-radius: 11px; background: rgba(255, 255, 255, 0.018); }
 .engine-item .nav-icon { width: 15px; height: 15px; color: var(--lime); }

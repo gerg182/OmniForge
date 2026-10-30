@@ -2,7 +2,7 @@
 
 const path = require('path');
 const fs = require('fs');
-const { app, BrowserWindow, ipcMain, dialog, shell, session, Notification } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell, session, Notification, net } = require('electron');
 const { Store } = require('./store');
 const { ToolsManager } = require('./tools');
 const { JobManager } = require('./job-manager');
@@ -360,6 +360,22 @@ function registerIpc() {
     return updates.describe(result.filePaths[0]);
   });
   ipcMain.handle('updates:install', (_event, installerPath, options) => updates.install(String(installerPath || ''), options || {}));
+  ipcMain.handle('updates:download', (_event, version) => updates.download(String(version || '')));
+  ipcMain.handle('updates:open-release', async () => {
+    const releaseUrl = updates.releaseUrl();
+    if (!releaseUrl) throw new Error('Check for updates before opening release notes.');
+    let parsed;
+    try {
+      parsed = new URL(releaseUrl);
+    } catch {
+      throw new Error('The release notes URL is invalid.');
+    }
+    if (parsed.protocol !== 'https:' || parsed.hostname !== 'github.com' || !parsed.pathname.startsWith('/gerg182/OmniForge/releases/')) {
+      throw new Error('The release notes URL is not an OmniForge GitHub release.');
+    }
+    await shell.openExternal(parsed.toString());
+    return { opened: true };
+  });
 
   ipcMain.handle('dictation:save-recording', async (_event, payload) => {
     const source = payload?.bytes;
@@ -396,7 +412,9 @@ app.whenReady().then(() => {
   tools = new ToolsManager(app);
   jobs = new JobManager({ store, tools, emit: handleJobEvent });
   updates = new UpdateManager(app, store, {
-    openInstaller: (installerPath) => shell.openPath(installerPath)
+    openInstaller: (installerPath) => shell.openPath(installerPath),
+    fetchImpl: (url, options) => net.fetch(url, options),
+    onProgress: (progress) => send('updates:progress', progress)
   });
   registerIpc();
   registerMediaPermissions();

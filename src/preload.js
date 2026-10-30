@@ -33,6 +33,8 @@ contextBridge.exposeInMainWorld('omniforge', {
   chooseUpdateInstaller: () => ipcRenderer.invoke('updates:choose-installer'),
   describeUpdateInstaller: (installerPath) => ipcRenderer.invoke('updates:describe', installerPath),
   installUpdate: (installerPath, options) => ipcRenderer.invoke('updates:install', installerPath, options),
+  downloadUpdate: (version) => ipcRenderer.invoke('updates:download', version),
+  openUpdateRelease: () => ipcRenderer.invoke('updates:open-release'),
   saveDictationRecording: (bytes, mimeType) => ipcRenderer.invoke('dictation:save-recording', { bytes, mimeType }),
   openPath: (targetPath) => ipcRenderer.invoke('path:open', targetPath),
   revealPath: (targetPath) => ipcRenderer.invoke('path:reveal', targetPath),
@@ -48,5 +50,10 @@ contextBridge.exposeInMainWorld('omniforge', {
     const listener = () => callback();
     ipcRenderer.on('queue:open', listener);
     return () => ipcRenderer.removeListener('queue:open', listener);
+  },
+  onUpdateProgress: (callback) => {
+    const listener = (_event, payload) => callback(payload);
+    ipcRenderer.on('updates:progress', listener);
+    return () => ipcRenderer.removeListener('updates:progress', listener);
   }
 });

@@ -24,11 +24,7 @@ class Store {
   }
 
   defaultUpdateFolder() {
-    const candidates = [
-      path.join(this.app.getPath('desktop'), 'mutitool', 'dist'),
-      path.join(this.app.getPath('downloads'), 'OmniForge Updates')
-    ];
-    return candidates.find((candidate) => fs.existsSync(candidate)) || candidates[1];
+    return path.join(this.app.getPath('downloads'), 'OmniForge Updates');
   }
 
   defaults() {
