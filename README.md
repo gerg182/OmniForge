@@ -11,7 +11,7 @@ Everything runs on your PC. FFmpeg, FFprobe, yt-dlp, Deno, 7-Zip, and whisper.cp
 - Audio output: MP3, WAV, FLAC, M4A, OGG, Opus
 - Image output: PNG, JPG, WebP, AVIF, BMP, TIFF, ICO
 - Data conversion: CSV, TSV, JSON, YAML, XML
-- Batch queue with progress, cancellation, and job history
+- Persistent batch queue with progress, cancellation, recovery, reordering, retry, and job history
 - Compress by quality preset or approximate target file size
 - Trim video/audio and extract audio
 - Join multiple video or audio files into one result
@@ -22,6 +22,8 @@ Everything runs on your PC. FFmpeg, FFprobe, yt-dlp, Deno, 7-Zip, and whisper.cp
 - ZIP, 7Z, TAR, TAR.GZ, and GZ creation and extraction
 - Password-based file encryption and decryption with AES-256-GCM (`.ofenc`)
 - MD5, SHA-1, and SHA-256 checksums
+- Metadata stripping for JPEG, PNG, WebP, audio, and video without re-encoding media streams
+- Random-data secure deletion with 1, 3, or 7 overwrite passes
 - FFprobe media inspection
 - Audio and video to text with local whisper.cpp transcription (TXT or timestamped SRT)
 - Microphone dictation with an in-app recording timer and transcript preview
@@ -50,13 +52,17 @@ Build the Windows installer:
 npm run dist
 ```
 
-The installer is written to `dist/`.
+The installer and its `OmniForge-Setup-1.1.8.exe.sha256` sidecar are written to `dist/`.
 
 ## Updates
 
-Open **Settings -> Application updates**. The fastest path is to drag a newer `OmniForge-Setup-x.y.z.exe` onto the update drop zone: OmniForge checks the version, asks for confirmation, closes, and opens the Windows installer. Finish setup to reopen OmniForge. You can also put installers in the update folder and press **Check now**, or click the drop zone to browse for an installer anywhere on the PC. You do not need to uninstall the old version first.
+Open **Settings -> Application updates**. The fastest path is to drag a newer `OmniForge-Setup-x.y.z.exe` onto the update drop zone: OmniForge checks the version and adjacent `.sha256` sidecar, asks for confirmation, closes, and opens the Windows installer. Finish setup to reopen OmniForge. You can also put installers in the update folder and press **Check now**, or click the drop zone to browse for an installer anywhere on the PC. You do not need to uninstall the old version first.
 
 Updates must use the electron-builder artifact name so the version can be read from the filename.
+
+The sidecar format is `<sha256>  <filename>`. A mismatched or malformed sidecar blocks installation. A missing sidecar shows the computed SHA-256 and requires explicit confirmation. SHA-256 verifies file integrity, not publisher identity or code signing.
+
+Unfinished queue jobs are stored in `%APPDATA%\omniforge\queue.json`. Jobs interrupted by shutdown become failed history entries, while pending jobs return paused and require a manual resume. Passwords and confirmation fields are never written to disk.
 
 ## Notes
 
@@ -64,6 +70,8 @@ Updates must use the electron-builder artifact name so the version can be read f
 - Playlists, subtitles, live streams, browser cookies, age-restricted/member content, and DRM bypass are not supported.
 - Encrypted PDFs and password-protected archives are not supported.
 - OmniForge `.ofenc` files require the original password. Passwords are held only in memory while a job runs and are never stored or uploaded.
+- Metadata stripping supports JPEG/PNG/WebP images plus audio/video containers handled by FFmpeg. PDF and Office metadata are not included in this release.
+- Secure Delete overwrites, truncates, renames, and removes each file. SSD wear leveling, snapshots, backups, cloud sync, and journaling may retain copies; this tool cannot guarantee physical erasure.
 - Office document conversion is not included.
 - Download only content you own or have permission to download. Respect YouTube's terms and applicable copyright law.
 - Speech recognition uses the bundled `ggml-base.bin` multilingual model and runs entirely offline. Long recordings take longer to transcribe; the queue reports progress.

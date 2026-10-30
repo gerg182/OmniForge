@@ -1,5 +1,4 @@
 const api = window.omniforge;
-
 const ICONS = {
   home: '<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M9 21v-6h6v6"/>',
   download: '<path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 21h16"/>',
@@ -60,6 +59,8 @@ const VIEW_META = {
   encryptor: ['Files', 'File Encryptor'],
   checksum: ['Files', 'Checksum Verifier'],
   info: ['Files', 'Media Inspector'],
+  metadata: ['Privacy', 'Metadata Stripper'],
+  shred: ['Privacy', 'Secure Delete'],
   transcribe: ['Speech', 'Audio to Text'],
   dictation: ['Speech', 'Dictation'],
   settings: ['System', 'Settings']
@@ -67,13 +68,14 @@ const VIEW_META = {
 
 const TOOL_ICONS = {
   youtube: 'download', convert: 'convert', compress: 'compress', trim: 'scissors', extract: 'music',
-  join: 'merge', normalize: 'wave', frames: 'frames', gif: 'gif', pdf: 'pdf', archive: 'archive', encryptor: 'shield', checksum: 'hash', info: 'info', transcribe: 'mic'
+  join: 'merge', normalize: 'wave', frames: 'frames', gif: 'gif', pdf: 'pdf', archive: 'archive', encryptor: 'shield', checksum: 'hash', info: 'info', transcribe: 'mic', metadata: 'file', shred: 'harddrive'
 };
 
 const TOOL_COLORS = {
   youtube: '#ff8c8c', convert: '#c9ff51', compress: '#66e9ff', trim: '#74ffb2', join: '#ff9f6b',
   extract: '#ffc857', normalize: '#66e9ff', gif: '#b18cff', frames: '#b18cff', pdf: '#ff8c8c',
-  archive: '#7a9cff', encryptor: '#ff8c8c', checksum: '#f3a6ff', info: '#9aa6ba', transcribe: '#74ffb2'
+  archive: '#7a9cff', encryptor: '#ff8c8c', checksum: '#f3a6ff', info: '#9aa6ba', transcribe: '#74ffb2',
+  metadata: '#c9ff51', shred: '#ff8c8c'
 };
 
 const ALLOWED_CATEGORIES = {
@@ -90,6 +92,8 @@ const ALLOWED_CATEGORIES = {
   encryptor: null,
   checksum: null,
   info: null,
+  metadata: ['image', 'audio', 'video'],
+  shred: null,
   transcribe: ['audio', 'video']
 };
 
@@ -107,6 +111,8 @@ const GUIDES = {
   encryptor: { icon: 'shield', title: 'Encrypt files before they travel', text: 'AES-256-GCM with an scrypt-derived key encrypts the contents and authenticates the stored metadata. Everything runs locally.', steps: [['Add files', 'Encrypt anything, or choose .ofenc files to restore.'], ['Set a password', 'Use at least 8 characters. OmniForge never stores it.'], ['Save', 'Decrypted files get their original names back.']] },
   checksum: { icon: 'hash', title: 'Verify that a file is intact', text: 'Checksums are calculated locally with streaming reads, so large files stay responsive.', steps: [['Add files', 'Any file type can be hashed.'], ['Pick algorithms', 'MD5, SHA-1, and SHA-256 can run together.'], ['Compare', 'Copy a digest and compare it with the source.']] },
   info: { icon: 'info', title: 'See what is inside', text: 'FFprobe reports container details, duration, bitrate, video dimensions, and audio properties.', steps: [['Add media', 'Video and audio files work best.'], ['Inspect', 'The whole probe result is summarized.'], ['Review', 'Open technical details directly in the app.']] },
+  metadata: { icon: 'file', title: 'Leave less behind', text: 'Remove EXIF, XMP, IPTC, comments, and media tags while preserving image data and color profiles.', steps: [['Add media', 'JPEG, PNG, WebP, audio, and video are supported.'], ['Choose a folder', 'Cleaned copies get a _clean suffix.'], ['Clean', 'Streams are copied without re-encoding media.']] },
+  shred: { icon: 'harddrive', title: 'Overwrite before deleting', text: 'Files are overwritten with random data, truncated, renamed, and removed. This is not a guarantee on SSDs or copies in backups and cloud storage.', steps: [['Add files', 'Directories and symbolic links are rejected.'], ['Choose passes', 'One, three, or seven passes; three is the default.'], ['Confirm', 'The original file is destroyed and cannot be recovered.']] },
   transcribe: { icon: 'mic', title: 'Turn speech into text', text: 'Whisper runs locally on your PC. Audio never leaves the machine and nothing is uploaded.', steps: [['Add audio or video', 'Drop a recording, podcast, or video file.'], ['Pick a language', 'Auto-detect works for most recordings.'], ['Transcribe', 'Save a plain TXT or timed SRT transcript.']] }
 };
 
@@ -115,7 +121,7 @@ const state = {
   settings: null,
   history: [],
   view: 'home',
-  files: { convert: [], compress: [], trim: [], join: [], normalize: [], frames: [], extract: [], gif: [], pdf: [], archive: [], encryptor: [], checksum: [], info: [], transcribe: [] },
+  files: { convert: [], compress: [], trim: [], join: [], normalize: [], frames: [], extract: [], gif: [], pdf: [], archive: [], encryptor: [], checksum: [], info: [], transcribe: [], metadata: [], shred: [] },
   options: {
     convert: { targetFormat: 'mp4', quality: 'balanced', resolution: 'source' },
     compress: { mode: 'quality', quality: 'balanced', resolution: 'source', targetSizeMB: '25' },
@@ -130,6 +136,8 @@ const state = {
     encryptor: { mode: 'encrypt', password: '', confirm: '' },
     checksum: { algorithms: ['sha256'] },
     info: {},
+    metadata: {},
+    shred: { passes: '3', acknowledged: false },
     transcribe: { language: 'auto', outputFormat: 'txt' },
     dictation: { language: 'auto', outputFormat: 'txt' },
     youtube: { url: '', mode: 'video', quality: 'best', audioFormat: 'mp3' }
@@ -289,6 +297,8 @@ function render() {
     case 'encryptor': html = renderEncryptor(); break;
     case 'checksum': html = renderChecksum(); break;
     case 'info': html = renderInfo(); break;
+    case 'metadata': html = renderMetadata(); break;
+    case 'shred': html = renderShred(); break;
     case 'transcribe': html = renderTranscribe(); break;
     case 'dictation': html = renderDictation(); break;
     case 'settings': html = renderSettings(); break;
@@ -349,6 +359,8 @@ function renderHome() {
       ${toolCard('archive', 'archive', 'Archives', 'ZIP, 7Z, TAR and more', '#7a9cff')}
       ${toolCard('encryptor', 'shield', 'File Encryptor', 'Password-protect files locally', '#ff8c8c')}
       ${toolCard('checksum', 'hash', 'Checksums', 'Verify files with MD5 or SHA', '#f3a6ff')}
+      ${toolCard('metadata', 'file', 'Metadata Stripper', 'Remove tags without re-encoding', '#c9ff51')}
+      ${toolCard('shred', 'harddrive', 'Secure Delete', 'Overwrite files before removal', '#ff8c8c')}
     </div>
 
     <div class="two-col" style="margin-top: 28px;">
@@ -442,7 +454,7 @@ function renderFileList(tool) {
 }
 
 function renderStartBar(tool, label, note, disabled) {
-  const needsOutput = !['checksum', 'info'].includes(tool);
+  const needsOutput = !['checksum', 'info', 'shred'].includes(tool);
   return `<div class="action-row">
     <div class="action-copy"><strong>${escapeHtml(note || (needsOutput ? 'You will choose an output folder next.' : 'No output folder is needed.'))}</strong>${needsOutput ? 'Each job asks where to save its results.' : 'Results appear inside the app.'}</div>
     <div class="action-buttons"><button class="primary-button" data-action="start-tool" data-tool="${tool}" ${disabled ? 'disabled' : ''}>${icon('play')} ${escapeHtml(label)}</button></div>
@@ -1017,6 +1029,62 @@ function renderInfo() {
   </div>`;
 }
 
+function renderMetadata() {
+  const count = state.files.metadata.length;
+  const status = count ? `${count} ready` : 'No files';
+  return `<div class="tool-layout">
+    <div style="display:grid;gap:14px">
+      <div class="panel">
+        <div class="panel-head"><div><h2>Media to clean</h2><p>Remove identifying metadata without changing the underlying image or media streams.</p></div><span class="status-pill">${escapeHtml(status)}</span></div>
+        <div class="panel-body">
+          ${renderDropzone('metadata', 'Drop media to clean', 'JPEG, PNG, WebP, audio, and video')}
+          ${renderFileList('metadata')}
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><div><h2>Metadata removal</h2><p>JPEG EXIF/XMP/IPTC/comments, PNG text chunks, WebP EXIF/XMP, and media tags/chapters are removed.</p></div></div>
+        <div class="panel-body">
+          <div class="legal-note">${icon('alert')} Image data, ICC color profiles, animation, and media streams are preserved. Cleaned files are written as copies with a _clean suffix.</div>
+          ${renderStartBar('metadata', 'Remove metadata', 'Choose an output folder for the cleaned copies.', count === 0)}
+        </div>
+      </div>
+    </div>
+    ${renderGuide('metadata')}
+  </div>`;
+}
+
+function renderShred() {
+  const options = state.options.shred;
+  const passOptions = selectOptions([
+    { value: '1', label: '1 pass', hint: 'Fastest' },
+    { value: '3', label: '3 passes', hint: 'Recommended' },
+    { value: '7', label: '7 passes', hint: 'Most thorough' }
+  ], options.passes);
+  return `<div class="tool-layout">
+    <div style="display:grid;gap:14px">
+      <div class="panel">
+        <div class="panel-head"><div><h2>Files to destroy</h2><p>These files will be overwritten and removed. There is no undo.</p></div><span class="status-pill">Destructive</span></div>
+        <div class="panel-body">
+          ${renderDropzone('shred', 'Drop files to securely delete', 'Directories and symbolic links are rejected')}
+          ${renderFileList('shred')}
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><div><h2>Overwrite passes</h2><p>More passes take longer and cannot guarantee removal from every storage technology.</p></div></div>
+        <div class="panel-body">
+          <div class="form-grid">
+            <div class="field"><label>Passes</label><select data-tool="shred" data-option="passes">${passOptions}</select></div>
+          </div>
+          <label class="check-pill" style="margin-top:14px"><input type="checkbox" data-tool="shred" data-option="acknowledged" ${options.acknowledged ? 'checked' : ''}><span>I understand SSD wear leveling, backups, cloud copies, and snapshots may retain copies.</span></label>
+          <div class="legal-note">${icon('alert')} Secure Delete overwrites each file with random data, flushes every pass, truncates it, renames it randomly, and deletes it. Cancelling may leave a partially overwritten file.</div>
+          ${renderStartBar('shred', 'Securely delete files', 'No output folder is needed. This action cannot be undone.', state.files.shred.length === 0 || !options.acknowledged)}
+        </div>
+      </div>
+    </div>
+    ${renderGuide('shred')}
+  </div>`;
+}
+
 function renderResults(tool) {
   const results = state.results.filter((result) => result.tool === tool).slice(0, 8);
   if (!results.length) return '';
@@ -1057,9 +1125,13 @@ function renderSettings() {
     ['sevenZip', '7-Zip', 'Archive engine'],
     ['speech', 'Whisper', 'Local speech-to-text engine']
   ];
-    const appVersion = state.status?.appVersion || '1.1.7';
+    const appVersion = state.status?.appVersion || '1.1.8';
     const updateInfo = state.updateInfo;
     const latestUpdate = updateInfo?.latest;
+    const updateHash = latestUpdate?.hash || null;
+    const hashBlocked = updateHash?.status === 'mismatch' || updateHash?.status === 'malformed';
+    const hashSummary = updateHash ? `${updateHash.status}${updateHash.actual ? ` - ${updateHash.actual}` : ''}` : 'not checked';
+    const hashLabel = updateHash?.status === 'valid' ? 'SHA-256 verified' : updateHash?.status === 'missing' ? 'No .sha256 sidecar' : updateHash?.status ? 'Hash verification failed' : 'Hash pending';
     const updateFolder = state.settings?.updateFolder || 'No update folder selected';
     let updateTitle = 'Not checked yet';
     let updateText = 'Check the update folder for a newer OmniForge installer.';
@@ -1077,7 +1149,7 @@ function renderSettings() {
       updateIcon = 'folder';
     } else if (updateInfo?.newer && latestUpdate) {
       updateTitle = `Version ${latestUpdate.version} is available`;
-      updateText = `Installed: ${updateInfo.currentVersion} · Installer: ${formatBytes(latestUpdate.size)}`;
+      updateText = `Installed: ${updateInfo.currentVersion} · Installer: ${formatBytes(latestUpdate.size)} · ${hashLabel}`;
       updateTone = 'available';
       updateIcon = 'download';
     } else if (updateInfo?.latest) {
@@ -1124,20 +1196,21 @@ function renderSettings() {
               </div>
             </div>
             <div class="settings-value update-folder-path">${escapeHtml(updateFolder)}</div>
+            <div class="settings-value">SHA-256: ${escapeHtml(hashSummary)}</div>
             <div class="update-status-card ${updateTone}">
               <div class="update-status-icon">${icon(updateIcon, updateIcon === 'refresh' && state.updateChecking ? 'spin' : '')}</div>
               <div class="update-status-copy"><strong>${escapeHtml(updateTitle)}</strong><span>${escapeHtml(updateText)}</span></div>
-              ${updateInfo?.newer && latestUpdate ? `<button class="primary-button" data-action="install-update" data-path="${escapeHtml(latestUpdate.path)}" data-version="${escapeHtml(latestUpdate.version)}">${icon('download')} Install</button>` : `<button class="secondary-button" data-action="check-updates" ${state.updateChecking ? 'disabled' : ''}>${icon('refresh')} Check now</button>`}
+              ${updateInfo?.newer && latestUpdate ? `<button class="primary-button" data-action="install-update" data-path="${escapeHtml(latestUpdate.path)}" data-version="${escapeHtml(latestUpdate.version)}" ${hashBlocked ? 'disabled' : ''}>${icon('download')} ${hashBlocked ? 'Hash mismatch' : 'Install'}</button>` : `<button class="secondary-button" data-action="check-updates" ${state.updateChecking ? 'disabled' : ''}>${icon('refresh')} Check now</button>`}
             </div>
             <div class="update-dropzone" id="update-dropzone" data-action="choose-update-installer" role="button" tabindex="0" aria-label="Drop an OmniForge installer to update">
               <div class="update-dropzone-icon">${icon('upload')}</div>
               <div class="update-dropzone-copy">
                 <strong>Drop a newer installer here</strong>
-                <span>OmniForge checks the version, confirms, then opens the installer. You can also click to browse.</span>
+                <span>OmniForge checks the version and adjacent .sha256 sidecar, confirms, then opens the installer.</span>
               </div>
               <span class="update-dropzone-badge">.exe</span>
             </div>
-            <div class="legal-note">${icon('alert')} Installing an update closes OmniForge and opens the Windows installer. Finish setup to reopen OmniForge. Only install builds you trust.</div>
+            <div class="legal-note">${icon('alert')} SHA-256 verifies file integrity, not publisher identity. Missing sidecars require explicit confirmation; mismatches are blocked. Installing closes OmniForge and opens the Windows installer.</div>
           </div>
         </div><div class="panel">
         <div class="panel-head"><div><h2>YouTube engine</h2><p>YouTube changes often. Update yt-dlp if downloads stop working.</p></div></div>
@@ -1152,7 +1225,7 @@ function renderSettings() {
     </div>
     <aside class="panel side-panel">
       <div class="tool-icon side-icon" style="--icon-color: var(--cyan)">${icon('harddrive')}</div>
-      <h3>OmniForge ${escapeHtml(state.status?.appVersion || '1.1.7')}</h3>
+      <h3>OmniForge ${escapeHtml(state.status?.appVersion || '1.1.8')}</h3>
       <p>Windows ${escapeHtml(state.status?.arch || '')} · Electron desktop app · Local-first by design.</p>
       <div class="side-list">
         <button class="secondary-button" data-action="open-tools" style="width:100%">${icon('folder')} Open tools folder</button>
@@ -1180,6 +1253,8 @@ async function refreshStatus(showMessage = false) {
     state.status = await api.getSystemStatus();
     state.settings = state.status.settings;
     state.history = await api.getHistory();
+    mergeHistoryJobs(state.history);
+    applyJobSnapshots(await api.listJobs());
     updateEngineStatus();
     if (showMessage) showToast('Engine status refreshed.', 'success');
     render();
@@ -1314,6 +1389,9 @@ async function startTool(tool) {
   if (tool === 'checksum' && (!options.algorithms || options.algorithms.length === 0)) {
     showToast('Choose at least one checksum algorithm.', 'error'); return;
   }
+  if (tool === 'shred' && options.acknowledged !== true) {
+    showToast('Confirm the secure deletion warning first.', 'error'); return;
+  }
   if (tool === 'encryptor') {
     if (!options.password) { showToast('Enter a password first.', 'error'); return; }
     if (options.mode === 'encrypt' && options.password.length < 8) {
@@ -1327,7 +1405,7 @@ async function startTool(tool) {
   state.starting = true;
   try {
     let outputDirectory = null;
-    if (!['checksum', 'info'].includes(tool)) {
+    if (!['checksum', 'info', 'shred'].includes(tool)) {
       outputDirectory = await api.chooseOutputFolder();
       if (!outputDirectory) return;
       state.settings = await api.getSettings();
@@ -1344,6 +1422,11 @@ async function startTool(tool) {
     if (tool === 'encryptor') {
       state.options.encryptor.password = '';
       state.options.encryptor.confirm = '';
+      render();
+    }
+    if (tool === 'shred') {
+      state.files.shred = [];
+      state.options.shred.acknowledged = false;
       render();
     }
     openQueue();
@@ -1385,6 +1468,9 @@ function updateOption(target) {
       const set = new Set(state.options.checksum.algorithms);
       if (target.checked) set.add(target.dataset.algorithm); else set.delete(target.dataset.algorithm);
       state.options.checksum.algorithms = [...set];
+    } else {
+      state.options[tool][option] = target.checked;
+      if (tool === 'shred' && option === 'acknowledged') render();
     }
   } else {
     state.options[tool][option] = target.value;
@@ -1491,7 +1577,7 @@ function closeQueue() {
 }
 
 function isActiveJob(job) {
-  return ['queued', 'running', 'cancelling'].includes(job.status);
+  return ['queued', 'paused', 'running', 'cancelling'].includes(job.status);
 }
 
 function isFinishedJob(job) {
@@ -1521,13 +1607,105 @@ function baseName(filePath) {
   return String(filePath || '').split(/[\\/]/).filter(Boolean).pop() || filePath;
 }
 
+function applyJobSnapshots(jobs) {
+  for (const job of jobs || []) state.jobs.set(job.id, job);
+}
+
+function mergeHistoryJobs(history) {
+  for (const entry of history || []) {
+    if (!isFinishedJob(entry) || state.jobs.has(entry.id)) continue;
+    state.jobs.set(entry.id, {
+      ...entry,
+      outputPaths: entry.outputPaths || [],
+      data: null,
+      error: entry.error || null,
+      createdAt: entry.createdAt || entry.startedAt || entry.completedAt
+    });
+  }
+}
+
+async function refreshJobs() {
+  try {
+    applyJobSnapshots(await api.listJobs());
+    renderQueue();
+    updateQueueBadge();
+  } catch { /* the queue preview remains usable */ }
+}
+
+async function resumeJob(job) {
+  let password;
+  const options = {};
+  if (job.tool === 'encryptor') {
+    password = window.prompt('Enter the password to resume this encryption job:') || '';
+    if (!password) return;
+  }
+  if (job.tool === 'shred') {
+    const confirmed = window.confirm('Resume secure deletion?\n\nSSD wear leveling, backups, cloud copies, and snapshots may retain copies.');
+    if (!confirmed) return;
+    options.acknowledged = true;
+  }
+  try {
+    const updated = await api.resumeJob(job.id, password, options);
+    state.jobs.set(updated.id, updated);
+    await refreshJobs();
+    showToast(`${job.label} resumed.`, 'success');
+  } catch (error) {
+    showToast(error.message || String(error), 'error', 7000);
+  }
+}
+
+async function retryJob(job) {
+  if (!job.spec) {
+    showToast('This history entry is too old to retry.', 'error');
+    return;
+  }
+  const options = {};
+  if (job.tool === 'encryptor') {
+    options.password = window.prompt('Enter the password to retry this encryption job:') || '';
+    if (!options.password) return;
+  }
+  if (job.tool === 'shred') {
+    const confirmed = window.confirm('Retry secure deletion?\n\nSSD wear leveling, backups, cloud copies, and snapshots may retain copies.');
+    if (!confirmed) return;
+    options.acknowledged = true;
+  }
+  try {
+    const next = await api.retryJob(job.id, options);
+    state.jobs.set(next.id, next);
+    await refreshJobs();
+    openQueue();
+    showToast(`${job.label} queued again.`, 'success');
+  } catch (error) {
+    showToast(error.message || String(error), 'error', 7000);
+  }
+}
+
+async function moveJob(job, direction) {
+  try {
+    const result = await api.moveJob(job.id, direction);
+    if (!result.moved) {
+      if (result.reason) showToast(result.reason, 'error');
+      return;
+    }
+    applyJobSnapshots(result.jobs);
+    renderQueue();
+  } catch (error) {
+    showToast(error.message || String(error), 'error');
+  }
+}
+
 function renderQueue() {
   const list = document.getElementById('queue-list');
   if (!list) return;
   const allJobs = [...state.jobs.values()];
   const counts = jobCounts(allJobs);
-  const statusRank = { running: 0, cancelling: 0, queued: 1 };
-  const sorted = allJobs.sort((a, b) => (statusRank[a.status] ?? 2) - (statusRank[b.status] ?? 2) || new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  const statusRank = { running: 0, cancelling: 0, paused: 1, queued: 1 };
+  const sorted = allJobs.sort((a, b) => {
+    const rank = (statusRank[a.status] ?? 2) - (statusRank[b.status] ?? 2);
+    if (rank) return rank;
+    if (Number.isFinite(a.queuePosition) && Number.isFinite(b.queuePosition)) return a.queuePosition - b.queuePosition;
+    return new Date(b.completedAt || b.createdAt || 0).getTime() - new Date(a.completedAt || a.createdAt || 0).getTime();
+  });
   const filtered = sorted.filter((job) => state.queueFilter === 'active' ? isActiveJob(job) : state.queueFilter === 'finished' ? isFinishedJob(job) : true);
 
   const meta = document.getElementById('queue-header-meta');
@@ -1554,8 +1732,8 @@ function renderQueue() {
   }
 
   list.innerHTML = filtered.map((job) => {
-    const cancellable = ['queued', 'running'].includes(job.status);
-    const hasProgress = ['queued', 'running', 'cancelling'].includes(job.status);
+    const cancellable = ['queued', 'paused', 'running'].includes(job.status);
+    const hasProgress = ['queued', 'paused', 'running', 'cancelling'].includes(job.status);
     const progress = Math.max(0, Math.min(100, Math.round(Number(job.progress) || 0)));
     const toolColor = TOOL_COLORS[job.tool] || 'var(--lime)';
     const outputs = (job.outputPaths || []).map((outputPath) => `<div class="job-output"><span class="nav-icon">${icon('file')}</span><span class="name" title="${escapeHtml(outputPath)}">${escapeHtml(baseName(outputPath))}</span><button data-action="open-output" data-path="${escapeHtml(outputPath)}">Open</button><button data-action="reveal-output" data-path="${escapeHtml(outputPath)}">Show</button></div>`).join('');
@@ -1573,6 +1751,9 @@ function renderQueue() {
       ${outputs ? `<div class="job-outputs">${outputs}</div>` : ''}
       <div class="job-actions">
         ${cancellable ? `<button class="job-action-danger" data-action="cancel-job" data-job="${escapeHtml(job.id)}">Cancel</button>` : ''}
+        ${job.status === 'paused' ? `<button data-action="resume-job" data-job="${escapeHtml(job.id)}">Resume</button>` : ''}
+        ${['queued', 'paused'].includes(job.status) ? `<button data-action="move-job" data-job="${escapeHtml(job.id)}" data-dir="-1">Move up</button><button data-action="move-job" data-job="${escapeHtml(job.id)}" data-dir="1">Move down</button>` : ''}
+        ${job.status === 'failed' && job.spec ? `<button data-action="retry-job" data-job="${escapeHtml(job.id)}">Retry</button>` : ''}
         ${job.status === 'succeeded' && job.data ? `<button data-action="view-results" data-tool="${escapeHtml(job.tool)}">View results</button>` : ''}
         ${job.status === 'succeeded' && job.spec?.outputDirectory ? `<button data-action="open-output" data-path="${escapeHtml(job.spec.outputDirectory)}">Open output folder</button>` : ''}
       </div>
@@ -1696,10 +1877,30 @@ async function chooseUpdateFolder() {
 
 async function installUpdate(installerPath, version) {
   if (!installerPath) return;
-  const confirmed = window.confirm(`Install OmniForge ${version || ''}?\n\nOmniForge will close and open the installer.`);
+  let info = state.updateInfo?.latest;
+  if (!info || info.path !== installerPath || !info.hash) {
+    try {
+      info = await api.describeUpdateInstaller(installerPath);
+    } catch (error) {
+      showToast(`Could not verify the installer: ${error.message}`, 'error', 8000);
+      return;
+    }
+  }
+  const hash = info.hash || {};
+  if (hash.status === 'mismatch' || hash.status === 'malformed') {
+    showToast('Installer verification failed. The installer was not opened.', 'error', 8000);
+    return;
+  }
+  let allowMissingHash = false;
+  if (hash.status === 'missing') {
+    allowMissingHash = window.confirm(`This installer has no SHA-256 sidecar.\n\nActual SHA-256:\n${hash.actual}\n\nOnly continue if you trust this file and its source.`);
+    if (!allowMissingHash) return;
+  }
+  const verifiedText = hash.status === 'valid' ? `\n\nSHA-256 verified: ${hash.actual}` : '';
+  const confirmed = window.confirm(`Install OmniForge ${version || info.version || ''}?${verifiedText}\n\nOmniForge will close and open the installer.`);
   if (!confirmed) return;
   try {
-    await api.installUpdate(installerPath);
+    await api.installUpdate(installerPath, { allowMissingHash });
     showToast(`Opening the OmniForge ${version || ''} installer.`, 'success', 5000);
   } catch (error) {
     showToast(`Update failed: ${error.message}`, 'error', 8000);
@@ -1946,6 +2147,21 @@ function handleAction(actionTarget) {
     case 'cancel-job': api.cancelJob(actionTarget.dataset.job).then((result) => {
       if (!result.cancelled) showToast(result.reason || 'Could not cancel this job.', 'error');
     }).catch((error) => showToast(error.message, 'error')); break;
+    case 'resume-job': {
+      const job = state.jobs.get(actionTarget.dataset.job);
+      if (job) resumeJob(job);
+      break;
+    }
+    case 'retry-job': {
+      const job = state.jobs.get(actionTarget.dataset.job);
+      if (job) retryJob(job);
+      break;
+    }
+    case 'move-job': {
+      const job = state.jobs.get(actionTarget.dataset.job);
+      if (job) moveJob(job, Number(actionTarget.dataset.dir));
+      break;
+    }
     case 'open-output': openOutput(actionTarget.dataset.path); break;
     case 'reveal-output': revealOutput(actionTarget.dataset.path); break;
     case 'view-results': navigate(tool); break;
@@ -2020,10 +2236,12 @@ async function init() {
   api.onJobUpdate(handleJobUpdate);
   viewEl.innerHTML = `<div class="empty-state"><div class="tool-icon" style="--icon-color:var(--lime)">${icon('sparkle')}</div><h3>Starting OmniForge…</h3><p>Checking the bundled engines.</p></div>`;
   try {
-    const [status, history] = await Promise.all([api.getSystemStatus(), api.getHistory()]);
+    const [status, history, pendingJobs] = await Promise.all([api.getSystemStatus(), api.getHistory(), api.listJobs()]);
     state.status = status;
     state.settings = status.settings;
     state.history = history;
+    mergeHistoryJobs(history);
+    applyJobSnapshots(pendingJobs);
     updateEngineStatus();
     renderQueue();
     render();

@@ -1,6 +1,7 @@
 ﻿'use strict';
 
 const fs = require('fs');
+const crypto = require('crypto');
 const path = require('path');
 
 const INSTALLER_PATTERN = /^OmniForge-Setup-(\d+)\.(\d+)\.(\d+)(?:(?:\s*\(\d+\))|(?:\s*-\s*copy))?\.exe$/i;
@@ -43,6 +44,51 @@ function describeInstaller(filePath) {
   };
 }
 
+function installerHashPath(filePath) {
+  return `${path.resolve(String(filePath || ''))}.sha256`;
+}
+
+function parseHashSidecar(text, installerFileName) {
+  const match = /^([a-fA-F0-9]{64})\s+\*?(.+?)\s*$/.exec(String(text || '').trim());
+  if (!match) return null;
+  const namedFile = path.basename(match[2].trim());
+  if (installerFileName && namedFile.toLowerCase() !== String(installerFileName).toLowerCase()) return null;
+  return { expected: match[1].toLowerCase(), fileName: namedFile };
+}
+
+function computeFileSha256(filePath) {
+  return new Promise((resolve, reject) => {
+    const hash = crypto.createHash('sha256');
+    const stream = fs.createReadStream(String(filePath));
+    stream.on('data', (chunk) => hash.update(chunk));
+    stream.on('error', reject);
+    stream.on('end', () => resolve(hash.digest('hex')));
+  });
+}
+
+async function inspectInstallerHash(filePath) {
+  const fullPath = path.resolve(String(filePath || ''));
+  const sidecarPath = installerHashPath(fullPath);
+  const actual = await computeFileSha256(fullPath);
+  let text;
+  try {
+    text = await fs.promises.readFile(sidecarPath, 'utf8');
+  } catch (error) {
+    if (error?.code === 'ENOENT') {
+      return { status: 'missing', expected: null, actual, sidecarPath };
+    }
+    throw error;
+  }
+  const parsed = parseHashSidecar(text, path.basename(fullPath));
+  if (!parsed) return { status: 'malformed', expected: null, actual, sidecarPath };
+  return {
+    status: parsed.expected === actual ? 'valid' : 'mismatch',
+    expected: parsed.expected,
+    actual,
+    sidecarPath
+  };
+}
+
 function scanUpdateFolder(folder, currentVersion) {
   const resolved = folder ? path.resolve(String(folder)) : null;
   const result = {
@@ -78,5 +124,9 @@ module.exports = {
   parseInstallerVersion,
   compareVersions,
   describeInstaller,
-  scanUpdateFolder
+  scanUpdateFolder,
+  installerHashPath,
+  parseHashSidecar,
+  computeFileSha256,
+  inspectInstallerHash
 };

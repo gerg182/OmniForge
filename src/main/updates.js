@@ -1,7 +1,7 @@
 'use strict';
 
 const path = require('path');
-const { compareVersions, describeInstaller, scanUpdateFolder } = require('./update-utils');
+const { compareVersions, describeInstaller, scanUpdateFolder, inspectInstallerHash } = require('./update-utils');
 
 class UpdateManager {
   constructor(app, store, options = {}) {
@@ -16,23 +16,40 @@ class UpdateManager {
     return scanUpdateFolder(this.store.get().updateFolder, this.app.getVersion());
   }
 
-  describe(filePath) {
+  async describe(filePath) {
     const installer = describeInstaller(filePath);
     const currentVersion = this.app.getVersion();
+    const hash = await inspectInstallerHash(installer.path);
     return {
       ...installer,
       currentVersion,
-      newer: compareVersions(installer.version, currentVersion) > 0
+      newer: compareVersions(installer.version, currentVersion) > 0,
+      hash,
+      hashStatus: hash.status,
+      expectedHash: hash.expected,
+      actualHash: hash.actual,
+      sidecarPath: hash.sidecarPath
     };
   }
 
-  async install(filePath) {
+  async install(filePath, options = {}) {
     if (!this.app.isPackaged) throw new Error('In-app updates are available from the installed app.');
     if (!this.openInstaller) throw new Error('The Windows installer launcher is unavailable.');
     const installer = describeInstaller(filePath);
     const currentVersion = this.app.getVersion();
     if (compareVersions(installer.version, currentVersion) <= 0) {
       throw new Error(`Version ${installer.version} is not newer than the installed version ${currentVersion}.`);
+    }
+
+    const hash = await inspectInstallerHash(installer.path);
+    if (hash.status === 'mismatch') {
+      throw new Error('Installer verification failed: the SHA-256 hash does not match the adjacent .sha256 file.');
+    }
+    if (hash.status === 'malformed') {
+      throw new Error('Installer verification failed: the adjacent .sha256 file is malformed.');
+    }
+    if (hash.status === 'missing' && options.allowMissingHash !== true) {
+      throw new Error(`No SHA-256 sidecar was found. The installer hash is ${hash.actual}. Confirm that you trust this file before installing it.`);
     }
 
     const appPath = this.app.getPath('exe');
@@ -45,7 +62,9 @@ class UpdateManager {
       started: true,
       version: installer.version,
       currentVersion,
-      installDirectory
+      installDirectory,
+      hashStatus: hash.status,
+      actualHash: hash.actual
     };
   }
 }

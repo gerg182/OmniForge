@@ -25,6 +25,7 @@ const {
 const { executeJoin, executeFrames, executeNormalize } = require('./extra-operations');
 const { executeTranscribe } = require('./speech');
 const { encryptFile, decryptFile, encryptedOutputPath } = require('./encryption');
+const { executeMetadata, executeShred } = require('./privacy');
 
 function assertInputs(spec) {
   if (!Array.isArray(spec.inputPaths) || spec.inputPaths.length === 0) {
@@ -810,6 +811,8 @@ async function executeJob(spec, ctx, deps) {
     case 'checksum': return executeChecksum(spec, ctx);
     case 'info': return executeInfo(spec, ctx, deps);
     case 'transcribe': return executeTranscribe(spec, ctx, deps);
+    case 'metadata': return executeMetadata(spec, ctx, deps);
+    case 'shred': return executeShred(spec, ctx);
     default: throw new Error(`Unknown tool: ${spec.tool}`);
   }
 }
@@ -829,6 +832,8 @@ module.exports = {
   executeEncryptor,
   executeChecksum,
   executeInfo,
+  executeMetadata,
+  executeShred,
   executeYouTube,
   parsePageRanges,
   youtubeFormatSelector

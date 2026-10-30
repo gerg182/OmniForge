@@ -5,11 +5,15 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const crypto = require('node:crypto');
 const {
   compareVersions,
   parseInstallerVersion,
   describeInstaller,
-  scanUpdateFolder
+  scanUpdateFolder,
+  installerHashPath,
+  parseHashSidecar,
+  inspectInstallerHash
 } = require('../src/main/update-utils');
 const { UpdateManager } = require('../src/main/updates');
 
@@ -52,21 +56,51 @@ test('update folder scan chooses the newest installer', (t) => {
   assert.equal(missing.newer, false);
 });
 
-test('installer description rejects unrelated files and reports newer builds', (t) => {
+function writeHashSidecar(installer, content = fs.readFileSync(installer)) {
+  const hash = crypto.createHash('sha256').update(content).digest('hex');
+  fs.writeFileSync(installerHashPath(installer), `${hash}  ${path.basename(installer)}\n`, 'utf8');
+  return hash;
+}
+
+test('installer description rejects unrelated files and reports newer builds', async (t) => {
   const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'omniforge-describe-test-'));
   t.after(() => fs.rmSync(folder, { recursive: true, force: true }));
   const installer = path.join(folder, 'OmniForge-Setup-1.1.8.exe');
   fs.writeFileSync(installer, 'installer');
+  writeHashSidecar(installer);
   assert.throws(() => describeInstaller(path.join(folder, 'setup.exe')), /OmniForge-Setup/);
 
   const manager = new UpdateManager(
     { isPackaged: false, getVersion: () => '1.1.6' },
     { get: () => ({ updateFolder: folder }) }
   );
-  const described = manager.describe(installer);
+  const described = await manager.describe(installer);
   assert.equal(described.version, '1.1.8');
   assert.equal(described.currentVersion, '1.1.6');
   assert.equal(described.newer, true);
+  assert.equal(described.hash.status, 'valid');
+});
+
+test('installer hash sidecars detect missing, malformed, mismatched, and valid files', async (t) => {
+  const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'omniforge-hash-test-'));
+  t.after(() => fs.rmSync(folder, { recursive: true, force: true }));
+  const installer = path.join(folder, 'OmniForge-Setup-1.1.8.exe');
+  fs.writeFileSync(installer, 'installer bytes');
+  const actual = crypto.createHash('sha256').update('installer bytes').digest('hex');
+
+  assert.equal((await inspectInstallerHash(installer)).status, 'missing');
+  fs.writeFileSync(installerHashPath(installer), 'not-a-hash', 'utf8');
+  assert.equal((await inspectInstallerHash(installer)).status, 'malformed');
+  fs.writeFileSync(installerHashPath(installer), `${'0'.repeat(64)}  ${path.basename(installer)}\n`, 'utf8');
+  const mismatch = await inspectInstallerHash(installer);
+  assert.equal(mismatch.status, 'mismatch');
+  assert.equal(mismatch.actual, actual);
+  fs.writeFileSync(installerHashPath(installer), `${actual}  ${path.basename(installer)}\n`, 'utf8');
+  const valid = await inspectInstallerHash(installer);
+  assert.equal(valid.status, 'valid');
+  assert.equal(valid.expected, actual);
+  assert.deepEqual(parseHashSidecar(`${actual}  ${path.basename(installer)}`, path.basename(installer)), { expected: actual, fileName: path.basename(installer) });
+  assert.equal(parseHashSidecar(`${actual}  other.exe`, path.basename(installer)), null);
 });
 
 test('in-app install is rejected outside the packaged app', async () => {
@@ -82,6 +116,7 @@ test('packaged install hands the installer to the Windows shell', async (t) => {
   t.after(() => fs.rmSync(folder, { recursive: true, force: true }));
   const installer = path.join(folder, 'OmniForge-Setup-1.1.8.exe');
   fs.writeFileSync(installer, 'installer');
+  writeHashSidecar(installer);
   let openedPath = '';
   let quitCalled = false;
   const manager = new UpdateManager(
@@ -111,6 +146,7 @@ test('packaged install reports a Windows launch failure', async (t) => {
   t.after(() => fs.rmSync(folder, { recursive: true, force: true }));
   const installer = path.join(folder, 'OmniForge-Setup-1.1.8.exe');
   fs.writeFileSync(installer, 'installer');
+  writeHashSidecar(installer);
   const manager = new UpdateManager(
     {
       isPackaged: true,
@@ -122,4 +158,45 @@ test('packaged install reports a Windows launch failure', async (t) => {
   );
 
   await assert.rejects(() => manager.install(installer), /Access denied/);
+});
+
+test('packaged install never launches a mismatched or malformed installer', async (t) => {
+  const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'omniforge-install-hash-test-'));
+  t.after(() => fs.rmSync(folder, { recursive: true, force: true }));
+  const installer = path.join(folder, 'OmniForge-Setup-1.1.8.exe');
+  fs.writeFileSync(installer, 'installer');
+  let launched = false;
+  const manager = new UpdateManager(
+    { isPackaged: true, getVersion: () => '1.1.7', getPath: () => path.join(folder, 'OmniForge.exe') },
+    { get: () => ({ updateFolder: folder }) },
+    { openInstaller: async () => { launched = true; return ''; } }
+  );
+
+  fs.writeFileSync(installerHashPath(installer), `${'f'.repeat(64)}  ${path.basename(installer)}\n`, 'utf8');
+  await assert.rejects(() => manager.install(installer), /does not match/);
+  assert.equal(launched, false);
+
+  fs.writeFileSync(installerHashPath(installer), 'bad sidecar', 'utf8');
+  await assert.rejects(() => manager.install(installer), /malformed/);
+  assert.equal(launched, false);
+});
+
+test('packaged install requires explicit consent for a missing sidecar', async (t) => {
+  const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'omniforge-install-missing-hash-test-'));
+  t.after(() => fs.rmSync(folder, { recursive: true, force: true }));
+  const installer = path.join(folder, 'OmniForge-Setup-1.1.8.exe');
+  fs.writeFileSync(installer, 'installer');
+  let launches = 0;
+  const manager = new UpdateManager(
+    { isPackaged: true, getVersion: () => '1.1.7', getPath: () => path.join(folder, 'OmniForge.exe') },
+    { get: () => ({ updateFolder: folder }) },
+    { openInstaller: async () => { launches += 1; return ''; }, quit: () => {}, quitDelayMs: 0 }
+  );
+
+  await assert.rejects(() => manager.install(installer), /No SHA-256 sidecar/);
+  assert.equal(launches, 0);
+  const result = await manager.install(installer, { allowMissingHash: true });
+  assert.equal(result.started, true);
+  assert.equal(result.hashStatus, 'missing');
+  assert.equal(launches, 1);
 });

@@ -9,6 +9,7 @@ class Store {
     this.directory = app.getPath('userData');
     this.settingsPath = path.join(this.directory, 'settings.json');
     this.historyPath = path.join(this.directory, 'history.json');
+    this.queuePath = path.join(this.directory, 'queue.json');
     fs.mkdirSync(this.directory, { recursive: true });
     this.settings = this.loadSettings();
     this.history = this.loadHistory();
@@ -62,6 +63,57 @@ class Store {
     fs.renameSync(temp, this.historyPath);
   }
 
+  sanitizeSpec(spec) {
+    if (!spec || typeof spec !== 'object') return null;
+    const clean = {
+      ...spec,
+      inputPaths: Array.isArray(spec.inputPaths) ? spec.inputPaths.map((value) => String(value)) : [],
+      options: { ...(spec.options && typeof spec.options === 'object' ? spec.options : {}) }
+    };
+    delete clean.options.password;
+    delete clean.options.confirm;
+    delete clean.options.acknowledged;
+    delete clean.options.acknowledgement;
+    return clean;
+  }
+
+  queueEntry(job) {
+    return {
+      id: job.id,
+      tool: job.tool,
+      label: job.label,
+      status: job.status,
+      progress: job.progress,
+      message: job.message,
+      spec: this.sanitizeSpec(job.spec),
+      outputPaths: Array.isArray(job.outputPaths) ? job.outputPaths : [],
+      data: job.data || null,
+      error: job.error || null,
+      createdAt: job.createdAt || null,
+      startedAt: job.startedAt || null,
+      completedAt: job.completedAt || null
+    };
+  }
+
+  loadQueue() {
+    try {
+      const stored = JSON.parse(fs.readFileSync(this.queuePath, 'utf8'));
+      if (!Array.isArray(stored)) return [];
+      return stored
+        .filter((entry) => entry && entry.id && entry.tool && entry.spec)
+        .map((entry) => ({ ...entry, spec: this.sanitizeSpec(entry.spec) }));
+    } catch {
+      return [];
+    }
+  }
+
+  writeQueue(jobs) {
+    const entries = Array.isArray(jobs) ? jobs.map((job) => this.queueEntry(job)) : [];
+    const temp = `${this.queuePath}.tmp`;
+    fs.writeFileSync(temp, JSON.stringify(entries, null, 2), 'utf8');
+    fs.renameSync(temp, this.queuePath);
+  }
+
   get() {
     return { ...this.settings };
   }
@@ -88,6 +140,8 @@ class Store {
       inputPaths: job.spec?.inputPaths || [],
       outputPaths: job.outputPaths || [],
       error: job.error || null,
+      spec: this.sanitizeSpec(job.spec),
+      createdAt: job.createdAt || null,
       startedAt: job.startedAt || null,
       completedAt: job.completedAt || null
     };

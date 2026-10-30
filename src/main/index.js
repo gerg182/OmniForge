@@ -170,6 +170,10 @@ function registerIpc() {
   ipcMain.handle('job:start', (_event, spec) => jobs.start(spec));
   ipcMain.handle('job:cancel', (_event, id) => jobs.cancel(id));
   ipcMain.handle('job:get', (_event, id) => jobs.get(id));
+  ipcMain.handle('job:list', () => jobs.list());
+  ipcMain.handle('job:resume', (_event, id, password, options) => jobs.resume(id, password, options || {}));
+  ipcMain.handle('job:move', (_event, id, direction) => jobs.move(id, direction));
+  ipcMain.handle('job:retry', (_event, id, options) => jobs.retry(id, options || {}));
 
   ipcMain.handle('youtube:probe', async (_event, url) => {
     if (!isSupportedYouTubeUrl(url)) throw new Error('Enter a valid YouTube video URL.');
@@ -199,7 +203,7 @@ function registerIpc() {
     if (result.canceled || !result.filePaths[0]) return null;
     return updates.describe(result.filePaths[0]);
   });
-  ipcMain.handle('updates:install', (_event, installerPath) => updates.install(String(installerPath || '')));
+  ipcMain.handle('updates:install', (_event, installerPath, options) => updates.install(String(installerPath || ''), options || {}));
 
   ipcMain.handle('dictation:save-recording', async (_event, payload) => {
     const source = payload?.bytes;

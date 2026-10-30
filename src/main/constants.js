@@ -92,7 +92,9 @@ const TOOL_LABELS = {
   encryptor: 'File Encryptor',
   checksum: 'Checksum Verifier',
   info: 'Media Inspector',
-  transcribe: 'Audio to Text'
+  transcribe: 'Audio to Text',
+  metadata: 'Metadata Stripper',
+  shred: 'Secure Delete'
 };
 
 function extensionOf(filePath) {
