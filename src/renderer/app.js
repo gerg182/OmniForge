@@ -331,7 +331,13 @@ function navigate(view) {
 function updateShell() {
   const [eyebrow, title] = currentMeta();
   $('#page-eyebrow').textContent = eyebrow;
-  $('#page-title').textContent = title;
+  const pageTitle = $('#page-title');
+  if (pageTitle.textContent !== title) {
+    pageTitle.textContent = title;
+    pageTitle.classList.remove('title-in');
+    void pageTitle.offsetWidth;
+    pageTitle.classList.add('title-in');
+  }
   document.querySelectorAll('.nav-item, .topbar-settings').forEach((item) => {
     const active = item.dataset.view === state.view;
     item.classList.toggle('active', active);
@@ -3463,18 +3469,31 @@ function clearResults(tool) {
   render();
 }
 
+let queueOpeningTimer = null;
+
 function openQueue() {
   if (state.legalGateOpen) return;
+  const wasOpen = queueDrawer.classList.contains('open');
   state.queueOpen = true;
   queueDrawer.classList.add('open');
   queueOverlay.classList.add('open');
   queueDrawer.setAttribute('aria-hidden', 'false');
   queueOverlay.setAttribute('aria-hidden', 'false');
+  if (!wasOpen) {
+    queueDrawer.classList.remove('opening');
+    void queueDrawer.offsetWidth;
+    queueDrawer.classList.add('opening');
+    clearTimeout(queueOpeningTimer);
+    queueOpeningTimer = setTimeout(() => queueDrawer.classList.remove('opening'), 520);
+  }
   renderQueue();
 }
 
 function closeQueue() {
   state.queueOpen = false;
+  queueDrawer.classList.remove('opening');
+  clearTimeout(queueOpeningTimer);
+  queueOpeningTimer = null;
   queueDrawer.classList.remove('open');
   queueOverlay.classList.remove('open');
   queueDrawer.setAttribute('aria-hidden', 'true');

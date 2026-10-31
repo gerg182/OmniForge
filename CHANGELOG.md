@@ -2,6 +2,18 @@
 
 All notable changes to OmniForge are documented here.
 
+## 1.6.3 - 2026-10-31
+
+### Added
+
+- Added a polished motion pass across the app: staggered tool cards, ambient background movement, animated hero accents, button sheen, dropzone feedback, queue entrance, live-job pulses, update confirmation motion, and smoother title and toast transitions.
+- Added installer cleanup after upgrades. The exact installer used for an update and older app-managed installers are removed after the new version starts, with locked files retried on the next launch.
+
+### Changed
+
+- Update downloads now show accurate byte totals, speed, ETA, and separate SHA-256 verification progress.
+- Settings now lives in the sidebar engine-status card for easier access.
+
 ## 1.6.2 - 2026-10-31
 
 ### Changed

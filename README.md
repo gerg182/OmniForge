@@ -39,11 +39,11 @@ Everything runs on your PC. FFmpeg, FFprobe, yt-dlp, Deno, 7-Zip, and whisper.cp
 
 ## Installation
 
-Download the newest `OmniForge-Setup-1.6.2.exe` from [GitHub Releases](https://github.com/gerg182/OmniForge/releases/latest), then verify it before running:
+Download the newest `OmniForge-Setup-1.6.3.exe` from [GitHub Releases](https://github.com/gerg182/OmniForge/releases/latest), then verify it before running:
 
 ```powershell
-Get-FileHash .\OmniForge-Setup-1.6.2.exe -Algorithm SHA256
-Get-Content .\OmniForge-Setup-1.6.2.exe.sha256
+Get-FileHash .\OmniForge-Setup-1.6.3.exe -Algorithm SHA256
+Get-Content .\OmniForge-Setup-1.6.3.exe.sha256
 ```
 
 The hashes must match. The current installer is unsigned, so Windows SmartScreen may warn. Only continue when the installer came from this repository and its SHA-256 matches. OmniForge requires Windows 10/11 x64 and installs per user; administrator access is not required.
@@ -70,7 +70,7 @@ Build the Windows installer:
 npm run dist
 ```
 
-The installer and its `OmniForge-Setup-1.6.2.exe.sha256` sidecar are written to `dist/`. Release builds are produced by the tag-driven GitHub Actions workflow after the version is synchronized in `package.json`, `package-lock.json`, this README, and `CHANGELOG.md`.
+The installer and its `OmniForge-Setup-1.6.3.exe.sha256` sidecar are written to `dist/`. Release builds are produced by the tag-driven GitHub Actions workflow after the version is synchronized in `package.json`, `package-lock.json`, this README, and `CHANGELOG.md`.
 
 ## Transcript Clip Studio
 
