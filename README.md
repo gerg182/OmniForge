@@ -101,6 +101,8 @@ Open **Settings -> Application updates** and choose **Check now**. OmniForge rea
 
 If GitHub is unavailable, use the offline fallback: drag a newer installer onto the update drop zone, point OmniForge at a local update folder, or browse for the installer. Offline installers must still use the versioned filename. A malformed or mismatched sidecar blocks installation. If a sidecar is missing, OmniForge displays the computed hash and requires explicit confirmation; GitHub-driven downloads never allow this fallback.
 
+After the upgraded app starts, OmniForge deletes the installer used for that update and removes older app-managed installers to reclaim disk space. Future installers and unrelated files are preserved; cleanup is retried on the next launch if Windows still has a file locked.
+
 The sidecar format is `<sha256>  <filename>`. SHA-256 verifies file integrity and transfer integrity, not publisher identity or code signing. Windows SmartScreen may warn because the current build is unsigned.
 
 Unfinished queue jobs are stored in `%APPDATA%\omniforge\queue.json`. Jobs interrupted by shutdown become failed history entries, while pending jobs return paused and require a manual resume. Passwords, confirmation fields, and transient speed/ETA samples are never written to disk.

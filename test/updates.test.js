@@ -11,6 +11,7 @@ const {
   parseInstallerVersion,
   describeInstaller,
   scanUpdateFolder,
+  cleanupOldInstallers,
   installerHashPath,
   parseHashSidecar,
   inspectInstallerHash
@@ -54,6 +55,67 @@ test('update folder scan chooses the newest installer', (t) => {
   const missing = scanUpdateFolder(path.join(folder, 'does-not-exist'), '1.1.6');
   assert.equal(missing.exists, false);
   assert.equal(missing.newer, false);
+});
+
+test('cleanup removes installers for installed versions and preserves future builds', async (t) => {
+  const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'omniforge-cleanup-test-'));
+  t.after(() => fs.rmSync(folder, { recursive: true, force: true }));
+  const oldDirectory = path.join(folder, '1.1.6');
+  const currentDirectory = path.join(folder, '1.1.7');
+  const futureDirectory = path.join(folder, '1.1.8');
+  fs.mkdirSync(oldDirectory);
+  fs.mkdirSync(currentDirectory);
+  fs.mkdirSync(futureDirectory);
+  const oldInstaller = path.join(oldDirectory, 'OmniForge-Setup-1.1.6.exe');
+  const currentInstaller = path.join(currentDirectory, 'OmniForge-Setup-1.1.7.exe');
+  const futureInstaller = path.join(futureDirectory, 'OmniForge-Setup-1.1.8.exe');
+  for (const installer of [oldInstaller, currentInstaller, futureInstaller]) {
+    fs.writeFileSync(installer, 'installer');
+    writeHashSidecar(installer);
+  }
+  fs.writeFileSync(`${oldInstaller}.part`, 'partial');
+  fs.writeFileSync(path.join(folder, 'notes.txt'), 'keep');
+
+  const removed = await cleanupOldInstallers(folder, '1.1.7');
+  assert.deepEqual(removed.sort(), [oldInstaller, currentInstaller].sort());
+  assert.equal(fs.existsSync(oldDirectory), false);
+  assert.equal(fs.existsSync(currentDirectory), false);
+  assert.equal(fs.existsSync(futureInstaller), true);
+  assert.equal(fs.existsSync(installerHashPath(futureInstaller)), true);
+  assert.equal(fs.existsSync(path.join(folder, 'notes.txt')), true);
+});
+
+test('the upgraded app removes the exact installer used for the update', async (t) => {
+  const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'omniforge-cleanup-marker-test-'));
+  t.after(() => fs.rmSync(folder, { recursive: true, force: true }));
+  const updateDirectory = path.join(folder, 'updates');
+  const installer = path.join(folder, 'OmniForge-Setup-1.1.8.exe');
+  fs.writeFileSync(installer, 'installer');
+  writeHashSidecar(installer);
+  const appPath = path.join(folder, 'OmniForge.exe');
+  const makeManager = (version) => new UpdateManager(
+    { isPackaged: true, getVersion: () => version, getPath: () => appPath },
+    { get: () => ({ updateFolder: folder }) },
+    {
+      updateDirectory,
+      openInstaller: async () => '',
+      quit: () => {},
+      quitDelayMs: 0
+    }
+  );
+
+  const oldManager = makeManager('1.1.7');
+  await oldManager.install(installer);
+  assert.equal(fs.existsSync(path.join(updateDirectory, 'installer-cleanup.json')), true);
+  await oldManager.cleanupInstalledInstallers();
+  assert.equal(fs.existsSync(installer), true);
+
+  const upgradedManager = makeManager('1.1.8');
+  const removed = await upgradedManager.cleanupInstalledInstallers();
+  assert.ok(removed.includes(installer));
+  assert.equal(fs.existsSync(installer), false);
+  assert.equal(fs.existsSync(installerHashPath(installer)), false);
+  assert.equal(fs.existsSync(path.join(updateDirectory, 'installer-cleanup.json')), false);
 });
 
 function writeHashSidecar(installer, content = fs.readFileSync(installer)) {

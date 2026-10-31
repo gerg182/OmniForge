@@ -5,6 +5,7 @@ const crypto = require('crypto');
 const path = require('path');
 
 const INSTALLER_PATTERN = /^OmniForge-Setup-(\d+)\.(\d+)\.(\d+)(?:(?:\s*\(\d+\))|(?:\s*-\s*copy))?\.exe$/i;
+const UPDATE_VERSION_DIRECTORY_PATTERN = /^\d+\.\d+\.\d+$/;
 
 function parseInstallerVersion(filePath) {
   const match = INSTALLER_PATTERN.exec(path.basename(String(filePath || '')));
@@ -131,12 +132,71 @@ function scanUpdateFolder(folder, currentVersion) {
   return result;
 }
 
+async function removeInstallerFiles(filePath) {
+  let installerRemoved = false;
+  for (const candidate of [filePath, installerHashPath(filePath), `${filePath}.part`]) {
+    try {
+      const stat = await fs.promises.lstat(candidate);
+      if (!stat.isFile()) continue;
+      await fs.promises.unlink(candidate);
+      if (candidate === filePath) installerRemoved = true;
+    } catch {
+      // A locked or already-removed artifact can be retried on the next launch.
+    }
+  }
+  return installerRemoved;
+}
+
+async function cleanupOldInstallers(directory, currentVersion) {
+  const root = directory ? path.resolve(String(directory)) : null;
+  const current = String(currentVersion || '0.0.0');
+  const removed = [];
+  if (!root) return removed;
+
+  const removeInstaller = async (filePath) => {
+    const version = parseInstallerVersion(filePath);
+    if (!version || compareVersions(version, current) > 0) return;
+    if (await removeInstallerFiles(filePath)) removed.push(filePath);
+  };
+
+  let entries;
+  try {
+    entries = await fs.promises.readdir(root, { withFileTypes: true });
+  } catch {
+    return removed;
+  }
+
+  for (const entry of entries) {
+    const entryPath = path.join(root, entry.name);
+    if (entry.isFile() && INSTALLER_PATTERN.test(entry.name)) {
+      await removeInstaller(entryPath);
+      continue;
+    }
+    if (!entry.isDirectory() || !UPDATE_VERSION_DIRECTORY_PATTERN.test(entry.name)) continue;
+    let children;
+    try {
+      children = await fs.promises.readdir(entryPath, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const child of children) {
+      if (child.isFile() && INSTALLER_PATTERN.test(child.name)) {
+        await removeInstaller(path.join(entryPath, child.name));
+      }
+    }
+    await fs.promises.rmdir(entryPath).catch(() => {});
+  }
+  return removed;
+}
+
 module.exports = {
   INSTALLER_PATTERN,
   parseInstallerVersion,
   compareVersions,
   describeInstaller,
   scanUpdateFolder,
+  cleanupOldInstallers,
+  removeInstallerFiles,
   installerHashPath,
   parseHashSidecar,
   computeFileSha256,

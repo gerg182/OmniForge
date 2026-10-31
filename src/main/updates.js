@@ -2,7 +2,16 @@
 
 const fs = require('fs');
 const path = require('path');
-const { compareVersions, describeInstaller, scanUpdateFolder, inspectInstallerHash } = require('./update-utils');
+const {
+  compareVersions,
+  describeInstaller,
+  scanUpdateFolder,
+  inspectInstallerHash,
+  cleanupOldInstallers,
+  removeInstallerFiles,
+  parseInstallerVersion,
+  installerHashPath
+} = require('./update-utils');
 const { fetchLatestRelease, downloadReleaseInstaller, GITHUB_REPOSITORY } = require('./github-updates');
 
 class UpdateManager {
@@ -24,6 +33,58 @@ class UpdateManager {
 
   checkLocal() {
     return scanUpdateFolder(this.store.get().updateFolder, this.app.getVersion());
+  }
+
+  cleanupManifestPath() {
+    return this.updateDirectory ? path.join(this.updateDirectory, 'installer-cleanup.json') : null;
+  }
+
+  async scheduleInstallerCleanup(installer) {
+    const manifestPath = this.cleanupManifestPath();
+    if (!manifestPath) return;
+    try {
+      await fs.promises.mkdir(this.updateDirectory, { recursive: true });
+      await fs.promises.writeFile(manifestPath, JSON.stringify({
+        path: installer.path,
+        version: installer.version,
+        scheduledAt: new Date().toISOString()
+      }), 'utf8');
+    } catch {
+      // Managed installers are still cleaned by version if this marker cannot be written.
+    }
+  }
+
+  async cleanupInstalledInstallers() {
+    if (!this.updateDirectory) return [];
+    const currentVersion = this.app.getVersion();
+    const removed = await cleanupOldInstallers(this.updateDirectory, currentVersion);
+    const manifestPath = this.cleanupManifestPath();
+    let manifestText;
+    try {
+      manifestText = await fs.promises.readFile(manifestPath, 'utf8');
+    } catch {
+      return removed;
+    }
+    let pending;
+    try {
+      pending = JSON.parse(manifestText);
+    } catch {
+      await fs.promises.rm(manifestPath, { force: true }).catch(() => {});
+      return removed;
+    }
+    const installerPath = path.resolve(String(pending?.path || ''));
+    const installerVersion = parseInstallerVersion(installerPath);
+    if (!installerVersion) {
+      await fs.promises.rm(manifestPath, { force: true }).catch(() => {});
+      return removed;
+    }
+    if (compareVersions(installerVersion, currentVersion) > 0) return removed;
+    if (await removeInstallerFiles(installerPath) && !removed.includes(installerPath)) removed.push(installerPath);
+    const cleanupComplete = !fs.existsSync(installerPath)
+      && !fs.existsSync(installerHashPath(installerPath))
+      && !fs.existsSync(`${installerPath}.part`);
+    if (cleanupComplete) await fs.promises.rm(manifestPath, { force: true }).catch(() => {});
+    return removed;
   }
 
   async check() {
@@ -171,6 +232,7 @@ class UpdateManager {
     const installDirectory = path.dirname(appPath);
     const launchError = await this.openInstaller(installer.path);
     if (launchError) throw new Error(`Windows could not open the installer: ${launchError}`);
+    await this.scheduleInstallerCleanup(installer);
     const timer = setTimeout(() => this.quit(), this.quitDelayMs);
     timer.unref?.();
     return {

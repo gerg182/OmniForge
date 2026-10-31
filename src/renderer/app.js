@@ -2216,6 +2216,7 @@ function renderSettings() {
               <div class="update-progress-meta" id="update-progress-meta">${escapeHtml(progressMeta)}</div>
             </div>` : ''}
             ${publishedHash ? `<div class="update-hash-row"><span>SHA-256</span><code title="${escapeHtml(publishedHash)}">${escapeHtml(publishedHash)}</code><button class="copy-button" data-action="copy-text" data-value="${escapeHtml(publishedHash)}">Copy</button></div>` : ''}
+            <div class="legal-note">${icon('harddrive')} The installer used for an update is deleted after the updated app starts. Other installers in your update folder are left untouched.</div>
             <div class="update-offline">
               <div class="update-offline-head"><strong>Offline installer</strong><span>Use this if GitHub is unavailable or you downloaded a setup file elsewhere.</span></div>
               <div class="settings-row">

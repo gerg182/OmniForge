@@ -419,6 +419,9 @@ app.whenReady().then(() => {
   registerIpc();
   registerMediaPermissions();
   createWindow();
+  updates.cleanupInstalledInstallers().catch(() => {
+    // Cleanup is best effort; locked files can be retried on the next launch.
+  });
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
