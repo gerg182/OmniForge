@@ -10,6 +10,32 @@ const RELEASE_TAG_PATTERN = /^v(\d+)\.(\d+)\.(\d+)$/;
 const HASH_PATTERN = /^[a-f0-9]{64}$/i;
 const DEFAULT_REQUEST_TIMEOUT_MS = 20 * 1000;
 const DEFAULT_DOWNLOAD_TIMEOUT_MS = 30 * 60 * 1000;
+const PROGRESS_INTERVAL_MS = 180;
+const SPEED_WINDOW_MS = 5000;
+
+function createTransferRateTracker(windowMs = SPEED_WINDOW_MS) {
+  const samples = [];
+  return {
+    sample(bytes, now = Date.now()) {
+      const value = Math.max(0, Number(bytes) || 0);
+      samples.push({ at: now, bytes: value });
+      while (samples.length > 2 && now - samples[0].at > windowMs) samples.shift();
+      if (samples.length < 2) return { bytesPerSecond: null, etaMs: null };
+      const first = samples[0];
+      const elapsedSeconds = (now - first.at) / 1000;
+      if (!Number.isFinite(elapsedSeconds) || elapsedSeconds < 0.15) {
+        return { bytesPerSecond: null, etaMs: null };
+      }
+      const bytesPerSecond = Math.max(0, (value - first.bytes) / elapsedSeconds);
+      return { bytesPerSecond: bytesPerSecond > 0 ? bytesPerSecond : null, etaMs: null };
+    }
+  };
+}
+
+function progressPercent(receivedBytes, totalBytes) {
+  if (!totalBytes) return null;
+  return Math.min(100, Number(((receivedBytes / totalBytes) * 100).toFixed(1)));
+}
 
 function releaseApiUrl(repository = GITHUB_REPOSITORY) {
   return `${GITHUB_API_BASE}/repos/${repository}/releases/latest`;
@@ -186,29 +212,39 @@ async function downloadReleaseInstaller(release, options = {}) {
     throw new Error('GitHub returned an unreadable installer download.');
   }
 
+  const expectedBytes = Number(release.size) > 0 ? Number(release.size) : null;
   const contentLength = Number(response.headers.get('content-length'));
-  const totalBytes = Number.isFinite(contentLength) && contentLength > 0
-    ? contentLength
-    : (Number(release.size) || null);
+  const totalBytes = expectedBytes || (Number.isFinite(contentLength) && contentLength > 0 ? contentLength : null);
   const handle = await fs.promises.open(partialPath, 'w');
   const reader = response.body.getReader();
   let receivedBytes = 0;
-  let lastPercent = -1;
   let lastEmitAt = 0;
+  const downloadStartedAt = Date.now();
+  const downloadRate = createTransferRateTracker();
+
+  const emitProgress = (payload) => {
+    if (typeof options.onProgress === 'function') options.onProgress(payload);
+  };
 
   const reportProgress = (phase = 'downloading', extra = {}) => {
-    if (typeof options.onProgress !== 'function') return;
-    const percent = totalBytes ? Math.min(100, Math.round((receivedBytes / totalBytes) * 100)) : null;
     const now = Date.now();
-    if (phase === 'downloading' && percent !== null && percent === lastPercent && now - lastEmitAt < 250) return;
-    lastPercent = percent;
+    if (phase === 'downloading' && lastEmitAt && (!totalBytes || receivedBytes < totalBytes) && now - lastEmitAt < PROGRESS_INTERVAL_MS) return;
+    const rate = phase === 'downloading' ? downloadRate.sample(receivedBytes, now) : { bytesPerSecond: null, etaMs: null };
+    const etaMs = totalBytes && rate.bytesPerSecond
+      ? Math.max(0, Math.round(((totalBytes - receivedBytes) / rate.bytesPerSecond) * 1000))
+      : null;
+    const percent = progressPercent(receivedBytes, totalBytes);
     lastEmitAt = now;
-    options.onProgress({
+    emitProgress({
       phase,
       version: release.version,
       receivedBytes,
       totalBytes,
       percent,
+      downloadPercent: percent,
+      bytesPerSecond: rate.bytesPerSecond,
+      etaMs,
+      elapsedMs: now - downloadStartedAt,
       ...extra
     });
   };
@@ -231,8 +267,42 @@ async function downloadReleaseInstaller(release, options = {}) {
   }
   await handle.close();
 
-  reportProgress('verifying');
-  const actualHash = await computeFileSha256(partialPath);
+  if (expectedBytes && receivedBytes !== expectedBytes) {
+    await fs.promises.rm(partialPath, { force: true }).catch(() => {});
+    throw new Error(`The installer download size does not match the release metadata (${receivedBytes} of ${expectedBytes} bytes).`);
+  }
+
+  const verificationStartedAt = Date.now();
+  const verificationTotalBytes = receivedBytes;
+  const verificationRate = createTransferRateTracker();
+  let lastVerificationEmitAt = 0;
+  const reportVerification = (processedBytes, force = false) => {
+    const now = Date.now();
+    if (!force && processedBytes < verificationTotalBytes && now - lastVerificationEmitAt < PROGRESS_INTERVAL_MS) return;
+    const rate = verificationRate.sample(processedBytes, now);
+    const etaMs = verificationTotalBytes && rate.bytesPerSecond
+      ? Math.max(0, Math.round(((verificationTotalBytes - processedBytes) / rate.bytesPerSecond) * 1000))
+      : null;
+    lastVerificationEmitAt = now;
+    emitProgress({
+      phase: 'verifying',
+      version: release.version,
+      receivedBytes,
+      totalBytes,
+      percent: 100,
+      downloadPercent: 100,
+      verificationBytes: processedBytes,
+      verificationTotalBytes,
+      verificationPercent: progressPercent(processedBytes, verificationTotalBytes),
+      bytesPerSecond: rate.bytesPerSecond,
+      etaMs,
+      elapsedMs: now - verificationStartedAt
+    });
+  };
+
+  reportVerification(0, true);
+  const actualHash = await computeFileSha256(partialPath, ({ processedBytes }) => reportVerification(processedBytes));
+  reportVerification(verificationTotalBytes, true);
   if (actualHash !== String(release.sha256).toLowerCase()) {
     await fs.promises.rm(partialPath, { force: true }).catch(() => {});
     throw new Error('Installer verification failed: the downloaded file does not match the published SHA-256 hash.');
@@ -244,7 +314,16 @@ async function downloadReleaseInstaller(release, options = {}) {
     `${actualHash}  ${release.fileName}\n`,
     'utf8'
   );
-  reportProgress('ready', { percent: 100, actualHash });
+  reportProgress('ready', {
+    percent: 100,
+    downloadPercent: 100,
+    verificationBytes: verificationTotalBytes,
+    verificationTotalBytes,
+    verificationPercent: 100,
+    bytesPerSecond: null,
+    etaMs: null,
+    actualHash
+  });
   return {
     path: installerPath,
     fileName: release.fileName,

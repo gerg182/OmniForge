@@ -56,11 +56,23 @@ function parseHashSidecar(text, installerFileName) {
   return { expected: match[1].toLowerCase(), fileName: namedFile };
 }
 
-function computeFileSha256(filePath) {
+function computeFileSha256(filePath, onProgress) {
   return new Promise((resolve, reject) => {
     const hash = crypto.createHash('sha256');
-    const stream = fs.createReadStream(String(filePath));
-    stream.on('data', (chunk) => hash.update(chunk));
+    const fullPath = String(filePath);
+    const totalBytes = fs.statSync(fullPath).size;
+    let processedBytes = 0;
+    let lastReportedAt = 0;
+    const stream = fs.createReadStream(fullPath);
+    stream.on('data', (chunk) => {
+      hash.update(chunk);
+      processedBytes += chunk.length;
+      if (typeof onProgress !== 'function') return;
+      const now = Date.now();
+      if (processedBytes !== totalBytes && now - lastReportedAt < 150) return;
+      lastReportedAt = now;
+      onProgress({ processedBytes, totalBytes });
+    });
     stream.on('error', reject);
     stream.on('end', () => resolve(hash.digest('hex')));
   });

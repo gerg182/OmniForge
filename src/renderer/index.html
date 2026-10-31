@@ -54,19 +54,13 @@
           <button class="nav-item" data-view="metadata"><span class="nav-icon" data-icon="file"></span><span>Metadata Stripper</span></button>
           <button class="nav-item" data-view="shred"><span class="nav-icon" data-icon="harddrive"></span><span>Secure Delete</span></button>
         </div>
-        <div class="nav-group nav-group-system">
-          <div class="nav-label">System</div>
-          <button class="nav-item settings-nav-item" data-view="settings">
-            <span class="nav-icon" data-icon="settings"></span><span>Settings</span>
-            <span class="nav-pip hidden" id="settings-update-pip"></span>
-          </button>
-        </div>
       </nav>
 
       <div class="sidebar-footer">
-        <button class="engine-card" data-view="settings" id="engine-card">
+        <button class="engine-card settings-nav-item" data-view="settings" id="engine-card" aria-label="Open Settings and engine status">
           <div class="engine-orbit"><span></span></div>
           <div class="engine-copy">
+            <span class="engine-label">Settings</span>
             <strong id="engine-title">Checking engines…</strong>
             <span id="engine-subtitle">FFmpeg · yt-dlp</span>
           </div>

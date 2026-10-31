@@ -100,7 +100,6 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 
 .nav { flex: 1; min-height: 0; overflow-y: auto; padding-right: 2px; }
 .nav-group { margin-bottom: 13px; }
-.nav-group-system { margin-top: 8px; padding-top: 12px; border-top: 1px solid var(--line); }
 .nav-label {
   padding: 0 12px 7px;
   font-size: 9px;
@@ -186,6 +185,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .engine-card.degraded .engine-orbit { background: rgba(255, 200, 87, 0.08); border-color: rgba(255, 200, 87, 0.18); }
 .engine-card.degraded .engine-orbit span { background: var(--warning); box-shadow: 0 0 12px rgba(255, 200, 87, 0.8); }
 .engine-copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.engine-copy .engine-label { color: var(--lime); font-size: 8px; font-weight: 700; letter-spacing: 0.13em; text-transform: uppercase; }
 .engine-copy strong { font-size: 11px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .engine-copy span { font-size: 9px; color: var(--muted-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
@@ -737,20 +737,45 @@ h1, h2, h3, p { margin: 0; }
 .update-status-card.available { border-color: rgba(201, 255, 81, 0.24); background: rgba(201, 255, 81, 0.045); }
 .update-status-card.missing { border-color: rgba(255, 200, 87, 0.2); background: rgba(255, 200, 87, 0.035); }
 .update-status-card.checking { border-color: rgba(102, 233, 255, 0.16); }
+.update-status-card.downloading { border-color: rgba(102, 233, 255, 0.24); background: rgba(102, 233, 255, 0.04); }
+.update-status-card.verifying { border-color: rgba(122, 156, 255, 0.26); background: rgba(122, 156, 255, 0.045); }
+.update-status-card.ready { border-color: rgba(109, 247, 168, 0.24); background: rgba(109, 247, 168, 0.045); }
+.update-status-card.error { border-color: rgba(255, 114, 114, 0.28); background: rgba(255, 114, 114, 0.045); }
 .update-status-icon { display: grid; place-items: center; width: 36px; height: 36px; flex: 0 0 36px; border: 1px solid var(--line); border-radius: 10px; background: rgba(255, 255, 255, 0.03); color: var(--muted); }
 .update-status-card.available .update-status-icon { border-color: rgba(201, 255, 81, 0.2); background: rgba(201, 255, 81, 0.075); color: var(--lime); }
 .update-status-card.missing .update-status-icon { border-color: rgba(255, 200, 87, 0.18); color: var(--warning); }
+.update-status-card.downloading .update-status-icon { border-color: rgba(102, 233, 255, 0.2); background: rgba(102, 233, 255, 0.07); color: var(--cyan); }
+.update-status-card.verifying .update-status-icon { border-color: rgba(122, 156, 255, 0.24); background: rgba(122, 156, 255, 0.08); color: var(--blue); }
+.update-status-card.ready .update-status-icon { border-color: rgba(109, 247, 168, 0.22); background: rgba(109, 247, 168, 0.075); color: var(--success); }
+.update-status-card.error .update-status-icon { border-color: rgba(255, 114, 114, 0.24); background: rgba(255, 114, 114, 0.075); color: var(--danger); }
 .update-status-icon svg { width: 16px; height: 16px; }
 .update-status-copy { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
 .update-status-copy strong { font-size: 10px; font-weight: 600; }
 .update-status-copy span { color: var(--muted-2); font-size: 9px; line-height: 1.45; }
 .update-status-card .primary-button, .update-status-card .secondary-button { flex: 0 0 auto; min-height: 34px; }
 .update-status-action { display: flex; flex: 0 0 auto; align-items: center; }
-.update-progress { margin: -2px 0 14px; padding: 12px; border: 1px solid rgba(102, 233, 255, 0.15); border-radius: 12px; background: rgba(102, 233, 255, 0.025); }
+.update-progress { margin: -2px 0 14px; padding: 12px; border: 1px solid rgba(102, 233, 255, 0.15); border-radius: 12px; background: rgba(102, 233, 255, 0.025); transition: border-color 180ms ease, background 180ms ease; }
+.update-progress.verifying { border-color: rgba(122, 156, 255, 0.2); background: rgba(122, 156, 255, 0.025); }
+.update-progress.ready { border-color: rgba(109, 247, 168, 0.2); background: rgba(109, 247, 168, 0.025); }
+.update-progress.error { border-color: rgba(255, 114, 114, 0.2); background: rgba(255, 114, 114, 0.025); }
+.update-progress-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-bottom: 12px; }
+.update-step { display: flex; align-items: center; gap: 6px; min-width: 0; padding: 5px 7px; border: 1px solid var(--line); border-radius: 8px; background: rgba(255, 255, 255, 0.018); color: var(--muted-2); transition: color 160ms ease, border-color 160ms ease, background 160ms ease; }
+.update-step i { display: grid; place-items: center; width: 15px; height: 15px; flex: 0 0 15px; border-radius: 50%; background: rgba(255, 255, 255, 0.05); color: var(--muted-2); font-family: var(--mono); font-size: 7px; font-style: normal; font-weight: 700; }
+.update-step b { overflow: hidden; font-size: 8px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.update-step.complete { border-color: rgba(109, 247, 168, 0.12); color: #93bdab; }
+.update-step.complete i { background: rgba(109, 247, 168, 0.12); color: var(--success); }
+.update-step.active { border-color: rgba(102, 233, 255, 0.24); background: rgba(102, 233, 255, 0.055); color: var(--text-soft); }
+.update-step.active i { background: var(--cyan); color: #0b1519; box-shadow: 0 0 12px rgba(102, 233, 255, 0.25); }
 .update-progress-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--text-soft); font-size: 9px; font-weight: 600; }
-.update-progress-track { height: 6px; margin-top: 9px; overflow: hidden; border-radius: 999px; background: rgba(255, 255, 255, 0.06); }
+.update-progress-head span:last-child { color: var(--text); font-family: var(--mono); font-size: 10px; font-variant-numeric: tabular-nums; }
+.update-progress-track { height: 8px; margin-top: 9px; overflow: hidden; border-radius: 999px; background: rgba(255, 255, 255, 0.065); }
 .update-progress-track span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--cyan), var(--lime)); transition: width 180ms ease; }
-.update-progress-meta { margin-top: 7px; color: var(--muted-2); font-family: var(--mono); font-size: 8px; word-break: break-all; }
+.update-progress.verifying .update-progress-track span { background: linear-gradient(90deg, var(--blue), var(--cyan)); }
+.update-progress.ready .update-progress-track span { background: linear-gradient(90deg, var(--mint), var(--lime)); }
+.update-progress.error .update-progress-track span { background: linear-gradient(90deg, #b84f4f, var(--danger)); }
+.update-progress.indeterminate .update-progress-track span { width: 32% !important; animation: update-sweep 1.15s ease-in-out infinite; }
+.update-progress-meta { margin-top: 7px; color: var(--muted); font-family: var(--mono); font-size: 8.5px; line-height: 1.45; word-break: normal; }
+@keyframes update-sweep { from { transform: translateX(-115%); } to { transform: translateX(325%); } }
 .update-hash-row { display: flex; align-items: center; gap: 9px; margin: 0 0 14px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 9px; background: rgba(0, 0, 0, 0.14); }
 .update-hash-row > span { flex: 0 0 auto; color: var(--muted-2); font-size: 8px; text-transform: uppercase; letter-spacing: 0.07em; }
 .update-hash-row code { flex: 1; min-width: 0; overflow: hidden; color: var(--text-soft); font-family: var(--mono); font-size: 8.5px; text-overflow: ellipsis; white-space: nowrap; }

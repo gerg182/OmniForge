@@ -95,7 +95,10 @@ class UpdateManager {
       version: release.version,
       receivedBytes: 0,
       totalBytes: release.size,
-      percent: 0
+      percent: 0,
+      downloadPercent: 0,
+      bytesPerSecond: null,
+      etaMs: null
     });
     try {
       const downloaded = await downloadReleaseInstaller(release, {

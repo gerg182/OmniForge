@@ -122,9 +122,58 @@ test('GitHub installer download streams progress and verifies SHA-256', async (t
   assert.match(fs.readFileSync(installerHashPath(result.path), 'utf8'), new RegExp(`^${SHA256}  ${FILE_NAME}`));
   assert.equal(fs.existsSync(`${result.path}.part`), false);
   assert.equal(events[0].phase, 'downloading');
+  assert.equal(events[0].percent === 0 || events[0].percent === null, true);
+  assert.ok(events.every((event) => Object.hasOwn(event, 'bytesPerSecond')));
   assert.ok(events.some((event) => event.phase === 'verifying'));
+  const verifyingEvents = events.filter((event) => event.phase === 'verifying');
+  assert.ok(verifyingEvents.every((event) => event.percent === 100 && event.downloadPercent === 100));
+  assert.ok(verifyingEvents.every((event) => event.verificationPercent >= 0 && event.verificationPercent <= 100));
+  assert.equal(verifyingEvents.at(-1).verificationPercent, 100);
   assert.equal(events.at(-1).phase, 'ready');
   assert.equal(events.at(-1).percent, 100);
+  assert.equal(events.at(-1).verificationPercent, 100);
+});
+
+test('GitHub installer download rejects an unexpected response size', async (t) => {
+  const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'omniforge-github-size-'));
+  t.after(() => fs.rmSync(folder, { recursive: true, force: true }));
+  const fetchImpl = async () => response(INSTALLER_BYTES, {
+    headers: { 'content-length': String(INSTALLER_BYTES.length) }
+  });
+  await assert.rejects(
+    () => downloadReleaseInstaller(releaseInfo({ size: INSTALLER_BYTES.length + 10 }), { fetchImpl, directory: folder }),
+    /size does not match/
+  );
+  assert.equal(fs.existsSync(path.join(folder, FILE_NAME)), false);
+  assert.equal(fs.existsSync(path.join(folder, `${FILE_NAME}.part`)), false);
+});
+
+test('GitHub installer progress reports transfer speed and ETA', async (t) => {
+  const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'omniforge-github-rate-'));
+  t.after(() => fs.rmSync(folder, { recursive: true, force: true }));
+  const midpoint = Math.ceil(INSTALLER_BYTES.length / 2);
+  const stream = new ReadableStream({
+    start(controller) {
+      controller.enqueue(INSTALLER_BYTES.subarray(0, midpoint));
+      setTimeout(() => {
+        controller.enqueue(INSTALLER_BYTES.subarray(midpoint));
+        controller.close();
+      }, 220);
+    }
+  });
+  const events = [];
+  const fetchImpl = async () => response(stream, {
+    headers: { 'content-length': String(INSTALLER_BYTES.length) }
+  });
+  await downloadReleaseInstaller(releaseInfo(), {
+    fetchImpl,
+    directory: folder,
+    onProgress: (event) => events.push(event)
+  });
+  const measured = events.find((event) => event.phase === 'downloading' && Number(event.bytesPerSecond) > 0);
+  assert.ok(measured);
+  assert.ok(Number.isFinite(measured.etaMs));
+  assert.ok(measured.percent > 0 && measured.percent <= 100);
 });
 
 test('GitHub installer download deletes a mismatched file', async (t) => {

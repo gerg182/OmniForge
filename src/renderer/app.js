@@ -1894,14 +1894,101 @@ function infoResultCard(result) {
   </div>`).join('');
 }
 
+const UPDATE_PROGRESS_STEPS = [
+  { id: 'downloading', label: 'Download' },
+  { id: 'verifying', label: 'Verify' },
+  { id: 'ready', label: 'Ready' }
+];
+
+function updateProgressPhase(progress) {
+  if (progress?.phase === 'verifying') return 'verifying';
+  if (progress?.phase === 'ready') return 'ready';
+  if (progress?.phase === 'error') return 'error';
+  return 'downloading';
+}
+
+function updateProgressPercent(progress) {
+  const phase = updateProgressPhase(progress);
+  const raw = phase === 'verifying' && Number.isFinite(Number(progress?.verificationPercent))
+    ? Number(progress.verificationPercent)
+    : Number(progress?.percent);
+  if (!Number.isFinite(raw)) return null;
+  return Math.max(0, Math.min(100, raw));
+}
+
+function formatUpdatePercent(progress) {
+  const percent = updateProgressPercent(progress);
+  if (percent === null) return progress?.receivedBytes ? formatBytes(progress.receivedBytes) : '—';
+  return `${Number(percent.toFixed(1))}%`;
+}
+
+function updateRateText(progress) {
+  const speed = formatJobSpeed({ value: progress?.bytesPerSecond, unit: 'B/s' });
+  const eta = formatJobEta(progress?.etaMs);
+  return [speed, eta ? `${eta} left` : ''].filter(Boolean).join(' · ');
+}
+
+function updateProgressLabel(progress) {
+  const phase = updateProgressPhase(progress);
+  if (phase === 'verifying') return 'Verifying SHA-256';
+  if (phase === 'ready') return 'Verified and ready';
+  if (phase === 'error') return 'Download failed';
+  return 'Downloading installer';
+}
+
+function updateProgressMeta(progress) {
+  const phase = updateProgressPhase(progress);
+  if (phase === 'ready') {
+    return `${formatBytes(progress?.totalBytes || progress?.receivedBytes || 0)} · SHA-256 verified`;
+  }
+  if (phase === 'error') return 'The incomplete installer will not be used. Retry when you are ready.';
+  if (phase === 'verifying') {
+    const checked = formatBytes(progress?.verificationBytes || 0);
+    const total = formatBytes(progress?.verificationTotalBytes || progress?.totalBytes || 0);
+    return total !== '0 B' ? `Checked ${checked} of ${total}` : `Checked ${checked}`;
+  }
+  const parts = [];
+  if (progress?.totalBytes) parts.push(`${formatBytes(progress?.receivedBytes || 0)} of ${formatBytes(progress.totalBytes)}`);
+  else parts.push(`${formatBytes(progress?.receivedBytes || 0)} downloaded`);
+  const rate = updateRateText(progress);
+  if (rate) parts.push(rate);
+  return parts.join(' · ');
+}
+
+function updateProgressSummary(progress) {
+  const phase = updateProgressPhase(progress);
+  if (phase === 'error') return progress?.error || 'The installer could not be downloaded.';
+  if (phase === 'verifying') return `Download complete · SHA-256 verification ${formatUpdatePercent(progress)}`;
+  if (phase === 'ready') return 'Verified and ready to install.';
+  const percent = updateProgressPercent(progress) === null ? '' : formatUpdatePercent(progress);
+  return [percent, updateProgressMeta(progress)].filter(Boolean).join(' · ');
+}
+
+function updateProgressStepsMarkup(phase) {
+  const activeIndex = phase === 'verifying' ? 1 : phase === 'ready' ? 2 : phase === 'downloading' ? 0 : -1;
+  return UPDATE_PROGRESS_STEPS.map((step, index) => {
+    const state = phase === 'ready'
+      ? 'complete'
+      : phase === 'error'
+        ? ''
+        : index < activeIndex ? 'complete' : index === activeIndex ? 'active' : '';
+    return `<span class="update-step ${state}"><i>${index + 1}</i><b>${step.label}</b></span>`;
+  }).join('');
+}
+
 function getUpdateUiState() {
   const appVersion = state.status?.appVersion || 'Unknown';
   const updateInfo = state.updateInfo;
   const latestUpdate = updateInfo?.latest;
   const latestSource = latestUpdate?.source || updateInfo?.source || 'none';
   const progress = state.updateProgress;
+  const progressPhase = updateProgressPhase(progress);
   const downloading = state.updateDownloading || ['downloading', 'verifying'].includes(progress?.phase);
-  const progressPercent = Number.isFinite(progress?.percent) ? Math.max(0, Math.min(100, progress.percent)) : null;
+  const progressPercent = updateProgressPercent(progress);
+  const progressLabel = updateProgressLabel(progress);
+  const progressMeta = updateProgressMeta(progress);
+  const progressSummary = updateProgressSummary(progress);
+  const progressSteps = updateProgressStepsMarkup(progressPhase);
   const publishedHash = latestUpdate?.sha256 || latestUpdate?.hash?.expected || null;
   const githubError = updateInfo?.github?.status === 'unavailable' ? updateInfo.github.error : null;
   const noPublishedRelease = updateInfo?.github?.status === 'no-release';
@@ -1920,13 +2007,21 @@ function getUpdateUiState() {
     updateTone = 'checking';
     updateIcon = 'refresh';
   } else if (downloading) {
-    const percentText = progressPercent === null ? formatBytes(progress?.receivedBytes || 0) : `${progressPercent}%`;
-    updateTitle = progress?.phase === 'verifying' ? `Verifying OmniForge ${progress.version}...` : `Downloading OmniForge ${progress?.version || ''}...`;
-    updateText = progress?.phase === 'verifying'
-      ? 'Checking the downloaded installer against the published SHA-256 hash.'
-      : `${percentText}${progress?.totalBytes ? ` of ${formatBytes(progress.totalBytes)}` : ''}`;
-    updateTone = 'checking';
-    updateIcon = 'download';
+    const verifying = progressPhase === 'verifying';
+    updateTitle = verifying ? `Verifying OmniForge ${progress?.version || ''}...` : `Downloading OmniForge ${progress?.version || ''}...`;
+    updateText = progressSummary;
+    updateTone = verifying ? 'verifying' : 'downloading';
+    updateIcon = verifying ? 'shield' : 'download';
+  } else if (progressPhase === 'error') {
+    updateTitle = 'Update download failed';
+    updateText = progressSummary;
+    updateTone = 'error';
+    updateIcon = 'alert';
+  } else if (progressPhase === 'ready' && updateInfo?.newer && latestUpdate) {
+    updateTitle = `OmniForge ${latestUpdate.version} is ready to install`;
+    updateText = 'Downloaded and SHA-256 verified. Choose Install when you are ready.';
+    updateTone = 'ready';
+    updateIcon = 'check';
   } else if (updateInfo?.newer && latestUpdate) {
     updateTitle = `Version ${latestUpdate.version} is available`;
     const sourceText = latestSource === 'github'
@@ -1963,14 +2058,21 @@ function getUpdateUiState() {
   }
   return {
     appVersion, updateInfo, latestUpdate, latestSource, progress, downloading,
-    progressPercent, publishedHash, githubError, noPublishedRelease, releaseDate,
+    progressPercent, progressPhase, progressLabel, progressMeta, progressSummary, progressSteps,
+    publishedHash, githubError, noPublishedRelease, releaseDate,
     hashBlocked, hashLabel, updateFolder, updateTitle, updateText, updateTone, updateIcon
   };
 }
 
 function updateActionMarkup(ui) {
   if (ui.downloading) {
-    return `<button class="primary-button" disabled>${icon('refresh', 'spin')} ${ui.progressPercent === null ? 'Downloading' : `${ui.progressPercent}%`}</button>`;
+    const label = ui.progressPhase === 'verifying'
+      ? 'Verifying...'
+      : ui.progressPercent === null ? 'Downloading...' : `Downloading ${formatUpdatePercent(ui.progress)}`;
+    return `<button class="primary-button update-action-progress" disabled>${icon(ui.progressPhase === 'verifying' ? 'shield' : 'download')} ${label}</button>`;
+  }
+  if (ui.progressPhase === 'error' && ui.latestUpdate) {
+    return `<button class="primary-button" data-action="download-update" data-version="${escapeHtml(ui.latestUpdate.version)}">${icon('refresh')} Try again</button>`;
   }
   if (ui.updateInfo?.newer && ui.latestUpdate) {
     if (ui.latestSource === 'github' && !(ui.latestUpdate.path && ui.latestUpdate.hash?.status === 'valid')) {
@@ -2005,17 +2107,25 @@ function updateUpdatePanelUi() {
 
   const progressPanel = $('#update-progress');
   if (!progressPanel) return;
-  const visible = ui.downloading || ui.progress?.phase === 'ready';
+  const visible = ui.downloading || ['ready', 'error'].includes(ui.progressPhase);
   progressPanel.hidden = !visible;
   if (!visible) return;
+  const phase = ui.progressPhase;
+  progressPanel.className = `update-progress ${phase}`;
+  progressPanel.classList.toggle('indeterminate', ui.progressPercent === null && ['downloading', 'verifying'].includes(phase));
   const label = $('#update-progress-label');
   const percent = $('#update-progress-percent');
   const bar = $('#update-progress-bar');
   const meta = $('#update-progress-meta');
-  if (label) label.textContent = ui.progress?.phase === 'verifying' ? 'Verifying SHA-256' : ui.progress?.phase === 'ready' ? 'Verified and ready' : 'Downloading installer';
-  if (percent) percent.textContent = ui.progressPercent === null ? formatBytes(ui.progress?.receivedBytes || 0) : `${ui.progressPercent}%`;
-  if (bar) bar.style.width = `${ui.progressPercent === null ? 8 : ui.progressPercent}%`;
-  if (meta) meta.textContent = `${formatBytes(ui.progress?.receivedBytes || 0)}${ui.progress?.totalBytes ? ` of ${formatBytes(ui.progress.totalBytes)}` : ''}${ui.progress?.actualHash ? ` - SHA-256 ${ui.progress.actualHash}` : ''}`;
+  const steps = $('#update-progress-steps');
+  if (label) label.textContent = ui.progressLabel;
+  if (percent) percent.textContent = formatUpdatePercent(ui.progress);
+  if (bar) bar.style.width = ui.progressPercent === null ? '' : `${ui.progressPercent}%`;
+  if (meta) meta.textContent = ui.progressMeta;
+  if (steps && steps.dataset.phase !== phase) {
+    steps.innerHTML = ui.progressSteps;
+    steps.dataset.phase = phase;
+  }
 }
 
 let updatePanelFrame = null;
@@ -2046,11 +2156,13 @@ function renderSettings() {
     ['sevenZip', '7-Zip', 'Archive engine'],
     ['speech', 'Whisper', 'Local speech-to-text engine']
   ];
+  const updateUi = getUpdateUiState();
   const {
     appVersion, updateInfo, latestUpdate, latestSource, progress, downloading,
-    progressPercent, publishedHash, githubError, noPublishedRelease, releaseDate,
+    progressPercent, progressPhase, progressLabel, progressMeta, progressSteps,
+    publishedHash, githubError, noPublishedRelease, releaseDate,
     hashBlocked, hashLabel, updateFolder, updateTitle, updateText, updateTone, updateIcon
-  } = getUpdateUiState();
+  } = updateUi;
   return `<div class="tool-layout">
     <div style="display:grid;gap:14px">
       <div class="panel">
@@ -2095,12 +2207,13 @@ function renderSettings() {
             <div class="update-status-card ${updateTone}" id="update-status-card" aria-live="polite">
               <div class="update-status-icon" id="update-status-icon">${icon(updateIcon, updateIcon === 'refresh' && state.updateChecking ? 'spin' : '')}</div>
               <div class="update-status-copy"><strong id="update-status-title">${escapeHtml(updateTitle)}</strong><span id="update-status-text">${escapeHtml(updateText)}</span></div>
-              <div class="update-status-action" id="update-status-action">${downloading ? `<button class="primary-button" disabled>${icon('refresh', 'spin')} ${progressPercent === null ? 'Downloading' : `${progressPercent}%`}</button>` : updateInfo?.newer && latestUpdate ? (latestSource === 'github' && !(latestUpdate.path && latestUpdate.hash?.status === 'valid') ? `<button class="primary-button" data-action="download-update" data-version="${escapeHtml(latestUpdate.version)}">${icon('download')} Download</button>` : `<button class="primary-button" data-action="install-update" data-path="${escapeHtml(latestUpdate.path)}" data-version="${escapeHtml(latestUpdate.version)}" ${hashBlocked ? 'disabled' : ''}>${icon('download')} ${hashBlocked ? 'Hash mismatch' : 'Install'}</button>`) : `<button class="secondary-button" data-action="check-updates" ${state.updateChecking ? 'disabled' : ''}>${icon('refresh')} Check now</button>`}</div>
+              <div class="update-status-action" id="update-status-action">${updateActionMarkup(updateUi)}</div>
             </div>
-            ${downloading || progress?.phase === 'ready' ? `<div class="update-progress">
-              <div class="update-progress-head"><span id="update-progress-label">${progress?.phase === 'verifying' ? 'Verifying SHA-256' : progress?.phase === 'ready' ? 'Verified and ready' : 'Downloading installer'}</span><span id="update-progress-percent">${progressPercent === null ? formatBytes(progress?.receivedBytes || 0) : `${progressPercent}%`}</span></div>
-              <div class="update-progress-track"><span id="update-progress-bar" style="width:${progressPercent === null ? 8 : progressPercent}%"></span></div>
-              <div class="update-progress-meta" id="update-progress-meta">${formatBytes(progress?.receivedBytes || 0)}${progress?.totalBytes ? ` of ${formatBytes(progress.totalBytes)}` : ''}${progress?.actualHash ? ` - SHA-256 ${escapeHtml(progress.actualHash)}` : ''}</div>
+            ${downloading || ['ready', 'error'].includes(progressPhase) ? `<div class="update-progress ${escapeHtml(progressPhase)}${progressPercent === null && ['downloading', 'verifying'].includes(progressPhase) ? ' indeterminate' : ''}" id="update-progress">
+              <div class="update-progress-steps" id="update-progress-steps" data-phase="${escapeHtml(progressPhase)}">${progressSteps}</div>
+              <div class="update-progress-head"><span id="update-progress-label">${escapeHtml(progressLabel)}</span><span id="update-progress-percent">${escapeHtml(formatUpdatePercent(progress))}</span></div>
+              <div class="update-progress-track"><span id="update-progress-bar"${progressPercent === null ? '' : ` style="width:${progressPercent}%"`}></span></div>
+              <div class="update-progress-meta" id="update-progress-meta">${escapeHtml(progressMeta)}</div>
             </div>` : ''}
             ${publishedHash ? `<div class="update-hash-row"><span>SHA-256</span><code title="${escapeHtml(publishedHash)}">${escapeHtml(publishedHash)}</code><button class="copy-button" data-action="copy-text" data-value="${escapeHtml(publishedHash)}">Copy</button></div>` : ''}
             <div class="update-offline">
@@ -3698,7 +3811,11 @@ async function downloadUpdate(version) {
     version,
     receivedBytes: 0,
     totalBytes: state.updateInfo?.latest?.size || null,
-    percent: 0
+    percent: 0,
+    downloadPercent: 0,
+    verificationPercent: null,
+    bytesPerSecond: null,
+    etaMs: null
   };
   if (state.view === 'settings') render();
   try {
@@ -3710,6 +3827,12 @@ async function downloadUpdate(version) {
       receivedBytes: info.size,
       totalBytes: info.size,
       percent: 100,
+      downloadPercent: 100,
+      verificationBytes: info.size,
+      verificationTotalBytes: info.size,
+      verificationPercent: 100,
+      bytesPerSecond: null,
+      etaMs: null,
       actualHash: info.actualHash
     };
     state.updateInfo = {
@@ -3735,7 +3858,14 @@ async function downloadUpdate(version) {
     showToast(`Opening the OmniForge ${version} installer.`, 'success', 5000);
   } catch (error) {
     state.updateDownloading = false;
-    state.updateProgress = { phase: 'error', version, error: error.message };
+    state.updateProgress = {
+      ...(state.updateProgress || {}),
+      phase: 'error',
+      version,
+      error: error.message,
+      bytesPerSecond: null,
+      etaMs: null
+    };
     if (state.view === 'settings') render();
     showToast(`Update download failed: ${error.message}`, 'error', 9000);
   }
