@@ -1428,6 +1428,13 @@ body.legal-locked .app-shell { filter: blur(4px) saturate(0.75); pointer-events:
 .youtube-legal-warning p { margin-top: 9px; max-width: 850px; color: #e3bcbc; font-size: 11px; line-height: 1.6; }
 .youtube-legal-warning ul { display: grid; gap: 6px; margin: 13px 0 0; padding-left: 18px; color: #f0cccc; font-size: 10px; line-height: 1.55; }
 .youtube-legal-warning li::marker { color: var(--danger); }
+.youtube-legal-ack {
+  margin-top: 15px;
+  max-width: 760px;
+  background: rgba(18, 8, 10, 0.4);
+  transition: border-color 160ms ease, background 160ms ease;
+}
+.youtube-legal-ack:hover { border-color: rgba(255, 154, 154, 0.42); }
 .youtube-legal-foot { margin-top: 13px; padding-top: 11px; border-top: 1px solid rgba(255, 114, 114, 0.2); color: #ffd2d2; font-size: 9px; font-weight: 600; line-height: 1.5; }
 
 .legal-ack {

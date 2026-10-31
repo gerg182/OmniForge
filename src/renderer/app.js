@@ -802,7 +802,11 @@ function renderYouTubeLegalWarning(acknowledged) {
         <li><strong>Do not bypass DRM, paywalls, age checks, region locks, or login restrictions.</strong></li>
         <li><strong>You are solely responsible for your downloads, use, and redistribution.</strong></li>
       </ul>
-      <div class="youtube-legal-foot">${acknowledged ? 'Acknowledgment recorded for this session. OmniForge is not affiliated with YouTube and does not grant any rights to its content.' : 'The Download button stays locked until you confirm the acknowledgment below.'}</div>
+      <label class="legal-ack youtube-legal-ack ${acknowledged ? 'acknowledged' : ''}">
+        <input type="checkbox" data-tool="youtube" data-option="acknowledged" data-rerender="true" ${acknowledged ? 'checked' : ''}>
+        <span><strong>I have the right to download this content.</strong>I accept responsibility for complying with copyright law, YouTube's Terms, privacy and consent laws, and all other applicable rules.</span>
+      </label>
+      <div class="youtube-legal-foot">${acknowledged ? 'Acknowledgment recorded for this session. OmniForge is not affiliated with YouTube and does not grant any rights to its content.' : 'The Download button stays locked until you check the box above.'}</div>
     </div>
   </section>`;
 }
@@ -849,10 +853,6 @@ function renderYouTube() {
               { value: 'mp3', label: 'MP3' }, { value: 'm4a', label: 'M4A' }, { value: 'wav', label: 'WAV' }, { value: 'flac', label: 'FLAC' }, { value: 'opus', label: 'OPUS' }
             ], options.audioFormat)}</select></div>`}
           </div>
-          <label class="legal-ack ${acknowledged ? 'acknowledged' : ''}">
-            <input type="checkbox" data-tool="youtube" data-option="acknowledged" data-rerender="true" ${acknowledged ? 'checked' : ''}>
-            <span><strong>I have the right to download this content.</strong>I accept responsibility for complying with copyright law, YouTube's Terms, privacy and consent laws, and all other applicable rules.</span>
-          </label>
           <div class="action-row">
             <div class="action-copy"><strong>You will choose an output folder next.</strong>Download only content you own or are authorized to download.</div>
             <div class="action-buttons"><button class="primary-button" data-action="start-tool" data-tool="youtube" ${options.url.trim() && acknowledged ? '' : 'disabled'}>${icon('download')} Download</button></div>
