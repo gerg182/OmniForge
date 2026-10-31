@@ -141,7 +141,7 @@ const GUIDES = {
   checksum: { icon: 'hash', title: 'Verify that a file is intact', text: 'Checksums are calculated locally with streaming reads, so large files stay responsive.', steps: [['Add files', 'Any file type can be hashed.'], ['Pick algorithms', 'MD5, SHA-1, and SHA-256 can run together.'], ['Compare', 'Copy a digest and compare it with the source.']] },
   info: { icon: 'info', title: 'See what is inside', text: 'FFprobe reports container details, duration, bitrate, video dimensions, and audio properties.', steps: [['Add media', 'Video and audio files work best.'], ['Inspect', 'The whole probe result is summarized.'], ['Review', 'Open technical details directly in the app.']] },
   metadata: { icon: 'file', title: 'Leave less behind', text: 'Remove EXIF, XMP, IPTC, comments, and media tags while preserving image data and color profiles.', steps: [['Add media', 'JPEG, PNG, WebP, audio, and video are supported.'], ['Choose a folder', 'Cleaned copies get a _clean suffix.'], ['Clean', 'Streams are copied without re-encoding media.']] },
-  shred: { icon: 'harddrive', title: 'Overwrite before deleting', text: 'Files are overwritten with random data, truncated, renamed, and removed. This is not a guarantee on SSDs or copies in backups and cloud storage.', steps: [['Add files', 'Directories and symbolic links are rejected.'], ['Choose passes', 'One, three, or seven passes; three is the default.'], ['Confirm', 'The original file is destroyed and cannot be recovered.']] },
+  shred: { icon: 'harddrive', title: 'Overwrite before deleting', text: 'A practical cleanup tool for ordinary local files. SSDs, backups, cloud sync, and snapshots may still retain copies, so this is not a guarantee of physical erasure.', steps: [['Add files', 'Directories and symbolic links are rejected.'], ['Choose passes', 'One, three, or seven passes; three is the default.'], ['Confirm', 'Review the SSD note, then remove the files. There is no undo.']] },
   transcribe: { icon: 'mic', title: 'Turn speech into text', text: 'Whisper runs locally on your PC. Audio never leaves the machine and nothing is uploaded.', steps: [['Add audio or video', 'Drop a recording, podcast, or video file.'], ['Pick a language', 'Auto-detect works for most recordings.'], ['Transcribe', 'Save a plain TXT or timed SRT transcript.']] },
   studio: { icon: 'captions', title: 'Edit video by its words', text: 'Transcribe locally, select sentences, and turn them into captioned clips without sending media anywhere.', steps: [['Load media', 'Transcribe with Whisper or import SRT/VTT.'], ['Select a range', 'Click a line, then Shift-click another.'], ['Render clips', 'Save trimmed media with optional captions.']] }
 };
@@ -332,7 +332,12 @@ function updateShell() {
   const [eyebrow, title] = currentMeta();
   $('#page-eyebrow').textContent = eyebrow;
   $('#page-title').textContent = title;
-  document.querySelectorAll('.nav-item').forEach((item) => item.classList.toggle('active', item.dataset.view === state.view));
+  document.querySelectorAll('.nav-item, .topbar-settings').forEach((item) => {
+    const active = item.dataset.view === state.view;
+    item.classList.toggle('active', active);
+    if (active) item.setAttribute('aria-current', 'page');
+    else item.removeAttribute('aria-current');
+  });
   const engineCard = $('#engine-card');
   engineCard.classList.toggle('active', state.view === 'settings');
   updateUpdateBadge();
@@ -1829,20 +1834,28 @@ function renderShred() {
   return `<div class="tool-layout">
     <div style="display:grid;gap:14px">
       <div class="panel">
-        <div class="panel-head"><div><h2>Files to destroy</h2><p>These files will be overwritten and removed. There is no undo.</p></div><span class="status-pill">Destructive</span></div>
+        <div class="panel-head"><div><h2>Files to securely delete</h2><p>These files will be overwritten and removed from this disk. There is no undo.</p></div><span class="status-pill">Destructive</span></div>
         <div class="panel-body">
           ${renderDropzone('shred', 'Drop files to securely delete', 'Directories and symbolic links are rejected')}
           ${renderFileList('shred')}
         </div>
       </div>
       <div class="panel">
-        <div class="panel-head"><div><h2>Overwrite passes</h2><p>More passes take longer and cannot guarantee removal from every storage technology.</p></div></div>
+        <div class="panel-head"><div><h2>Overwrite options</h2><p>Choose how much work to do before the files are removed from this disk.</p></div></div>
         <div class="panel-body">
           <div class="form-grid">
             <div class="field"><label>Passes</label><select data-tool="shred" data-option="passes">${passOptions}</select></div>
           </div>
-          <label class="check-pill" style="margin-top:14px"><input type="checkbox" data-tool="shred" data-option="acknowledged" ${options.acknowledged ? 'checked' : ''}><span>I understand SSD wear leveling, backups, cloud copies, and snapshots may retain copies.</span></label>
-          <div class="legal-note">${icon('alert')} Secure Delete overwrites each file with random data, flushes every pass, truncates it, renames it randomly, and deletes it. Cancelling may leave a partially overwritten file. Use this only on data you own or are authorized to destroy; never destroy evidence or data under a legal hold.</div>
+          <div class="shred-ssd-note">
+            <div class="shred-ssd-icon">${icon('harddrive')}</div>
+            <div class="shred-ssd-copy">
+              <strong>A note about SSDs</strong>
+              <span>Many SSDs use wear leveling, so overwriting a file may not erase every physical copy. Backups, cloud sync, snapshots, and TRIM can also keep copies elsewhere.</span>
+              <div class="shred-ssd-tags"><span>Wear leveling</span><span>Backups</span><span>Cloud sync</span><span>Snapshots</span></div>
+            </div>
+          </div>
+          <label class="check-pill shred-ack"><input type="checkbox" data-tool="shred" data-option="acknowledged" ${options.acknowledged ? 'checked' : ''}><span>I understand copies may remain on SSDs, backups, cloud sync, or snapshots.</span></label>
+          <div class="legal-note">${icon('alert')} Secure Delete is best for ordinary local files you own. It overwrites and removes the file, but cannot guarantee physical erasure on every storage device. Cancelling may leave a partially overwritten file. Never use it on evidence, data under a legal hold, or files you are not authorized to destroy.</div>
           ${renderStartBar('shred', 'Securely delete files', 'No output folder is needed. This action cannot be undone.', state.files.shred.length === 0 || !options.acknowledged)}
         </div>
       </div>
@@ -2015,8 +2028,10 @@ function queueUpdatePanelRefresh() {
 }
 
 function updateUpdateBadge() {
-  const pip = document.getElementById('settings-update-pip');
-  if (pip) pip.classList.toggle('hidden', !state.updateInfo?.newer);
+  const newer = Boolean(state.updateInfo?.newer);
+  for (const pip of document.querySelectorAll('#settings-update-pip, #settings-topbar-pip')) {
+    pip.classList.toggle('hidden', !newer);
+  }
 }
 
 function renderSettings() {
@@ -3425,7 +3440,7 @@ async function resumeJob(job) {
     if (!password) return;
   }
   if (job.tool === 'shred') {
-    const confirmed = window.confirm('Resume secure deletion?\n\nSSD wear leveling, backups, cloud copies, and snapshots may retain copies.');
+    const confirmed = window.confirm('Resume secure deletion?\n\nMany SSDs use wear leveling, and backups, cloud sync, or snapshots may keep copies. Secure Delete is best for ordinary local files you own.');
     if (!confirmed) return;
     options.acknowledged = true;
   }
@@ -3450,7 +3465,7 @@ async function retryJob(job) {
     if (!options.password) return;
   }
   if (job.tool === 'shred') {
-    const confirmed = window.confirm('Retry secure deletion?\n\nSSD wear leveling, backups, cloud copies, and snapshots may retain copies.');
+    const confirmed = window.confirm('Retry secure deletion?\n\nMany SSDs use wear leveling, and backups, cloud sync, or snapshots may keep copies. Secure Delete is best for ordinary local files you own.');
     if (!confirmed) return;
     options.acknowledged = true;
   }

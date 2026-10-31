@@ -27,7 +27,6 @@
           <button class="nav-item" data-view="home"><span class="nav-icon" data-icon="home"></span><span>Overview</span></button>
           <button class="nav-item" data-view="youtube"><span class="nav-icon" data-icon="download"></span><span>YouTube Downloader</span><span class="nav-pip"></span></button>
           <button class="nav-item" data-view="convert"><span class="nav-icon" data-icon="convert"></span><span>Universal Convert</span></button>
-          <button class="nav-item" data-view="settings"><span class="nav-icon" data-icon="settings"></span><span>Settings &amp; updates</span><span class="nav-pip hidden" id="settings-update-pip"></span></button>
         </div>
         <div class="nav-group">
           <div class="nav-label">Media</div>
@@ -55,6 +54,13 @@
           <button class="nav-item" data-view="metadata"><span class="nav-icon" data-icon="file"></span><span>Metadata Stripper</span></button>
           <button class="nav-item" data-view="shred"><span class="nav-icon" data-icon="harddrive"></span><span>Secure Delete</span></button>
         </div>
+        <div class="nav-group nav-group-system">
+          <div class="nav-label">System</div>
+          <button class="nav-item settings-nav-item" data-view="settings">
+            <span class="nav-icon" data-icon="settings"></span><span>Settings</span>
+            <span class="nav-pip hidden" id="settings-update-pip"></span>
+          </button>
+        </div>
       </nav>
 
       <div class="sidebar-footer">
@@ -76,6 +82,11 @@
           <h1 id="page-title">Overview</h1>
         </div>
         <div class="topbar-actions">
+          <button class="topbar-utility topbar-settings" data-view="settings" aria-label="Open Settings" title="Settings and updates">
+            <span class="nav-icon" data-icon="settings"></span>
+            <span>Settings</span>
+            <span class="nav-pip hidden" id="settings-topbar-pip"></span>
+          </button>
           <button class="topbar-utility command-button" id="command-button" aria-label="Open command palette" title="Command palette (Ctrl+K)">
             <span class="nav-icon" data-icon="sparkle"></span>
             <span>Command</span>

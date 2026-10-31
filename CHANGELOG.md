@@ -2,6 +2,14 @@
 
 All notable changes to OmniForge are documented here.
 
+## 1.6.2 - 2026-10-31
+
+### Changed
+
+- Settings now has a dedicated System navigation group and an always-visible topbar shortcut, making settings and updates easier to find.
+- Refined navigation, cards, panels, file rows, and Secure Delete guidance with restrained motion and reduced-motion support.
+- Rewrote the Secure Delete SSD explanation in plain language so wear leveling, backups, cloud copies, and snapshots are easier to understand.
+
 ## 1.6.1 - 2026-10-31
 
 ### Fixed
