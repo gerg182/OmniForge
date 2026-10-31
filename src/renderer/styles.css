@@ -666,6 +666,15 @@ h1, h2, h3, p { margin: 0; }
 .settings-value { max-width: 380px; overflow: hidden; color: var(--muted); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
 .settings-select { width: 112px; height: 34px; padding: 0 28px 0 10px; border: 1px solid var(--line-strong); border-radius: 9px; appearance: none; background-color: rgba(5, 7, 10, 0.46); background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%); background-position: calc(100% - 15px) 14px, calc(100% - 10px) 14px; background-size: 5px 5px, 5px 5px; background-repeat: no-repeat; color: var(--text-soft); font-size: 10px; cursor: pointer; }
 .settings-row .check-pill { flex: 0 0 auto; }
+.settings-updates-panel {
+  order: -1;
+  border-color: rgba(102, 233, 255, 0.22);
+  background:
+    radial-gradient(460px 180px at 100% 0%, rgba(102, 233, 255, 0.075), transparent 72%),
+    linear-gradient(145deg, rgba(19, 24, 32, 0.92), rgba(10, 13, 18, 0.9));
+  box-shadow: 0 18px 54px rgba(0, 0, 0, 0.22), 0 0 0 1px rgba(102, 233, 255, 0.025) inset;
+}
+.settings-updates-panel .panel-head { padding-bottom: 3px; }
 .update-folder-path { max-width: none; margin: 7px 0 13px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: rgba(0, 0, 0, 0.16); font-family: var(--mono); font-size: 8.5px; }
 .update-status-card { display: flex; align-items: center; gap: 11px; margin-bottom: 13px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: rgba(255, 255, 255, 0.018); }
 .update-status-card.available { border-color: rgba(201, 255, 81, 0.24); background: rgba(201, 255, 81, 0.045); }
@@ -679,6 +688,7 @@ h1, h2, h3, p { margin: 0; }
 .update-status-copy strong { font-size: 10px; font-weight: 600; }
 .update-status-copy span { color: var(--muted-2); font-size: 9px; line-height: 1.45; }
 .update-status-card .primary-button, .update-status-card .secondary-button { flex: 0 0 auto; min-height: 34px; }
+.update-status-action { display: flex; flex: 0 0 auto; align-items: center; }
 .update-progress { margin: -2px 0 14px; padding: 12px; border: 1px solid rgba(102, 233, 255, 0.15); border-radius: 12px; background: rgba(102, 233, 255, 0.025); }
 .update-progress-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--text-soft); font-size: 9px; font-weight: 600; }
 .update-progress-track { height: 6px; margin-top: 9px; overflow: hidden; border-radius: 999px; background: rgba(255, 255, 255, 0.06); }

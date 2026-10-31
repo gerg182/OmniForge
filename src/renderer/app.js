@@ -335,6 +335,7 @@ function updateShell() {
   document.querySelectorAll('.nav-item').forEach((item) => item.classList.toggle('active', item.dataset.view === state.view));
   const engineCard = $('#engine-card');
   engineCard.classList.toggle('active', state.view === 'settings');
+  updateUpdateBadge();
 }
 
 function availableRecipeTools() {
@@ -1880,6 +1881,144 @@ function infoResultCard(result) {
   </div>`).join('');
 }
 
+function getUpdateUiState() {
+  const appVersion = state.status?.appVersion || 'Unknown';
+  const updateInfo = state.updateInfo;
+  const latestUpdate = updateInfo?.latest;
+  const latestSource = latestUpdate?.source || updateInfo?.source || 'none';
+  const progress = state.updateProgress;
+  const downloading = state.updateDownloading || ['downloading', 'verifying'].includes(progress?.phase);
+  const progressPercent = Number.isFinite(progress?.percent) ? Math.max(0, Math.min(100, progress.percent)) : null;
+  const publishedHash = latestUpdate?.sha256 || latestUpdate?.hash?.expected || null;
+  const githubError = updateInfo?.github?.status === 'unavailable' ? updateInfo.github.error : null;
+  const noPublishedRelease = updateInfo?.github?.status === 'no-release';
+  const releaseDate = latestUpdate?.publishedAt ? new Date(latestUpdate.publishedAt).toLocaleDateString() : null;
+  const updateHash = latestUpdate?.hash || null;
+  const hashBlocked = updateHash?.status === 'mismatch' || updateHash?.status === 'malformed';
+  const hashLabel = updateHash?.status === 'valid' ? 'SHA-256 verified' : updateHash?.status === 'missing' ? 'No .sha256 sidecar' : updateHash?.status ? 'Hash verification failed' : 'Hash pending';
+  const updateFolder = state.settings?.updateFolder || 'No update folder selected';
+  let updateTitle = 'Not checked yet';
+  let updateText = 'Check GitHub Releases for the newest OmniForge build.';
+  let updateTone = '';
+  let updateIcon = 'refresh';
+  if (state.updateChecking) {
+    updateTitle = 'Checking for updates...';
+    updateText = 'Looking for the newest OmniForge GitHub release.';
+    updateTone = 'checking';
+    updateIcon = 'refresh';
+  } else if (downloading) {
+    const percentText = progressPercent === null ? formatBytes(progress?.receivedBytes || 0) : `${progressPercent}%`;
+    updateTitle = progress?.phase === 'verifying' ? `Verifying OmniForge ${progress.version}...` : `Downloading OmniForge ${progress?.version || ''}...`;
+    updateText = progress?.phase === 'verifying'
+      ? 'Checking the downloaded installer against the published SHA-256 hash.'
+      : `${percentText}${progress?.totalBytes ? ` of ${formatBytes(progress.totalBytes)}` : ''}`;
+    updateTone = 'checking';
+    updateIcon = 'download';
+  } else if (updateInfo?.newer && latestUpdate) {
+    updateTitle = `Version ${latestUpdate.version} is available`;
+    const sourceText = latestSource === 'github'
+      ? `GitHub release${releaseDate ? ` from ${releaseDate}` : ''} - ${formatBytes(latestUpdate.size || 0)} - SHA-256 published`
+      : `Offline installer - ${formatBytes(latestUpdate.size || 0)} - ${hashLabel}`;
+    updateText = `${sourceText}${githubError ? ' GitHub could not be checked.' : ''}`;
+    updateTone = 'available';
+    updateIcon = 'download';
+  } else if (githubError) {
+    updateTitle = 'GitHub could not be checked';
+    updateText = `${githubError} Use an offline installer below.`;
+    updateTone = 'missing';
+    updateIcon = 'alert';
+  } else if (noPublishedRelease) {
+    updateTitle = 'No published GitHub release';
+    updateText = 'Publish a vX.Y.Z release with the installer and .sha256 asset, or use an offline installer below.';
+    updateTone = 'missing';
+    updateIcon = 'info';
+  } else if (updateInfo && !updateInfo.exists) {
+    updateTitle = 'Update folder not found';
+    updateText = 'Choose a folder that contains OmniForge installers.';
+    updateTone = 'missing';
+    updateIcon = 'folder';
+  } else if (updateInfo?.latest) {
+    updateTitle = 'OmniForge is up to date';
+    updateText = `Version ${updateInfo.currentVersion} is the newest published build.`;
+    updateTone = 'current';
+    updateIcon = 'check';
+  } else if (updateInfo) {
+    updateTitle = 'No updates found';
+    updateText = 'Use an offline installer below if you already downloaded a newer build.';
+    updateTone = 'current';
+    updateIcon = 'info';
+  }
+  return {
+    appVersion, updateInfo, latestUpdate, latestSource, progress, downloading,
+    progressPercent, publishedHash, githubError, noPublishedRelease, releaseDate,
+    hashBlocked, hashLabel, updateFolder, updateTitle, updateText, updateTone, updateIcon
+  };
+}
+
+function updateActionMarkup(ui) {
+  if (ui.downloading) {
+    return `<button class="primary-button" disabled>${icon('refresh', 'spin')} ${ui.progressPercent === null ? 'Downloading' : `${ui.progressPercent}%`}</button>`;
+  }
+  if (ui.updateInfo?.newer && ui.latestUpdate) {
+    if (ui.latestSource === 'github' && !(ui.latestUpdate.path && ui.latestUpdate.hash?.status === 'valid')) {
+      return `<button class="primary-button" data-action="download-update" data-version="${escapeHtml(ui.latestUpdate.version)}">${icon('download')} Download</button>`;
+    }
+    return `<button class="primary-button" data-action="install-update" data-path="${escapeHtml(ui.latestUpdate.path)}" data-version="${escapeHtml(ui.latestUpdate.version)}" ${ui.hashBlocked ? 'disabled' : ''}>${icon('download')} ${ui.hashBlocked ? 'Hash mismatch' : 'Install'}</button>`;
+  }
+  return `<button class="secondary-button" data-action="check-updates" ${state.updateChecking ? 'disabled' : ''}>${icon('refresh')} Check now</button>`;
+}
+
+function updateUpdatePanelUi() {
+  if (state.view !== 'settings') return;
+  const ui = getUpdateUiState();
+  const card = $('#update-status-card');
+  if (!card) return;
+  card.className = `update-status-card ${ui.updateTone}`.trim();
+  const title = $('#update-status-title');
+  const text = $('#update-status-text');
+  const iconTarget = $('#update-status-icon');
+  const action = $('#update-status-action');
+  if (title) title.textContent = ui.updateTitle;
+  if (text) text.textContent = ui.updateText;
+  if (iconTarget && iconTarget.dataset.icon !== ui.updateIcon) {
+    iconTarget.innerHTML = icon(ui.updateIcon, ui.updateIcon === 'refresh' && state.updateChecking ? 'spin' : '');
+    iconTarget.dataset.icon = ui.updateIcon;
+  }
+  const actionMarkup = updateActionMarkup(ui);
+  if (action && action.dataset.markup !== actionMarkup) {
+    action.innerHTML = actionMarkup;
+    action.dataset.markup = actionMarkup;
+  }
+
+  const progressPanel = $('#update-progress');
+  if (!progressPanel) return;
+  const visible = ui.downloading || ui.progress?.phase === 'ready';
+  progressPanel.hidden = !visible;
+  if (!visible) return;
+  const label = $('#update-progress-label');
+  const percent = $('#update-progress-percent');
+  const bar = $('#update-progress-bar');
+  const meta = $('#update-progress-meta');
+  if (label) label.textContent = ui.progress?.phase === 'verifying' ? 'Verifying SHA-256' : ui.progress?.phase === 'ready' ? 'Verified and ready' : 'Downloading installer';
+  if (percent) percent.textContent = ui.progressPercent === null ? formatBytes(ui.progress?.receivedBytes || 0) : `${ui.progressPercent}%`;
+  if (bar) bar.style.width = `${ui.progressPercent === null ? 8 : ui.progressPercent}%`;
+  if (meta) meta.textContent = `${formatBytes(ui.progress?.receivedBytes || 0)}${ui.progress?.totalBytes ? ` of ${formatBytes(ui.progress.totalBytes)}` : ''}${ui.progress?.actualHash ? ` - SHA-256 ${ui.progress.actualHash}` : ''}`;
+}
+
+let updatePanelFrame = null;
+function queueUpdatePanelRefresh() {
+  if (updatePanelFrame) return;
+  updatePanelFrame = requestAnimationFrame(() => {
+    updatePanelFrame = null;
+    updateUpdatePanelUi();
+  });
+}
+
+function updateUpdateBadge() {
+  const pip = document.getElementById('settings-update-pip');
+  if (pip) pip.classList.toggle('hidden', !state.updateInfo?.newer);
+}
+
 function renderSettings() {
   const tools = state.status?.tools || {};
   const concurrency = configuredConcurrency();
@@ -1892,72 +2031,12 @@ function renderSettings() {
     ['sevenZip', '7-Zip', 'Archive engine'],
     ['speech', 'Whisper', 'Local speech-to-text engine']
   ];
-    const appVersion = state.status?.appVersion || 'Unknown';
-    const updateInfo = state.updateInfo;
-    const latestUpdate = updateInfo?.latest;
-    const latestSource = latestUpdate?.source || updateInfo?.source || 'none';
-    const progress = state.updateProgress;
-    const downloading = state.updateDownloading || ['downloading', 'verifying'].includes(progress?.phase);
-    const progressPercent = Number.isFinite(progress?.percent) ? Math.max(0, Math.min(100, progress.percent)) : null;
-    const publishedHash = latestUpdate?.sha256 || latestUpdate?.hash?.expected || null;
-    const githubError = updateInfo?.github?.status === 'unavailable' ? updateInfo.github.error : null;
-    const noPublishedRelease = updateInfo?.github?.status === 'no-release';
-    const releaseDate = latestUpdate?.publishedAt ? new Date(latestUpdate.publishedAt).toLocaleDateString() : null;
-    const updateHash = latestUpdate?.hash || null;
-    const hashBlocked = updateHash?.status === 'mismatch' || updateHash?.status === 'malformed';
-    const hashLabel = updateHash?.status === 'valid' ? 'SHA-256 verified' : updateHash?.status === 'missing' ? 'No .sha256 sidecar' : updateHash?.status ? 'Hash verification failed' : 'Hash pending';
-    const updateFolder = state.settings?.updateFolder || 'No update folder selected';
-    let updateTitle = 'Not checked yet';
-    let updateText = 'Check GitHub Releases for the newest OmniForge build.';
-    let updateTone = '';
-    let updateIcon = 'refresh';
-    if (state.updateChecking) {
-      updateTitle = 'Checking for updates…';
-      updateText = 'Looking for the newest OmniForge GitHub release.';
-      updateTone = 'checking';
-      updateIcon = 'refresh';
-    } else if (downloading) {
-      const percentText = progressPercent === null ? formatBytes(progress?.receivedBytes || 0) : `${progressPercent}%`;
-      updateTitle = progress?.phase === 'verifying' ? `Verifying OmniForge ${progress.version}...` : `Downloading OmniForge ${progress?.version || ''}...`;
-      updateText = progress?.phase === 'verifying'
-        ? 'Checking the downloaded installer against the published SHA-256 hash.'
-        : `${percentText}${progress?.totalBytes ? ` of ${formatBytes(progress.totalBytes)}` : ''}`;
-      updateTone = 'checking';
-      updateIcon = 'download';
-    } else if (updateInfo?.newer && latestUpdate) {
-      updateTitle = `Version ${latestUpdate.version} is available`;
-      const sourceText = latestSource === 'github'
-        ? `GitHub release${releaseDate ? ` from ${releaseDate}` : ''} - ${formatBytes(latestUpdate.size || 0)} - SHA-256 published`
-        : `Offline installer - ${formatBytes(latestUpdate.size || 0)} - ${hashLabel}`;
-      updateText = `${sourceText}${githubError ? ' GitHub could not be checked.' : ''}`;
-      updateTone = 'available';
-      updateIcon = 'download';
-    } else if (githubError) {
-      updateTitle = 'GitHub could not be checked';
-      updateText = `${githubError} Use an offline installer below.`;
-      updateTone = 'missing';
-      updateIcon = 'alert';
-    } else if (noPublishedRelease) {
-      updateTitle = 'No published GitHub release';
-      updateText = 'Publish a vX.Y.Z release with the installer and .sha256 asset, or use an offline installer below.';
-      updateTone = 'missing';
-      updateIcon = 'info';
-    } else if (updateInfo && !updateInfo.exists) {
-      updateTitle = 'Update folder not found';
-      updateText = 'Choose a folder that contains OmniForge installers.';
-      updateTone = 'missing';
-      updateIcon = 'folder';
-    } else if (updateInfo?.latest) {
-      updateTitle = 'OmniForge is up to date';
-      updateText = `Version ${updateInfo.currentVersion} is the newest published build.`;
-      updateTone = 'current';
-      updateIcon = 'check';
-    } else if (updateInfo) {
-      updateTitle = 'No updates found';
-      updateText = 'Use an offline installer below if you already downloaded a newer build.';
-      updateTone = 'current';
-      updateIcon = 'info';
-    }  return `<div class="tool-layout">
+  const {
+    appVersion, updateInfo, latestUpdate, latestSource, progress, downloading,
+    progressPercent, publishedHash, githubError, noPublishedRelease, releaseDate,
+    hashBlocked, hashLabel, updateFolder, updateTitle, updateText, updateTone, updateIcon
+  } = getUpdateUiState();
+  return `<div class="tool-layout">
     <div style="display:grid;gap:14px">
       <div class="panel">
         <div class="panel-head"><div><h2>Bundled engines</h2><p>These tools ship with OmniForge and run locally.</p></div><button class="secondary-button" data-action="refresh-status">${icon('refresh')} Refresh</button></div>
@@ -1988,8 +2067,8 @@ function renderSettings() {
           <div class="legal-note">${icon('shield')} Recipes only store tool options. URLs, output folders, passwords, file lists, and Studio project data are never saved.</div>
         </div>
       </div>
-              <div class="panel">
-          <div class="panel-head"><div><h2>Application updates</h2><p>Install a newer build without uninstalling OmniForge.</p></div><span class="status-pill">v${escapeHtml(appVersion)}</span></div>
+      <div class="panel settings-updates-panel" id="application-updates">
+          <div class="panel-head"><div><div class="eyebrow">System</div><h2>Application updates</h2><p>Install a newer build without uninstalling OmniForge.</p></div><span class="status-pill">v${escapeHtml(appVersion)}</span></div>
           <div class="panel-body">
             <div class="settings-row">
               <div class="settings-row-copy"><strong>GitHub Releases</strong><span>Checks the public OmniForge release feed. Downloads are verified before they can run.</span></div>
@@ -1998,15 +2077,15 @@ function renderSettings() {
                 <button class="secondary-button" data-action="check-updates" ${state.updateChecking ? 'disabled' : ''}>${icon('refresh')} Check now</button>
               </div>
             </div>
-            <div class="update-status-card ${updateTone}">
-              <div class="update-status-icon">${icon(updateIcon, updateIcon === 'refresh' && state.updateChecking ? 'spin' : '')}</div>
-              <div class="update-status-copy"><strong>${escapeHtml(updateTitle)}</strong><span>${escapeHtml(updateText)}</span></div>
-              ${downloading ? `<button class="primary-button" disabled>${icon('refresh', 'spin')} ${progressPercent === null ? 'Downloading' : `${progressPercent}%`}</button>` : updateInfo?.newer && latestUpdate ? (latestSource === 'github' && !(latestUpdate.path && latestUpdate.hash?.status === 'valid') ? `<button class="primary-button" data-action="download-update" data-version="${escapeHtml(latestUpdate.version)}">${icon('download')} Download</button>` : `<button class="primary-button" data-action="install-update" data-path="${escapeHtml(latestUpdate.path)}" data-version="${escapeHtml(latestUpdate.version)}" ${hashBlocked ? 'disabled' : ''}>${icon('download')} ${hashBlocked ? 'Hash mismatch' : 'Install'}</button>`) : `<button class="secondary-button" data-action="check-updates" ${state.updateChecking ? 'disabled' : ''}>${icon('refresh')} Check now</button>`}
+            <div class="update-status-card ${updateTone}" id="update-status-card" aria-live="polite">
+              <div class="update-status-icon" id="update-status-icon">${icon(updateIcon, updateIcon === 'refresh' && state.updateChecking ? 'spin' : '')}</div>
+              <div class="update-status-copy"><strong id="update-status-title">${escapeHtml(updateTitle)}</strong><span id="update-status-text">${escapeHtml(updateText)}</span></div>
+              <div class="update-status-action" id="update-status-action">${downloading ? `<button class="primary-button" disabled>${icon('refresh', 'spin')} ${progressPercent === null ? 'Downloading' : `${progressPercent}%`}</button>` : updateInfo?.newer && latestUpdate ? (latestSource === 'github' && !(latestUpdate.path && latestUpdate.hash?.status === 'valid') ? `<button class="primary-button" data-action="download-update" data-version="${escapeHtml(latestUpdate.version)}">${icon('download')} Download</button>` : `<button class="primary-button" data-action="install-update" data-path="${escapeHtml(latestUpdate.path)}" data-version="${escapeHtml(latestUpdate.version)}" ${hashBlocked ? 'disabled' : ''}>${icon('download')} ${hashBlocked ? 'Hash mismatch' : 'Install'}</button>`) : `<button class="secondary-button" data-action="check-updates" ${state.updateChecking ? 'disabled' : ''}>${icon('refresh')} Check now</button>`}</div>
             </div>
             ${downloading || progress?.phase === 'ready' ? `<div class="update-progress">
-              <div class="update-progress-head"><span>${progress?.phase === 'verifying' ? 'Verifying SHA-256' : progress?.phase === 'ready' ? 'Verified and ready' : 'Downloading installer'}</span><span>${progressPercent === null ? formatBytes(progress?.receivedBytes || 0) : `${progressPercent}%`}</span></div>
-              <div class="update-progress-track"><span style="width:${progressPercent === null ? 8 : progressPercent}%"></span></div>
-              <div class="update-progress-meta">${formatBytes(progress?.receivedBytes || 0)}${progress?.totalBytes ? ` of ${formatBytes(progress.totalBytes)}` : ''}${progress?.actualHash ? ` - SHA-256 ${escapeHtml(progress.actualHash)}` : ''}</div>
+              <div class="update-progress-head"><span id="update-progress-label">${progress?.phase === 'verifying' ? 'Verifying SHA-256' : progress?.phase === 'ready' ? 'Verified and ready' : 'Downloading installer'}</span><span id="update-progress-percent">${progressPercent === null ? formatBytes(progress?.receivedBytes || 0) : `${progressPercent}%`}</span></div>
+              <div class="update-progress-track"><span id="update-progress-bar" style="width:${progressPercent === null ? 8 : progressPercent}%"></span></div>
+              <div class="update-progress-meta" id="update-progress-meta">${formatBytes(progress?.receivedBytes || 0)}${progress?.totalBytes ? ` of ${formatBytes(progress.totalBytes)}` : ''}${progress?.actualHash ? ` - SHA-256 ${escapeHtml(progress.actualHash)}` : ''}</div>
             </div>` : ''}
             ${publishedHash ? `<div class="update-hash-row"><span>SHA-256</span><code title="${escapeHtml(publishedHash)}">${escapeHtml(publishedHash)}</code><button class="copy-button" data-action="copy-text" data-value="${escapeHtml(publishedHash)}">Copy</button></div>` : ''}
             <div class="update-offline">
@@ -3567,6 +3646,7 @@ async function checkForUpdates(showMessage = true) {
   try {
     state.updateInfo = await api.checkForUpdates();
     state.updateChecking = false;
+    updateUpdateBadge();
     if (state.view === 'settings') render();
     if (showMessage) {
       if (state.updateInfo.newer) showToast(`OmniForge ${state.updateInfo.latest.version} is available.`, 'success', 6000);
@@ -3587,6 +3667,7 @@ async function autoCheckForUpdates() {
   try {
     const info = await api.checkForUpdates();
     state.updateInfo = info;
+    updateUpdateBadge();
     if (info.newer) showToast(`OmniForge ${info.latest.version} is available in Settings.`, 'success', 7000);
     if (state.view === 'settings') render();
   } catch {
@@ -4229,7 +4310,7 @@ async function init() {
     state.updateProgress = progress;
     if (['downloading', 'verifying'].includes(progress?.phase)) state.updateDownloading = true;
     if (['ready', 'error'].includes(progress?.phase)) state.updateDownloading = false;
-    if (state.view === 'settings') render();
+    queueUpdatePanelRefresh();
   });
   viewEl.innerHTML = `<div class="empty-state"><div class="tool-icon" style="--icon-color:var(--lime)">${icon('sparkle')}</div><h3>Starting OmniForge…</h3><p>Checking the bundled engines.</p></div>`;
   try {

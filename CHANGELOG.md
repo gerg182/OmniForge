@@ -2,6 +2,16 @@
 
 All notable changes to OmniForge are documented here.
 
+## 1.6.1 - 2026-10-31
+
+### Fixed
+
+- Installer downloads now update their progress in place instead of rebuilding the entire Settings view, eliminating the flashing that occurred while large updates downloaded.
+
+### Changed
+
+- Application updates now appear first in Settings with a highlighted panel, dedicated navigation entry, and an update-available badge.
+
 ## 1.6.0 - 2026-10-31
 
 ### Added
