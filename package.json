@@ -1,6 +1,6 @@
 {
   "name": "omniforge",
-  "version": "1.5.2",
+  "version": "1.5.3",
   "description": "A local-first media downloader, converter, and file utility workbench.",
   "main": "src/main/index.js",
   "author": "OmniForge",
@@ -19,7 +19,7 @@
     "dev": "electron .",
     "test": "node scripts/run-tests.mjs",
     "prepare:tools": "node scripts/prepare-tools.mjs",
-    "dist": "node scripts/prepare-tools.mjs && electron-builder --win nsis && node scripts/write-installer-hash.mjs",
+    "dist": "node scripts/prepare-tools.mjs && electron-builder --win nsis --publish never && node scripts/write-installer-hash.mjs",
     "pack": "node scripts/prepare-tools.mjs && electron-builder --dir"
   },
   "dependencies": {

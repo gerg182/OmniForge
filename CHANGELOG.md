@@ -2,6 +2,12 @@
 
 All notable changes to OmniForge are documented here.
 
+## 1.5.3 - 2026-10-31
+
+### Fixed
+
+- Tag-driven release builds now disable electron-builder's implicit GitHub publishing, preventing the workflow from failing when `GH_TOKEN` is not configured. The release workflow remains the only component that creates GitHub releases.
+
 ## 1.5.2 - 2026-10-31
 
 ### Fixed
