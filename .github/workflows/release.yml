@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing release tag to build, such as v1.5.3
+        description: Existing release tag to build, such as v1.6.0
         required: true
-        default: v1.5.3
+        default: v1.6.0
         type: string
 
 permissions:

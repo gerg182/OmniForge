@@ -93,6 +93,14 @@
           </button>
         </div>
       </header>
+      <div class="global-legal-warning" role="note" aria-label="Acceptable use warning">
+        <span class="nav-icon" data-icon="alert"></span>
+        <div class="global-legal-copy">
+          <strong>LEGAL WARNING: Use only files and media you have the right to process.</strong>
+          <span>You are responsible for copyright, YouTube terms, privacy and consent, encryption/export, and data-destruction laws. Never bypass DRM or access controls, remove rights information you do not control, or destroy evidence.</span>
+        </div>
+        <button class="ghost-button" data-view="settings">Legal details</button>
+      </div>
       <section class="view" id="view" aria-live="polite"></section>
     </main>
   </div>
@@ -152,6 +160,30 @@
   </div>
 
   <div class="toast-stack" id="toasts" aria-live="assertive"></div>
+
+  <div class="legal-gate" id="legal-gate" hidden>
+    <div class="legal-gate-card" role="dialog" aria-modal="true" aria-labelledby="legal-gate-title">
+      <div class="legal-gate-kicker">First-run legal agreement</div>
+      <h2 id="legal-gate-title">Read this before using OmniForge.</h2>
+      <p>OmniForge is a general-purpose local file and media tool. Using it does not grant rights to any file, video, recording, document, or archive.</p>
+      <div class="legal-gate-alert">You must accept these terms before the workspace unlocks.</div>
+      <div class="legal-gate-grid">
+        <div><strong>Copyright and YouTube</strong><span>Download only content you own or are authorized to download. YouTube's terms generally prohibit unauthorized downloading, and copyright law may apply even to public videos.</span></div>
+        <div><strong>No bypassing</strong><span>Do not bypass DRM, paywalls, age checks, region locks, or login restrictions. OmniForge is not affiliated with YouTube.</span></div>
+        <div><strong>Privacy and consent</strong><span>Record or transcribe people only with the consent and legal authority required by your jurisdiction. Do not remove rights information you do not control.</span></div>
+        <div><strong>Other tools</strong><span>Do not destroy evidence, conceal illegal activity, or process files you are not authorized to access. Encryption may be subject to export-control rules.</span></div>
+      </div>
+      <label class="legal-ack legal-gate-check">
+        <input id="legal-gate-check" type="checkbox">
+        <span><strong>I have read and agree to the Legal &amp; Acceptable Use notice.</strong>I understand that I am solely responsible for my use of OmniForge and for complying with copyright, privacy, consent, export, and other applicable laws. This is not legal advice.</span>
+      </label>
+      <div class="legal-gate-actions">
+        <button class="ghost-button" id="legal-gate-exit">Exit OmniForge</button>
+        <button class="primary-button" id="legal-gate-accept" disabled>Agree &amp; continue</button>
+      </div>
+      <p class="legal-gate-foot">Full notice: LEGAL.md in the OmniForge repository. If you do not agree, exit the app.</p>
+    </div>
+  </div>
 
   <script type="module" src="app.js"></script>
 </body>

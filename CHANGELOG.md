@@ -2,6 +2,13 @@
 
 All notable changes to OmniForge are documented here.
 
+## 1.6.0 - 2026-10-31
+
+### Added
+
+- Prominent legal and acceptable-use warnings throughout the app, including a required first-run agreement that locks the workspace until accepted and a separate acknowledgment before YouTube downloads begin.
+- A full Legal & Acceptable Use notice covering copyright, YouTube terms, metadata removal, encryption, secure deletion, recording consent, third-party licenses, and codec-patent risks.
+
 ## 1.5.3 - 2026-10-31
 
 ### Fixed

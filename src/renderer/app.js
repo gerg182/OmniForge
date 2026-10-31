@@ -1,6 +1,16 @@
 import { suggestDropTools, filterCommandItems, fitPreviewFrame, toggleAllSelection, formatJobEta, formatJobSpeed } from './workflow.mjs';
 
 const api = window.omniforge;
+const LEGAL_NOTICE_VERSION = '2026-10-31';
+const LEGAL_GATE_BLOCKED_SELECTORS = [
+  '.app-shell',
+  '#queue-drawer',
+  '#queue-overlay',
+  '#command-overlay',
+  '#smart-drop-overlay',
+  '#drop-overlay',
+  '#recipe-popover'
+];
 const ICONS = {
   home: '<path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M9 21v-6h6v6"/>',
   download: '<path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 21h16"/>',
@@ -161,10 +171,11 @@ const state = {
     transcribe: { language: 'auto', outputFormat: 'txt' },
     studio: { language: 'auto', exportFormat: 'srt' },
     dictation: { language: 'auto', outputFormat: 'txt' },
-    youtube: { url: '', mode: 'video', quality: 'best', audioFormat: 'mp3' }
+    youtube: { url: '', mode: 'video', quality: 'best', audioFormat: 'mp3', acknowledged: false }
   },
   ytMeta: null,
   ytLoading: false,
+  legalGateOpen: false,
   jobs: new Map(),
   results: [],
   queueOpen: false,
@@ -303,6 +314,7 @@ function currentMeta() {
 }
 
 function navigate(view) {
+  if (state.legalGateOpen) return;
   if (!VIEW_META[view]) return;
   closeRecipesPopover();
   if (state.view === 'encryptor' && view !== 'encryptor') {
@@ -518,6 +530,7 @@ function renderCommandResults() {
 }
 
 function openCommandPalette() {
+  if (state.legalGateOpen) return;
   const overlay = $('#command-overlay');
   const input = $('#command-input');
   if (!overlay || !input) return;
@@ -765,9 +778,27 @@ function selectOptions(items, selected, placeholder) {
   return prefix + items.map((item) => `<option value="${escapeHtml(item.value)}" ${String(item.value) === String(selected) ? 'selected' : ''}>${escapeHtml(item.label)}${item.hint ? ` — ${escapeHtml(item.hint)}` : ''}</option>`).join('');
 }
 
+function renderYouTubeLegalWarning(acknowledged) {
+  return `<section class="youtube-legal-warning" role="alert" aria-labelledby="youtube-legal-title">
+    <div class="youtube-legal-icon">${icon('alert')}</div>
+    <div class="youtube-legal-copy">
+      <div class="youtube-legal-kicker">Legal warning - read before downloading</div>
+      <h2 id="youtube-legal-title">Downloading YouTube content is not automatically legal.</h2>
+      <p>Downloading copyrighted content without permission may violate copyright law and YouTube's Terms of Service. Public visibility does not grant permission to copy or redistribute a video.</p>
+      <ul>
+        <li><strong>Only download content you own or are expressly authorized to download.</strong></li>
+        <li><strong>Do not bypass DRM, paywalls, age checks, region locks, or login restrictions.</strong></li>
+        <li><strong>You are solely responsible for your downloads, use, and redistribution.</strong></li>
+      </ul>
+      <div class="youtube-legal-foot">${acknowledged ? 'Acknowledgment recorded for this session. OmniForge is not affiliated with YouTube and does not grant any rights to its content.' : 'The Download button stays locked until you confirm the acknowledgment below.'}</div>
+    </div>
+  </section>`;
+}
+
 function renderYouTube() {
   const options = state.options.youtube;
   const media = state.ytMeta;
+  const acknowledged = options.acknowledged === true;
   const preview = media ? `<div class="yt-preview">
       <div class="yt-thumb">${media.thumbnail ? `<img src="${escapeHtml(media.thumbnail)}" alt="">` : ''}</div>
       <div class="yt-info">
@@ -780,6 +811,7 @@ function renderYouTube() {
   const modeVideo = options.mode !== 'audio';
   return `<div class="tool-layout">
     <div style="display:grid;gap:14px">
+      ${renderYouTubeLegalWarning(acknowledged)}
       <div class="panel">
         <div class="panel-head"><div><h2>Paste a YouTube link</h2><p>Public, single-video URLs only. Playlists and live streams are not supported.</p></div><span class="status-pill ${media ? 'succeeded' : ''}">${media ? 'Metadata ready' : 'Waiting'}</span></div>
         <div class="panel-body">
@@ -805,11 +837,14 @@ function renderYouTube() {
               { value: 'mp3', label: 'MP3' }, { value: 'm4a', label: 'M4A' }, { value: 'wav', label: 'WAV' }, { value: 'flac', label: 'FLAC' }, { value: 'opus', label: 'OPUS' }
             ], options.audioFormat)}</select></div>`}
           </div>
+          <label class="legal-ack ${acknowledged ? 'acknowledged' : ''}">
+            <input type="checkbox" data-tool="youtube" data-option="acknowledged" data-rerender="true" ${acknowledged ? 'checked' : ''}>
+            <span><strong>I have the right to download this content.</strong>I accept responsibility for complying with copyright law, YouTube's Terms, privacy and consent laws, and all other applicable rules.</span>
+          </label>
           <div class="action-row">
             <div class="action-copy"><strong>You will choose an output folder next.</strong>Download only content you own or are authorized to download.</div>
-            <div class="action-buttons"><button class="primary-button" data-action="start-tool" data-tool="youtube" ${options.url.trim() ? '' : 'disabled'}>${icon('download')} Download</button></div>
+            <div class="action-buttons"><button class="primary-button" data-action="start-tool" data-tool="youtube" ${options.url.trim() && acknowledged ? '' : 'disabled'}>${icon('download')} Download</button></div>
           </div>
-          <div class="legal-note">${icon('alert')} YouTube downloads may be subject to YouTube's terms and copyright law. OmniForge does not bypass DRM or access controls.</div>
         </div>
       </div>
     </div>
@@ -1096,6 +1131,7 @@ function renderTranscribe() {
             <div class="field"><label>Spoken language</label><select data-tool="transcribe" data-option="language">${selectOptions(SPEECH_LANGUAGES, options.language)}</select></div>
             <div class="field"><label>Output</label><div class="segmented"><label><input type="radio" name="transcribe-format" value="txt" data-tool="transcribe" data-option="outputFormat" ${options.outputFormat === 'txt' ? 'checked' : ''}><span>TXT</span></label><label><input type="radio" name="transcribe-format" value="srt" data-tool="transcribe" data-option="outputFormat" ${options.outputFormat === 'srt' ? 'checked' : ''}><span>SRT</span></label></div><div class="field-note">SRT includes timestamps for subtitles.</div></div>
           </div>
+          <div class="legal-note">${icon('alert')} Record or transcribe conversations only when you have the required consent and legal authority. Wiretap, privacy, and consent rules vary by jurisdiction.</div>
           ${renderStartBar('transcribe', 'Transcribe files', 'Each file gets its own transcript in the output folder.', state.files.transcribe.length === 0 || !ready)}
         </div>
       </div>
@@ -1133,6 +1169,7 @@ function renderDictation() {
             <div class="field"><label>Spoken language</label><select data-tool="dictation" data-option="language" ${recording || busy ? 'disabled' : ''}>${selectOptions(SPEECH_LANGUAGES, options.language)}</select></div>
             <div class="field"><label>Output</label><div class="segmented"><label><input type="radio" name="dictation-format" value="txt" data-tool="dictation" data-option="outputFormat" ${options.outputFormat === 'txt' ? 'checked' : ''} ${recording || busy ? 'disabled' : ''}><span>TXT</span></label><label><input type="radio" name="dictation-format" value="srt" data-tool="dictation" data-option="outputFormat" ${options.outputFormat === 'srt' ? 'checked' : ''} ${recording || busy ? 'disabled' : ''}><span>SRT</span></label></div></div>
           </div>
+          <div class="legal-note">${icon('alert')} Only record yourself or people who have consented to being recorded and transcribed. Privacy, wiretap, and consent laws vary by jurisdiction.</div>
           ${dictation.error ? `<div class="dictation-error">${icon('alert')} ${escapeHtml(dictation.error)}</div>` : ''}
           ${transcript ? `<div class="transcript-card">
             <div class="transcript-head"><div><strong>Latest transcript</strong><span>${escapeHtml(baseName(transcript.path || ''))}</span></div><div class="action-buttons"><button class="secondary-button" data-action="copy-dictation">${icon('copy')} Copy</button>${transcript.path ? `<button class="secondary-button" data-action="reveal-output" data-path="${escapeHtml(transcript.path)}">${icon('folder')} Show file</button>` : ''}</div></div>
@@ -1631,6 +1668,7 @@ function renderPdf() {
             ${needsPages ? `<div class="field"><label>Page selection</label><input value="${escapeHtml(options.pages)}" placeholder="1-3,5,8-10" data-tool="pdf" data-option="pages"><div class="field-note">Use commas for multiple pages or ranges.</div></div>` : ''}
             ${options.operation === 'rotate' ? `<div class="field"><label>Rotation</label><select data-tool="pdf" data-option="rotation">${selectOptions([{ value: '90', label: '90° clockwise' }, { value: '180', label: '180°' }, { value: '270', label: '90° counter-clockwise' }], options.rotation)}</select></div>` : ''}
           </div>
+          <div class="legal-note">${icon('alert')} Process only PDFs you are authorized to access and modify. Do not use these tools to forge documents or conceal unauthorized access.</div>
           ${renderStartBar('pdf', options.operation === 'merge' ? 'Merge PDFs' : 'Process PDFs', options.operation === 'merge' && state.files.pdf.length < 2 ? 'Choose at least two PDFs to merge.' : 'Each PDF is processed separately.', state.files.pdf.length === 0 || (options.operation === 'merge' && state.files.pdf.length < 2))}
         </div>
       </div>
@@ -1661,6 +1699,7 @@ function renderArchive() {
             ], options.archiveFormat)}</select></div>` : ''}
             ${creating ? `<div class="field full"><label>Archive name <span>optional</span></label><input value="${escapeHtml(options.archiveName)}" placeholder="Defaults to the first file's name" data-tool="archive" data-option="archiveName"></div>` : ''}
           </div>
+          <div class="legal-note">${icon('alert')} Use archive tools only with files and archives you are authorized to access, pack, or extract. Do not use them to conceal unauthorized access or distribute infringing material.</div>
           ${renderStartBar('archive', creating ? 'Create archive' : 'Extract archives', creating ? 'One archive is created from this batch.' : 'Each archive gets its own extraction folder.', state.files.archive.length === 0)}
         </div>
       </div>
@@ -1701,7 +1740,7 @@ function renderEncryptorSettings(decrypting) {
         <div class="field"><label>Password</label><input type="password" value="${escapeHtml(state.options.encryptor.password)}" data-tool="encryptor" data-option="password" maxlength="1024" autocomplete="${decrypting ? 'current-password' : 'new-password'}" spellcheck="false" placeholder="${decrypting ? 'Enter the file password' : 'At least 8 characters'}"><div class="field-note">${decrypting ? 'The password is only held in memory while the job runs.' : 'Use a long, unique password. It cannot be recovered.'}</div></div>
         ${decrypting ? '' : `<div class="field"><label>Confirm password</label><input type="password" value="${escapeHtml(state.options.encryptor.confirm)}" data-tool="encryptor" data-option="confirm" maxlength="1024" autocomplete="new-password" spellcheck="false" placeholder="Repeat the password"><div class="field-note">Both passwords must match before encryption starts.</div></div>`}
       </div>
-      <div class="legal-note">${icon('alert')} OmniForge does not store or transmit passwords. If you lose the password, the encrypted file cannot be recovered.</div>
+      <div class="legal-note">${icon('alert')} OmniForge does not store or transmit passwords. If you lose the password, the encrypted file cannot be recovered. Do not use encryption to conceal illegal material; strong encryption may be subject to export-control rules when distributing software internationally.</div>
       ${renderStartBar('encryptor', decrypting ? 'Decrypt files' : 'Encrypt files', decrypting ? 'Original file names are restored from authenticated metadata.' : 'Each file becomes a separate .ofenc file in the output folder.', state.files.encryptor.length === 0)}
     </div>
   </div>`;
@@ -1770,7 +1809,7 @@ function renderMetadata() {
       <div class="panel">
         <div class="panel-head"><div><h2>Metadata removal</h2><p>JPEG EXIF/XMP/IPTC/comments, PNG text chunks, WebP EXIF/XMP, and media tags/chapters are removed.</p></div></div>
         <div class="panel-body">
-          <div class="legal-note">${icon('alert')} Image data, ICC color profiles, animation, and media streams are preserved. Cleaned files are written as copies with a _clean suffix.</div>
+          <div class="legal-note">${icon('alert')} Image data, ICC color profiles, animation, and media streams are preserved. Cleaned files are written as copies with a _clean suffix. Do not remove copyright-management information from files you do not own or have permission to modify.</div>
           ${renderStartBar('metadata', 'Remove metadata', 'Choose an output folder for the cleaned copies.', count === 0)}
         </div>
       </div>
@@ -1802,7 +1841,7 @@ function renderShred() {
             <div class="field"><label>Passes</label><select data-tool="shred" data-option="passes">${passOptions}</select></div>
           </div>
           <label class="check-pill" style="margin-top:14px"><input type="checkbox" data-tool="shred" data-option="acknowledged" ${options.acknowledged ? 'checked' : ''}><span>I understand SSD wear leveling, backups, cloud copies, and snapshots may retain copies.</span></label>
-          <div class="legal-note">${icon('alert')} Secure Delete overwrites each file with random data, flushes every pass, truncates it, renames it randomly, and deletes it. Cancelling may leave a partially overwritten file.</div>
+          <div class="legal-note">${icon('alert')} Secure Delete overwrites each file with random data, flushes every pass, truncates it, renames it randomly, and deletes it. Cancelling may leave a partially overwritten file. Use this only on data you own or are authorized to destroy; never destroy evidence or data under a legal hold.</div>
           ${renderStartBar('shred', 'Securely delete files', 'No output folder is needed. This action cannot be undone.', state.files.shred.length === 0 || !options.acknowledged)}
         </div>
       </div>
@@ -1999,6 +2038,24 @@ function renderSettings() {
             <button class="secondary-button" data-action="update-ytdlp">${icon('refresh')} Check for updates</button>
           </div>
           <div class="legal-note">${icon('alert')} Download only content you own or have permission to download. Respect YouTube's terms and local copyright law.</div>
+        </div>
+      </div>
+      <div class="panel legal-panel">
+        <div class="panel-head"><div><h2>Legal &amp; acceptable use</h2><p>OmniForge is a general-purpose tool; legality depends on what you process and how you distribute it.</p></div><span class="status-pill failed">Read before use</span></div>
+        <div class="panel-body">
+          <div class="legal-warning-block">
+            <strong>You are responsible for your use.</strong>
+            <span>Use only files, media, URLs, recordings, and documents you own or have permission to process. Do not infringe copyrights, bypass DRM or access controls, remove rights information you do not control, record people without required consent, destroy evidence, or conceal illegal activity.</span>
+          </div>
+          <ul class="legal-list">
+            <li><strong>YouTube:</strong> The downloader relies on yt-dlp. YouTube's terms generally prohibit unauthorized downloading, and copyright law may apply even to public videos. OmniForge is not affiliated with YouTube and grants no rights to its content.</li>
+            <li><strong>Media and metadata:</strong> Converting, trimming, extracting, and metadata stripping do not grant rights to the source. Metadata removal can remove copyright-management information; only use it on files you may modify.</li>
+            <li><strong>Encryption:</strong> Use it only for lawful data. Strong encryption may be subject to export-control rules when distributing software internationally.</li>
+            <li><strong>Secure Delete:</strong> Never use it on evidence, data under legal hold, or files you are not authorized to destroy. SSDs, backups, snapshots, and cloud sync may retain copies.</li>
+            <li><strong>Speech:</strong> Recording and transcription may require consent under wiretap, privacy, and biometric laws. Only record people who have consented and when you have legal authority.</li>
+            <li><strong>Third-party tools:</strong> FFmpeg, yt-dlp, Deno, 7-Zip, and whisper.cpp retain their own licenses and notices. Some codecs may carry separate patent-licensing obligations in commercial distribution.</li>
+          </ul>
+          <div class="legal-note">${icon('alert')} This is general information, not legal advice. Read the full <a class="legal-link" href="https://github.com/gerg182/OmniForge/blob/main/LEGAL.md" target="_blank" rel="noopener noreferrer">Legal &amp; Acceptable Use notice</a> and consult a qualified lawyer for jurisdiction-specific advice.</div>
         </div>
       </div>
     </div>
@@ -2862,11 +2919,13 @@ function updateStudioControl(target) {
 }
 
 async function startTool(tool) {
+  if (state.legalGateOpen) return;
   if (state.starting) return;
   const files = state.files[tool] || [];
   const options = state.options[tool] || {};
   if (tool === 'youtube') {
     if (!options.url.trim()) { showToast('Paste a YouTube link first.', 'error'); return; }
+    if (options.acknowledged !== true) { showToast('Confirm the YouTube legal warning before downloading.', 'error'); return; }
   } else if (!files.length) {
     showToast('Choose at least one file first.', 'error'); return;
   }
@@ -2934,6 +2993,7 @@ async function startTool(tool) {
 }
 
 async function fetchYouTube() {
+  if (state.legalGateOpen) return;
   const url = state.options.youtube.url.trim();
   if (!url) { showToast('Paste a YouTube link first.', 'error'); return; }
   state.ytLoading = true;
@@ -2971,6 +3031,7 @@ function updateOption(target) {
 }
 
 function handleViewChange(event) {
+  if (state.legalGateOpen) return;
   const target = event.target.closest('[data-option], [data-algorithm], [data-studio-output], [data-studio-style], [data-studio-language], [data-studio-export-format], [data-setting]');
   if (!target) return;
   if (target.dataset.setting) {
@@ -3021,6 +3082,7 @@ function syncEncryptorFiles() {
 }
 
 function handleViewInput(event) {
+  if (state.legalGateOpen) return;
   const studioTarget = event.target.closest('[data-studio-search], [data-studio-segment], [data-studio-clip-label], [data-studio-output], [data-studio-style], [data-studio-language], [data-studio-export-format]');
   if (studioTarget) {
     updateStudioControl(studioTarget);
@@ -3031,7 +3093,7 @@ function handleViewInput(event) {
   updateOption(target);
   if (target.dataset.tool === 'youtube' && target.dataset.option === 'url') {
     const button = document.querySelector('[data-action="start-tool"][data-tool="youtube"]');
-    if (button) button.disabled = !target.value.trim();
+    if (button) button.disabled = !target.value.trim() || state.options.youtube.acknowledged !== true;
   }
 }
 
@@ -3124,6 +3186,7 @@ async function confirmSmartDrop() {
 }
 
 function showDropOverlay() {
+  if (state.legalGateOpen) return;
   const overlay = $('#drop-overlay');
   if (!overlay || state.dropPicker) return;
   state.draggingFiles = true;
@@ -3141,6 +3204,7 @@ function hideDropOverlay() {
 }
 
 function handleDrop(event) {
+  if (state.legalGateOpen) return;
   const updateZone = event.target.closest('.update-dropzone');
   if (updateZone) {
     event.preventDefault();
@@ -3192,6 +3256,7 @@ function clearResults(tool) {
 }
 
 function openQueue() {
+  if (state.legalGateOpen) return;
   state.queueOpen = true;
   queueDrawer.classList.add('open');
   queueOverlay.classList.add('open');
@@ -3704,6 +3769,7 @@ function microphoneErrorMessage(error) {
 }
 
 async function startDictation() {
+  if (state.legalGateOpen) return;
   const dictation = state.dictation;
   if (dictation.recording || dictation.busy) return;
   if (!state.status?.tools?.speech?.available) {
@@ -3840,6 +3906,7 @@ async function transcribeDictation(recordingPath) {
 }
 
 function handleAction(actionTarget, event) {
+  if (state.legalGateOpen) return;
   const action = actionTarget.dataset.action;
   const tool = actionTarget.dataset.tool;
   switch (action) {
@@ -3942,8 +4009,64 @@ function handleAction(actionTarget, event) {
   }
 }
 
+function legalConsentRequired() {
+  return String(state.settings?.legalAcceptedVersion || '') !== LEGAL_NOTICE_VERSION;
+}
+
+function updateLegalGate() {
+  const gate = $('#legal-gate');
+  if (!gate) return;
+  const required = legalConsentRequired();
+  state.legalGateOpen = required;
+  gate.hidden = !required;
+  document.body.classList.toggle('legal-locked', required);
+  for (const selector of LEGAL_GATE_BLOCKED_SELECTORS) {
+    const surface = document.querySelector(selector);
+    if (surface) surface.inert = required;
+  }
+  if (!required) return;
+  const check = $('#legal-gate-check');
+  const accept = $('#legal-gate-accept');
+  if (check) check.checked = false;
+  if (accept) accept.disabled = true;
+  setTimeout(() => check?.focus(), 0);
+}
+
+async function acceptLegalNotice() {
+  const check = $('#legal-gate-check');
+  const accept = $('#legal-gate-accept');
+  if (!check?.checked || !accept) return;
+  const previous = state.settings;
+  accept.disabled = true;
+  try {
+    state.settings = await api.saveSettings({
+      legalAcceptedVersion: LEGAL_NOTICE_VERSION,
+      legalAcceptedAt: new Date().toISOString()
+    });
+    updateLegalGate();
+    state.view = 'home';
+    updateShell();
+    render();
+    autoCheckForUpdates();
+    showToast('Legal notice accepted. Welcome to OmniForge.', 'success');
+  } catch (error) {
+    state.settings = previous;
+    accept.disabled = false;
+    showToast(error.message || String(error), 'error', 8000);
+  }
+}
+
+function bindLegalGate() {
+  const check = $('#legal-gate-check');
+  const accept = $('#legal-gate-accept');
+  check?.addEventListener('change', () => { if (accept) accept.disabled = !check.checked; });
+  accept?.addEventListener('click', acceptLegalNotice);
+  $('#legal-gate-exit')?.addEventListener('click', () => window.close());
+}
+
 function bindEvents() {
   document.addEventListener('click', (event) => {
+    if (state.legalGateOpen && !event.target.closest('#legal-gate')) return;
     if (state.recipesPopoverOpen && !event.target.closest('#recipe-popover, #recipes-button')) closeRecipesPopover();
     const viewTarget = event.target.closest('[data-view]');
     if (viewTarget) {
@@ -4069,6 +4192,7 @@ function bindEvents() {
     updateQueueBadge();
   });
   document.addEventListener('keydown', (event) => {
+    if (state.legalGateOpen) return;
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
       event.preventDefault();
       if (state.command.open) closeCommandPalette();
@@ -4097,6 +4221,7 @@ async function init() {
     if (state.studio.recoveryTimer) clearTimeout(state.studio.recoveryTimer);
   });
   state.starting = false;
+  bindLegalGate();
   bindEvents();
   api.onJobUpdate(handleJobUpdate);
   api.onOpenQueue?.(() => openQueue());
@@ -4111,6 +4236,7 @@ async function init() {
     const [status, history, pendingJobs] = await Promise.all([api.getSystemStatus(), api.getHistory(), api.listJobs()]);
     state.status = status;
     state.settings = status.settings;
+    updateLegalGate();
     updateRecipeBadge();
     state.history = history;
     mergeHistoryJobs(history);
@@ -4118,13 +4244,15 @@ async function init() {
     updateEngineStatus();
     renderQueue();
     render();
-    api.getStudioRecovery().then((recovery) => {
-      if (!recovery) return;
-      state.studio.recovery = recovery;
-      if (state.view === 'studio') render();
-      showToast('An unsaved Studio session is available to restore.', 'info', 6500);
-    }).catch(() => {});
-    autoCheckForUpdates();
+    if (!state.legalGateOpen) {
+      api.getStudioRecovery().then((recovery) => {
+        if (!recovery) return;
+        state.studio.recovery = recovery;
+        if (state.view === 'studio') render();
+        showToast('An unsaved Studio session is available to restore.', 'info', 6500);
+      }).catch(() => {});
+      autoCheckForUpdates();
+    }
   } catch (error) {
     viewEl.innerHTML = `<div class="empty-state"><div class="tool-icon" style="--icon-color:var(--danger)">${icon('alert')}</div><h3>OmniForge could not start</h3><p>${escapeHtml(error.message || String(error))}</p></div>`;
     showToast('The app could not load its engine status.', 'error', 8000);

@@ -4,6 +4,8 @@ OmniForge is a local-first Windows desktop app for downloading permitted YouTube
 
 Everything runs on your PC. FFmpeg, FFprobe, yt-dlp, Deno, 7-Zip, and whisper.cpp with the multilingual base model are bundled with the app, so conversion, speech, and file tools do not require an internet connection. YouTube downloads naturally do.
 
+> **Legal warning:** Use only content you own or have permission to process. YouTube downloads may violate YouTube's Terms and copyright law, and OmniForge does not bypass DRM or access controls. Read the full [Legal & Acceptable Use notice](LEGAL.md).
+
 ## Features
 
 - Single-video YouTube downloads as MP4 video or MP3/M4A/WAV/FLAC/Opus audio
@@ -37,11 +39,11 @@ Everything runs on your PC. FFmpeg, FFprobe, yt-dlp, Deno, 7-Zip, and whisper.cp
 
 ## Installation
 
-Download the newest `OmniForge-Setup-1.5.3.exe` from [GitHub Releases](https://github.com/gerg182/OmniForge/releases/latest), then verify it before running:
+Download the newest `OmniForge-Setup-1.6.0.exe` from [GitHub Releases](https://github.com/gerg182/OmniForge/releases/latest), then verify it before running:
 
 ```powershell
-Get-FileHash .\OmniForge-Setup-1.5.3.exe -Algorithm SHA256
-Get-Content .\OmniForge-Setup-1.5.3.exe.sha256
+Get-FileHash .\OmniForge-Setup-1.6.0.exe -Algorithm SHA256
+Get-Content .\OmniForge-Setup-1.6.0.exe.sha256
 ```
 
 The hashes must match. The current installer is unsigned, so Windows SmartScreen may warn. Only continue when the installer came from this repository and its SHA-256 matches. OmniForge requires Windows 10/11 x64 and installs per user; administrator access is not required.
@@ -68,7 +70,7 @@ Build the Windows installer:
 npm run dist
 ```
 
-The installer and its `OmniForge-Setup-1.5.3.exe.sha256` sidecar are written to `dist/`. Release builds are produced by the tag-driven GitHub Actions workflow after the version is synchronized in `package.json`, `package-lock.json`, this README, and `CHANGELOG.md`.
+The installer and its `OmniForge-Setup-1.6.0.exe.sha256` sidecar are written to `dist/`. Release builds are produced by the tag-driven GitHub Actions workflow after the version is synchronized in `package.json`, `package-lock.json`, this README, and `CHANGELOG.md`.
 
 ## Transcript Clip Studio
 
@@ -107,6 +109,18 @@ Unfinished queue jobs are stored in `%APPDATA%\omniforge\queue.json`. Jobs inter
 
 OmniForge does not include telemetry or analytics. User media is processed locally and is not uploaded. Network access is used only for GitHub release checks and downloads, optional yt-dlp engine updates, and the YouTube downloads users request. Passwords are held in memory while a job runs and are not saved in queue history. Report vulnerabilities through GitHub private vulnerability reporting as described in [SECURITY.md](SECURITY.md).
 
+## Legal & Acceptable Use
+
+OmniForge is a general-purpose tool, and legality depends on what you process and how you distribute it. Use only files and media you own or have permission to use. Do not infringe copyrights, bypass DRM or access controls, remove copyright notices you do not control, record people without required consent, destroy evidence, or conceal illegal activity.
+
+On first launch, OmniForge requires you to read and accept the Legal & Acceptable Use notice before the workspace unlocks. Acceptance is stored locally and is required again when the notice version changes.
+
+The YouTube downloader relies on yt-dlp and does not grant rights to YouTube content. YouTube's terms generally prohibit unauthorized downloading, and copyright law may apply even to public videos. The app does not bypass DRM, paywalls, age checks, region locks, or login restrictions.
+
+Metadata stripping may remove copyright-management information. Encryption is lawful for lawful data but may be subject to export-control rules when distributing internationally. Secure Delete must not be used on evidence or data you are not authorized to destroy. Transcription and dictation require compliance with recording-consent and privacy laws. FFmpeg and other third-party components may carry separate license and codec-patent obligations.
+
+This is not legal advice. Read the full [Legal & Acceptable Use notice](LEGAL.md), preserve the third-party notices, and consult a qualified lawyer for jurisdiction-specific advice.
+
 ## Contributing
 
 Focused fixes, tests, documentation updates, and feature proposals are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, validation, versioning, and pull request requirements. Run `npm test` before opening a pull request.
@@ -133,6 +147,6 @@ Third-party software and model credits are listed in [tools/THIRD_PARTY_NOTICES.
 - Metadata stripping supports JPEG/PNG/WebP images plus audio/video containers handled by FFmpeg. PDF and Office metadata are not included in this release.
 - Secure Delete overwrites, truncates, renames, and removes each file. SSD wear leveling, snapshots, backups, cloud sync, and journaling may retain copies; this tool cannot guarantee physical erasure.
 - Office document conversion is not included.
-- Download only content you own or have permission to download. Respect YouTube's terms and applicable copyright law.
+- Download only content you own or have permission to download. Respect YouTube's terms, privacy and consent laws, and applicable copyright law. See [LEGAL.md](LEGAL.md).
 - Speech recognition uses the bundled `ggml-base.bin` multilingual model and runs entirely offline. Long recordings take longer to transcribe; the queue reports progress.
 - Bundled third-party licenses and notices are in `tools/THIRD_PARTY_NOTICES.md`.

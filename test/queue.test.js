@@ -348,12 +348,15 @@ test('store normalizes queue concurrency and failure notifications', (t) => {
   const { store, folder } = makeStore(t);
   assert.equal(store.get().jobConcurrency, 2);
   assert.equal(store.get().notifyOnFailure, true);
+  assert.equal(store.get().legalAcceptedVersion, null);
   assert.equal(store.save({ jobConcurrency: 3 }).jobConcurrency, 3);
   assert.equal(store.save({ jobConcurrency: 99 }).jobConcurrency, 2);
   assert.equal(store.save({ notifyOnFailure: false }).notifyOnFailure, false);
+  assert.equal(store.save({ legalAcceptedVersion: '2026-10-31', legalAcceptedAt: '2026-10-31T00:00:00.000Z' }).legalAcceptedVersion, '2026-10-31');
 
   fs.writeFileSync(store.settingsPath, JSON.stringify({ jobConcurrency: 'many', notifyOnFailure: false }), 'utf8');
   const reloaded = new Store({ getPath: () => folder });
   assert.equal(reloaded.get().jobConcurrency, 2);
   assert.equal(reloaded.get().notifyOnFailure, false);
+  assert.equal(reloaded.get().legalAcceptedVersion, null);
 });
