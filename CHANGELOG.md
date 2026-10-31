@@ -2,6 +2,12 @@
 
 All notable changes to OmniForge are documented here.
 
+## 1.5.2 - 2026-10-31
+
+### Fixed
+
+- Restored live job updates in the queue. Progress, speed, completion, and failure messages now reach the renderer instead of being discarded by the main process.
+
 ## 1.5.1 - 2026-10-30
 
 ### Fixed

@@ -113,6 +113,37 @@ test('resuming a paused job validates prerequisites and runs it', async (t) => {
   assert.equal(manager.get('resume-me').status, 'succeeded');
 });
 
+test('job updates reach the live progress handler', async (t) => {
+  const { store, outputDir } = makeStore(t);
+  const updates = [];
+  let release;
+  const manager = new JobManager({
+    store,
+    tools: {},
+    emit: (job) => updates.push(job),
+    execute: async (_spec, ctx) => {
+      ctx.report({ progress: 42, message: 'Downloading...', speed: { value: 1024, unit: 'B/s' } });
+      await new Promise((resolve) => { release = resolve; });
+      return { outputPaths: [] };
+    }
+  });
+
+  const job = manager.start({
+    tool: 'info',
+    inputPaths: [path.join(outputDir, 'source.txt')],
+    label: 'live-progress'
+  });
+  await waitFor(() => updates.some((update) => update.progress === 42));
+  const running = updates.find((update) => update.progress === 42);
+  assert.equal(running.id, job.id);
+  assert.equal(running.message, 'Downloading...');
+  assert.deepEqual(running.speed, { value: 1024, unit: 'B/s' });
+
+  release();
+  await waitForIdle(manager);
+  assert.ok(updates.some((update) => update.status === 'succeeded' && update.progress === 100));
+});
+
 test('failed history jobs retry with a new id and require fresh encryptor credentials', async (t) => {
   const { store, outputDir } = makeStore(t);
   const historyJob = {

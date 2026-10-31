@@ -225,7 +225,7 @@ class JobManager {
   }
 
   emitJob(job) {
-    try { this.emit('job:update', snapshot(job)); } catch { /* window may be closing */ }
+    try { this.emit(snapshot(job)); } catch { /* window may be closing */ }
   }
 
   update(job, update = {}) {
