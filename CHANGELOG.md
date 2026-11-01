@@ -2,6 +2,19 @@
 
 All notable changes to OmniForge are documented here.
 
+## 1.6.4 - 2026-11-01
+
+### Added
+
+- Added privacy-safe diagnostics with copyable support reports and local log access.
+- Added development and packaged startup smoke tests.
+
+### Fixed
+
+- Jobs now fail when reported outputs are missing or empty instead of incorrectly succeeding.
+- OmniForge recovers from one renderer crash and reports a clear error if recovery fails.
+- Existing installs now acknowledge the legal notice once per app version.
+
 ## 1.6.3 - 2026-10-31
 
 ### Added

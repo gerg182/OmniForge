@@ -13,6 +13,7 @@ const {
   appendProgressSample,
   estimateEtaMs
 } = require('./job-metrics');
+const { validateOutputPaths } = require('./output-validation');
 
 const SUPPORTED_TOOLS = new Set(Object.keys(TOOL_LABELS));
 const FINISHED_STATUSES = new Set(['succeeded', 'failed', 'cancelled']);
@@ -406,7 +407,7 @@ class JobManager {
 
     try {
       const result = await this.execute(job.spec, ctx, { tools: this.tools, store: this.store });
-      job.outputPaths = Array.isArray(result?.outputPaths) ? result.outputPaths : [];
+      job.outputPaths = validateOutputPaths(result?.outputPaths);
       if (result?.data) job.data = result.data;
       job.status = 'succeeded';
       job.progress = 100;

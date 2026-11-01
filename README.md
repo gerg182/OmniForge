@@ -39,11 +39,11 @@ Everything runs on your PC. FFmpeg, FFprobe, yt-dlp, Deno, 7-Zip, and whisper.cp
 
 ## Installation
 
-Download the newest `OmniForge-Setup-1.6.3.exe` from [GitHub Releases](https://github.com/gerg182/OmniForge/releases/latest), then verify it before running:
+Download the newest `OmniForge-Setup-1.6.4.exe` from [GitHub Releases](https://github.com/gerg182/OmniForge/releases/latest), then verify it before running:
 
 ```powershell
-Get-FileHash .\OmniForge-Setup-1.6.3.exe -Algorithm SHA256
-Get-Content .\OmniForge-Setup-1.6.3.exe.sha256
+Get-FileHash .\OmniForge-Setup-1.6.4.exe -Algorithm SHA256
+Get-Content .\OmniForge-Setup-1.6.4.exe.sha256
 ```
 
 The hashes must match. The current installer is unsigned, so Windows SmartScreen may warn. Only continue when the installer came from this repository and its SHA-256 matches. OmniForge requires Windows 10/11 x64 and installs per user; administrator access is not required.
@@ -64,13 +64,19 @@ Run the test suite:
 npm test
 ```
 
+Run the hidden startup smoke test:
+
+```powershell
+npm run smoke
+```
+
 Build the Windows installer:
 
 ```powershell
 npm run dist
 ```
 
-The installer and its `OmniForge-Setup-1.6.3.exe.sha256` sidecar are written to `dist/`. Release builds are produced by the tag-driven GitHub Actions workflow after the version is synchronized in `package.json`, `package-lock.json`, this README, and `CHANGELOG.md`.
+The installer and its `OmniForge-Setup-1.6.4.exe.sha256` sidecar are written to `dist/`. After `npm run dist`, `npm run smoke:packaged` verifies the unpacked app starts correctly. Release builds are produced and published by the tag-driven GitHub Actions workflow after the version is synchronized in `package.json`, `package-lock.json`, this README, and `CHANGELOG.md`.
 
 ## Transcript Clip Studio
 
@@ -115,7 +121,7 @@ OmniForge does not include telemetry or analytics. User media is processed local
 
 OmniForge is a general-purpose tool, and legality depends on what you process and how you distribute it. Use only files and media you own or have permission to use. Do not infringe copyrights, bypass DRM or access controls, remove copyright notices you do not control, record people without required consent, destroy evidence, or conceal illegal activity.
 
-On first launch, OmniForge requires you to read and accept the Legal & Acceptable Use notice before the workspace unlocks. Acceptance is stored locally and is required again when the notice version changes.
+OmniForge requires you to read and accept the Legal & Acceptable Use notice before the workspace unlocks. Acceptance is stored locally and is required again once for each app version, including the first launch after an upgrade.
 
 The YouTube downloader relies on yt-dlp and does not grant rights to YouTube content. YouTube's terms generally prohibit unauthorized downloading, and copyright law may apply even to public videos. The app does not bypass DRM, paywalls, age checks, region locks, or login restrictions.
 

@@ -47,10 +47,13 @@ jobs:
           $files = @(
             'src/main/github-updates.js',
             'src/main/index.js',
+            'src/main/diagnostics.js',
+            'src/main/output-validation.js',
             'src/main/store.js',
             'src/main/updates.js',
             'src/preload.js',
             'scripts/prepare-tools.mjs',
+            'scripts/smoke-test.mjs',
             'scripts/write-installer-hash.mjs'
           )
           foreach ($file in $files) {
@@ -65,3 +68,6 @@ jobs:
 
       - name: Run tests
         run: npm test
+
+      - name: Run startup smoke test
+        run: npm run smoke

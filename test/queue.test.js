@@ -349,14 +349,39 @@ test('store normalizes queue concurrency and failure notifications', (t) => {
   assert.equal(store.get().jobConcurrency, 2);
   assert.equal(store.get().notifyOnFailure, true);
   assert.equal(store.get().legalAcceptedVersion, null);
+  assert.equal(store.get().legalAcceptedAppVersion, null);
   assert.equal(store.save({ jobConcurrency: 3 }).jobConcurrency, 3);
   assert.equal(store.save({ jobConcurrency: 99 }).jobConcurrency, 2);
   assert.equal(store.save({ notifyOnFailure: false }).notifyOnFailure, false);
-  assert.equal(store.save({ legalAcceptedVersion: '2026-10-31', legalAcceptedAt: '2026-10-31T00:00:00.000Z' }).legalAcceptedVersion, '2026-10-31');
+  const legal = store.save({ legalAcceptedVersion: '2026-10-31', legalAcceptedAppVersion: '1.6.4', legalAcceptedAt: '2026-10-31T00:00:00.000Z' });
+  assert.equal(legal.legalAcceptedVersion, '2026-10-31');
+  assert.equal(legal.legalAcceptedAppVersion, '1.6.4');
 
   fs.writeFileSync(store.settingsPath, JSON.stringify({ jobConcurrency: 'many', notifyOnFailure: false }), 'utf8');
   const reloaded = new Store({ getPath: () => folder });
   assert.equal(reloaded.get().jobConcurrency, 2);
   assert.equal(reloaded.get().notifyOnFailure, false);
   assert.equal(reloaded.get().legalAcceptedVersion, null);
+  assert.equal(reloaded.get().legalAcceptedAppVersion, null);
+});
+
+test('jobs fail when a reported output is empty', async (t) => {
+  const { store, outputDir } = makeStore(t);
+  const emptyOutput = path.join(outputDir, 'empty-result.bin');
+  const manager = new JobManager({
+    store,
+    tools: {},
+    emit: () => {},
+    execute: async () => {
+      fs.writeFileSync(emptyOutput, '', 'utf8');
+      return { outputPaths: [emptyOutput] };
+    }
+  });
+
+  const job = manager.start({ tool: 'info', inputPaths: [path.join(outputDir, 'source.txt')], label: 'empty-output' });
+  await waitForIdle(manager);
+  const finished = manager.get(job.id);
+  assert.equal(finished.status, 'failed');
+  assert.match(finished.error, /Output file is empty and was removed/);
+  assert.equal(fs.existsSync(emptyOutput), false);
 });

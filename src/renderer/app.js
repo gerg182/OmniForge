@@ -2194,6 +2194,15 @@ function renderSettings() {
         </div>
       </div>
       <div class="panel">
+        <div class="panel-head"><div><h2>Diagnostics</h2><p>Get help without sharing file paths, URLs, or credentials.</p></div></div>
+        <div class="panel-body">
+          <div class="settings-block">
+            <div class="settings-row"><div class="settings-row-copy"><strong>Support report</strong><span>Includes app and engine versions, queue counts, and a redacted startup log. Paths, URLs, email addresses, and secrets are removed.</span></div><div class="action-buttons"><button class="secondary-button" data-action="open-diagnostics">${icon('folder')} Open logs</button><button class="secondary-button" data-action="copy-diagnostics">${icon('copy')} Copy report</button></div></div>
+          </div>
+          <div class="legal-note">${icon('shield')} Diagnostics stay on this PC unless you choose to share the copied report.</div>
+        </div>
+      </div>
+      <div class="panel">
         <div class="panel-head"><div><h2>Tool recipes</h2><p>Save frequently used option combinations and apply them from any tool or the command palette.</p></div><span class="status-pill" data-recipe-count>${savedRecipes().length}</span></div>
         <div class="panel-body">
           <div class="recipe-manager">${recipeRowsMarkup(savedRecipes())}</div>
@@ -3464,6 +3473,33 @@ async function copyText(value) {
   }
 }
 
+async function copyDiagnostics() {
+  try {
+    await api.copyDiagnostics();
+    showToast('Privacy-safe diagnostics copied to the clipboard.', 'success', 3000);
+  } catch (error) {
+    showToast(`Could not copy diagnostics: ${error.message || String(error)}`, 'error', 8000);
+  }
+}
+
+async function openDiagnostics() {
+  try {
+    const result = await api.openDiagnosticsLog();
+    if (!result?.opened) throw new Error(result?.error || 'The log folder could not be opened.');
+  } catch (error) {
+    showToast(`Could not open diagnostics: ${error.message || String(error)}`, 'error', 8000);
+  }
+}
+
+function reportRendererFailure(payload) {
+  try {
+    const request = api.reportRendererError?.(payload);
+    if (request?.catch) request.catch(() => {});
+  } catch {
+    // Diagnostics reporting must never interfere with the UI.
+  }
+}
+
 function clearResults(tool) {
   state.results = state.results.filter((result) => result.tool !== tool);
   render();
@@ -4219,6 +4255,8 @@ function handleAction(actionTarget, event) {
     case 'choose-update-folder': chooseUpdateFolder(); break;
     case 'choose-update-installer': chooseUpdateInstaller(); break;
     case 'install-update': installUpdate(actionTarget.dataset.path, actionTarget.dataset.version); break;
+    case 'copy-diagnostics': copyDiagnostics(); break;
+    case 'open-diagnostics': openDiagnostics(); break;
     case 'open-update-folder': {
       const folder = state.settings?.updateFolder;
       if (folder) openOutput(folder);
@@ -4256,7 +4294,10 @@ function handleAction(actionTarget, event) {
 }
 
 function legalConsentRequired() {
-  return String(state.settings?.legalAcceptedVersion || '') !== LEGAL_NOTICE_VERSION;
+  const appVersion = String(state.status?.appVersion || '');
+  if (!appVersion) return true;
+  return String(state.settings?.legalAcceptedVersion || '') !== LEGAL_NOTICE_VERSION
+    || String(state.settings?.legalAcceptedAppVersion || '') !== appVersion;
 }
 
 function updateLegalGate() {
@@ -4283,10 +4324,16 @@ async function acceptLegalNotice() {
   const accept = $('#legal-gate-accept');
   if (!check?.checked || !accept) return;
   const previous = state.settings;
+  const appVersion = String(state.status?.appVersion || '');
+  if (!appVersion) {
+    showToast('The OmniForge version is unavailable. Restart the app before accepting the legal notice.', 'error', 8000);
+    return;
+  }
   accept.disabled = true;
   try {
     state.settings = await api.saveSettings({
       legalAcceptedVersion: LEGAL_NOTICE_VERSION,
+      legalAcceptedAppVersion: appVersion,
       legalAcceptedAt: new Date().toISOString()
     });
     updateLegalGate();
@@ -4461,6 +4508,20 @@ function bindEvents() {
 
 async function init() {
   setStaticIcons();
+  window.addEventListener('error', (event) => {
+    const error = event.error;
+    reportRendererFailure({
+      message: error?.message || event.message || 'Renderer error',
+      stack: error?.stack || ''
+    });
+  });
+  window.addEventListener('unhandledrejection', (event) => {
+    const reason = event.reason;
+    reportRendererFailure({
+      message: reason?.message || String(reason || 'Unhandled renderer rejection'),
+      stack: reason?.stack || ''
+    });
+  });
   window.addEventListener('beforeunload', () => {
     try { state.dictation.stream?.getTracks().forEach((track) => track.stop()); } catch { /* app is closing */ }
     if (state.dictation.timer) clearInterval(state.dictation.timer);

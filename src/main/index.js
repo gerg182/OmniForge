@@ -2,7 +2,8 @@
 
 const path = require('path');
 const fs = require('fs');
-const { app, BrowserWindow, ipcMain, dialog, shell, session, Notification, net } = require('electron');
+const os = require('os');
+const { app, BrowserWindow, ipcMain, dialog, shell, session, Notification, net, clipboard } = require('electron');
 const { Store } = require('./store');
 const { ToolsManager } = require('./tools');
 const { JobManager } = require('./job-manager');
@@ -29,6 +30,7 @@ const {
   saveTranscriptFile
 } = require('./studio-project');
 const { getStudioMediaSource } = require('./studio-media');
+const { sanitizeDiagnosticText, readStartupLogTail, buildDiagnosticsReport } = require('./diagnostics');
 
 let mainWindow = null;
 let store = null;
@@ -37,13 +39,32 @@ let jobs = null;
 let updates = null;
 const activeJobSnapshots = new Map();
 const notifiedFailureIds = new Set();
+const isSmokeTest = process.argv.includes('--smoke-test');
+const smokeUserDataDir = isSmokeTest ? fs.mkdtempSync(path.join(os.tmpdir(), 'omniforge-smoke-')) : null;
+if (smokeUserDataDir) {
+  app.setPath('userData', smokeUserDataDir);
+  app.disableHardwareAcceleration();
+}
+let rendererRecoveryAttempted = false;
+
+function cleanupSmokeUserData() {
+  if (!smokeUserDataDir) return;
+  const resolved = path.resolve(smokeUserDataDir);
+  const tempRoot = `${path.resolve(os.tmpdir())}${path.sep}`;
+  if (!resolved.startsWith(tempRoot) || !path.basename(resolved).startsWith('omniforge-smoke-')) return;
+  try { fs.rmSync(resolved, { recursive: true, force: true }); } catch { /* temporary data is best effort */ }
+}
+
+function startupLogPath() {
+  return path.join(app.getPath('userData'), 'startup-errors.log');
+}
 
 function writeStartupLog(error) {
   try {
     const directory = app.getPath('userData');
     fs.mkdirSync(directory, { recursive: true });
     const detail = error?.stack || error?.message || String(error);
-    fs.appendFileSync(path.join(directory, 'startup-errors.log'), `[${new Date().toISOString()}] ${detail}\n`, 'utf8');
+    fs.appendFileSync(startupLogPath(), `[${new Date().toISOString()}] ${detail}\n`, 'utf8');
   } catch {
     // Logging must never prevent the app from starting.
   }
@@ -161,11 +182,32 @@ function createWindow() {
   });
 
   mainWindow.setMenuBarVisibility(false);
+  mainWindow.webContents.on('render-process-gone', (_event, details = {}) => {
+    const reason = String(details.reason || 'unknown');
+    if (reason === 'clean-exit') return;
+    writeStartupLog(`Renderer process exited: ${reason} (code ${details.exitCode ?? 'unknown'})`);
+    if (!rendererRecoveryAttempted && mainWindow && !mainWindow.isDestroyed()) {
+      rendererRecoveryAttempted = true;
+      writeStartupLog('Reloading the renderer after an abnormal exit.');
+      try {
+        mainWindow.webContents.reload();
+        return;
+      } catch (error) {
+        writeStartupLog(error);
+      }
+    }
+    try {
+      dialog.showErrorBox('OmniForge stopped responding', 'The app interface crashed twice and could not recover. Restart OmniForge. If this continues, open Settings and copy a diagnostics report after restarting.');
+    } catch {
+      // The app is quitting after a failed recovery.
+    }
+    app.quit();
+  });
   mainWindow.loadFile(path.join(__dirname, '..', 'renderer', 'index.html')).catch((error) => {
     reportStartupError(error);
     app.quit();
   });
-  mainWindow.once('ready-to-show', () => mainWindow.show());
+  if (!isSmokeTest) mainWindow.once('ready-to-show', () => mainWindow.show());
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https?:\/\//i.test(url)) shell.openExternal(url);
@@ -201,6 +243,36 @@ function registerIpc() {
     return saved;
   });
   ipcMain.handle('history:get', () => store.getHistory());
+  ipcMain.handle('diagnostics:copy', async () => {
+    const status = await tools.systemStatus();
+    const report = buildDiagnosticsReport({
+      appVersion: app.getVersion(),
+      platform: process.platform,
+      arch: process.arch,
+      electronVersion: process.versions.electron,
+      nodeVersion: process.versions.node,
+      tools: status.tools,
+      queueActive: jobs.list().filter((job) => ['queued', 'running', 'cancelling'].includes(job.status)).length,
+      historyCount: store.getHistory().length,
+      startupLogTail: readStartupLogTail(startupLogPath())
+    });
+    clipboard.writeText(report);
+    return { copied: true };
+  });
+  ipcMain.handle('diagnostics:open-log', async () => {
+    const logPath = startupLogPath();
+    if (fs.existsSync(logPath)) {
+      shell.showItemInFolder(logPath);
+      return { opened: true };
+    }
+    const result = await shell.openPath(app.getPath('userData'));
+    return result ? { opened: false, error: result } : { opened: true };
+  });
+  ipcMain.handle('diagnostics:renderer-error', (_event, payload = {}) => {
+    const detail = sanitizeDiagnosticText([payload?.message, payload?.stack].filter(Boolean).join('\n'), { maxLength: 8000 });
+    if (detail.trim()) writeStartupLog(`[renderer] ${detail}`);
+    return { logged: true };
+  });
 
   ipcMain.handle('files:metadata', async (_event, filePaths) => {
     const list = Array.isArray(filePaths) ? filePaths : [];
@@ -406,6 +478,76 @@ function registerIpc() {
   });
 }
 
+function finishSmokeTest(code) {
+  cleanupSmokeUserData();
+  app.exit(code);
+}
+
+function withTimeout(promise, milliseconds, message) {
+  let timer = null;
+  return Promise.race([
+    promise,
+    new Promise((_resolve, reject) => {
+      timer = setTimeout(() => reject(new Error(message)), milliseconds);
+    })
+  ]).finally(() => { if (timer) clearTimeout(timer); });
+}
+
+async function runSmokeTest(window) {
+  const expectedVersion = app.getVersion();
+  const deadline = Date.now() + 30000;
+  try {
+    console.error('SMOKE_TEST_START');
+    const loaded = new Promise((resolve) => {
+      if (!window.webContents.isLoadingMainFrame()) {
+        resolve();
+        return;
+      }
+      window.webContents.once('did-finish-load', resolve);
+    });
+    await withTimeout(loaded, 15000, 'Renderer did not finish loading.');
+
+    let ready = false;
+    while (Date.now() < deadline) {
+      ready = await withTimeout(window.webContents.executeJavaScript(`(() => {
+        const gate = document.querySelector('#legal-gate');
+        return Boolean(window.omniforge && document.querySelector('[data-view="home"]') && gate && !gate.hidden && getComputedStyle(gate).display !== 'none' && document.body.classList.contains('legal-locked') && document.querySelector('#legal-gate-check'));
+      })()`, true), 5000, 'Renderer did not answer the startup probe.').catch(() => false);
+      if (ready) break;
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }
+    if (!ready) throw new Error('Renderer did not reach the expected startup and legal-gate state.');
+
+    const result = await withTimeout(window.webContents.executeJavaScript(`(async () => {
+      const status = await window.omniforge.getSystemStatus();
+      const gate = document.querySelector('#legal-gate');
+      return {
+        bridge: Boolean(window.omniforge),
+        homeNavigation: Boolean(document.querySelector('[data-view="home"]')),
+        legalGateVisible: Boolean(gate && !gate.hidden && getComputedStyle(gate).display !== 'none'),
+        legalGateCheckbox: Boolean(document.querySelector('#legal-gate-check')),
+        bodyLocked: document.body.classList.contains('legal-locked'),
+        appVersion: String(status?.appVersion || '')
+      };
+    })()`, true), 20000, 'Renderer did not return system status.');
+
+    const failures = [];
+    if (!result.bridge) failures.push('preload bridge is missing');
+    if (!result.homeNavigation) failures.push('home navigation did not render');
+    if (!result.legalGateVisible) failures.push('legal gate is not visible');
+    if (!result.legalGateCheckbox) failures.push('legal gate checkbox is missing');
+    if (!result.bodyLocked) failures.push('workspace is not locked before legal acceptance');
+    if (result.appVersion !== expectedVersion) failures.push(`status version ${result.appVersion || 'missing'} does not match ${expectedVersion}`);
+    if (failures.length) throw new Error(failures.join('; '));
+
+    console.log(`SMOKE_TEST_PASS appVersion=${result.appVersion}`);
+    finishSmokeTest(0);
+  } catch (error) {
+    console.error(`SMOKE_TEST_FAIL ${sanitizeDiagnosticText(error?.stack || error?.message || String(error), { maxLength: 4000 })}`);
+    finishSmokeTest(1);
+  }
+}
+
 app.whenReady().then(() => {
   app.setAppUserModelId('com.omniforge.desktop');
   store = new Store(app);
@@ -419,9 +561,13 @@ app.whenReady().then(() => {
   registerIpc();
   registerMediaPermissions();
   createWindow();
-  updates.cleanupInstalledInstallers().catch(() => {
-    // Cleanup is best effort; locked files can be retried on the next launch.
-  });
+  if (isSmokeTest) {
+    runSmokeTest(mainWindow);
+  } else {
+    updates.cleanupInstalledInstallers().catch(() => {
+      // Cleanup is best effort; locked files can be retried on the next launch.
+    });
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -432,3 +578,4 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => app.quit());
+app.on('will-quit', cleanupSmokeUserData);

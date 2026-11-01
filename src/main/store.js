@@ -37,6 +37,7 @@ class Store {
       jobConcurrency: 2,
       notifyOnFailure: true,
       legalAcceptedVersion: null,
+      legalAcceptedAppVersion: null,
       legalAcceptedAt: null,
       recipes: []
     };
@@ -49,6 +50,7 @@ class Store {
       merged.jobConcurrency = normalizeJobConcurrency(merged.jobConcurrency);
       merged.notifyOnFailure = merged.notifyOnFailure !== false;
       merged.legalAcceptedVersion = typeof stored.legalAcceptedVersion === 'string' ? stored.legalAcceptedVersion.slice(0, 80) : null;
+      merged.legalAcceptedAppVersion = typeof stored.legalAcceptedAppVersion === 'string' ? stored.legalAcceptedAppVersion.slice(0, 80) : null;
       merged.legalAcceptedAt = typeof stored.legalAcceptedAt === 'string' ? stored.legalAcceptedAt.slice(0, 80) : null;
       merged.recipes = sanitizeRecipes(stored.recipes);
       return merged;
@@ -134,7 +136,7 @@ class Store {
   }
 
   save(patch = {}) {
-    const allowed = ['outputDir', 'lastOutputDir', 'updateFolder', 'theme', 'legalAcceptedVersion', 'legalAcceptedAt'];
+    const allowed = ['outputDir', 'lastOutputDir', 'updateFolder', 'theme', 'legalAcceptedVersion', 'legalAcceptedAppVersion', 'legalAcceptedAt'];
     for (const key of allowed) {
       if (Object.prototype.hasOwnProperty.call(patch, key)) {
         this.settings[key] = typeof patch[key] === 'string' ? patch[key].slice(0, 80) : null;

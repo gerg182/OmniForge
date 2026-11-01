@@ -6,7 +6,7 @@ OmniForge is a general-purpose, local-first file and media utility. This notice 
 
 You are responsible for every file, URL, recording, password, document, and archive you process with OmniForge. Use the app only with content you own, created, or have clear permission to use. Do not use OmniForge to infringe copyrights, violate privacy or consent laws, bypass access controls, conceal illegal activity, or destroy evidence.
 
-OmniForge requires you to read and accept this notice on first launch before the workspace unlocks. Acceptance is stored locally. If the notice changes, the app requires a new acceptance before it can be used.
+OmniForge requires you to read and accept this notice before the workspace unlocks. Acceptance is stored locally and is required once for each app version, including after an upgrade. If this notice changes, a future app version will require a new acceptance before it can be used.
 
 ## YouTube and yt-dlp
 

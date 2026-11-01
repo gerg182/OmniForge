@@ -22,7 +22,7 @@ Build the installer with `npm run dist`. The output is written to `dist/` and mu
 - Keep changes focused and consistent with the existing CommonJS main-process and browser renderer code.
 - Use 2-space indentation, semicolons, single quotes, and `async`/`await`.
 - Add or update `test/*.test.js` tests for behavior changes.
-- Run `npm test` and `node --check` on changed JavaScript before committing.
+- Run `npm test`, `npm run smoke`, and `node --check` on changed JavaScript before committing when applicable.
 - Update user-facing documentation and the changelog for meaningful changes.
 - Do not commit `node_modules/`, `dist/`, downloaded tool binaries, credentials, or personal paths.
 
@@ -36,4 +36,4 @@ Include a summary, the tests you ran, the version impact, and screenshots for UI
 
 ## Releases
 
-Release tags use `vX.Y.Z`. The release workflow verifies that the tag matches `package.json`, builds the NSIS installer, checks the embedded version and SHA-256 sidecar, and creates a draft GitHub Release. The repository owner reviews the draft before publishing it.
+Release tags use `vX.Y.Z`. The release workflow verifies that the tag matches `package.json`, runs tests and both smoke tests, builds the NSIS installer, checks the embedded version and SHA-256 sidecar, and publishes the latest GitHub Release automatically.

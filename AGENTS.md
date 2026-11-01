@@ -9,13 +9,15 @@ OmniForge is a local-first Electron desktop app for media conversion, YouTube do
 - `test/` - Node test files plus `fixtures/jfk.wav`.
 - `scripts/prepare-tools.mjs` - prepares bundled FFmpeg, yt-dlp, Deno, 7-Zip, whisper.cpp, and the speech model.
 - `scripts/tools-lock.json` - pinned third-party versions, URLs, and SHA-256 checksums.
-- `.github/workflows/` - Windows CI and tag-driven draft release automation.
+- `.github/workflows/` - Windows CI and tag-driven release automation.
 - `tools/` - bundled binaries/models (mostly ignored); `assets/` and `build/` hold icon resources.
 
 ## Build, Test, and Development Commands
 - `npm ci` - install the lockfile-exact dependencies.
 - `npm start` or `npm run dev` - run the Electron app locally.
 - `npm test` - run the complete Node test suite.
+- `npm run smoke` - run the hidden Electron startup smoke test against source.
+- `npm run smoke:packaged` - launch `dist/win-unpacked/OmniForge.exe` and verify packaged startup.
 - `npm run prepare:tools` - refresh bundled tools; add `-- --force` to re-download them.
 - `npm run pack` - create an unpacked app in `dist/`.
 - `npm run dist` - build the Windows NSIS installer in `dist/`.
@@ -43,7 +45,7 @@ Requires Windows x64 and Node.js 20 or newer.
 - Use descriptive `test(...)` names.
 - Integration tests call bundled FFmpeg, 7-Zip, PDF, and whisper.cpp; run `npm run prepare:tools` first.
 - Run `npm test` before every commit. No coverage threshold is enforced.
-- GitHub Actions runs `npm ci`, restores the pinned tool cache, prepares the tools, syntax-checks changed entry points, and runs `npm test`.
+- GitHub Actions runs `npm ci`, restores the pinned tool cache, prepares the tools, syntax-checks changed entry points, runs `npm test`, and runs the source smoke test.
 
 ## Commit & Pull Request Guidelines
 - Write concise, imperative commit subjects such as `Add drag-and-drop installer updates`.
@@ -59,7 +61,7 @@ Requires Windows x64 and Node.js 20 or newer.
 - The local update folder and selected-installer flow are offline fallbacks. Keep their validation behavior compatible with GitHub-driven updates.
 - Pushing a `vX.Y.Z` tag triggers `.github/workflows/release.yml`. The tag must equal `v` plus the synchronized `package.json` version.
 - The release workflow can also be started manually from the Actions tab for an existing tag; use this when a tag was pushed before Actions was enabled.
-- The release workflow runs tests, builds the installer, verifies the embedded file/product versions and sidecar hash, and creates a draft GitHub Release. The repository owner must review and publish that draft.
+- The release workflow runs tests, builds the installer, runs the packaged smoke test, verifies the embedded file/product versions and sidecar hash, and publishes the latest GitHub Release automatically.
 - Always build release installers with `electron-builder --publish never`; the release workflow's `softprops/action-gh-release` step is the only publisher. Never configure electron-builder for implicit tag publishing.
 - GitHub-driven updates from the installed app only work after the repository is public and the release is published. Repository visibility is changed manually in GitHub settings.
 - Optional code signing is supplied through the `CSC_LINK` and `CSC_KEY_PASSWORD` Actions secrets. Never commit certificates or signing passwords.
@@ -70,3 +72,5 @@ Requires Windows x64 and Node.js 20 or newer.
 - Resolve bundled executables through `ToolsManager.paths()`; never hard-code absolute tool paths.
 - Speech and dictation run locally through whisper.cpp; microphone access is limited to the main window.
 - In-app installs work only in packaged builds; installers must be named `OmniForge-Setup-x.y.z.exe`.
+- The legal gate requires acceptance for the current notice version and app version; keep `legalAcceptedAppVersion` synchronized with the rendered `state.status.appVersion`.
+- Output-producing jobs pass reported paths through `src/main/output-validation.js`; missing or zero-byte files must fail the job rather than report success.

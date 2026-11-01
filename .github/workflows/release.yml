@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Existing release tag to build, such as v1.6.3
+        description: Existing release tag to build, such as v1.6.4
         required: true
-        default: v1.6.3
+        default: v1.6.4
         type: string
 
 permissions:
@@ -93,6 +93,9 @@ jobs:
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
         run: npm run dist
 
+      - name: Run packaged smoke test
+        run: npm run smoke:packaged
+
       - name: Verify installer metadata and hash
         shell: pwsh
         run: |
@@ -133,13 +136,14 @@ jobs:
             Write-Warning 'No NSIS blockmap was produced; the custom updater does not require one.'
           }
 
-      - name: Create draft GitHub Release
+      - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
           name: OmniForge ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
-          draft: true
+          draft: false
           prerelease: false
+          make_latest: true
           generate_release_notes: true
           fail_on_unmatched_files: false
           files: |
