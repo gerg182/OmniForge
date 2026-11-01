@@ -2,6 +2,18 @@
 
 All notable changes to OmniForge are documented here.
 
+## 1.7.0 - 2026-11-01
+
+### Added
+
+- Added creator presets for long-form, Shorts, square, portrait, and multi-format exports.
+- Added a simultaneous orientation preview board, 60-second Shorts duration guidance, and preview-only safe-zone guides.
+- Studio projects now remember the selected creator preset and safe-zone preference.
+
+### Changed
+
+- Manual ratio or framing changes switch the project to the Custom preset.
+
 ## 1.6.4 - 2026-11-01
 
 ### Added

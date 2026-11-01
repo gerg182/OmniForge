@@ -29,7 +29,8 @@ Everything runs on your PC. FFmpeg, FFprobe, yt-dlp, Deno, 7-Zip, and whisper.cp
 - FFprobe media inspection
 - Audio and video to text with local whisper.cpp transcription (TXT or timestamped SRT)
 - Transcript Clip Studio: transcribe or import SRT/VTT, select individual lines or all subtitles at once, and render multiple captioned clips in a three-pane preview, transcript, and clip workspace
-- Studio creator presets for 16:9, 9:16 Shorts, 1:1 square, and 4:5 portrait output, with Fill, Fit, and Blur framing and multi-ratio export
+- Studio creator presets for long-form, Shorts, square, portrait, and multi-format output, with simultaneous orientation previews, 60-second Shorts guidance, and preview-only safe-zone guides
+- Multi-ratio Studio exports with Fill, Fit, and Blur framing
 - Editable `.ofstudio` projects with explicit save/open, automatic recovery drafts, and clip-relative caption files
 - Saved tool recipes for reusable option presets, plus a `Ctrl+K` command palette for tools, recipes, and actions
 - Smart drag-and-drop anywhere in the window with file-type detection and a confirm-first compatible-tool chooser
@@ -39,11 +40,11 @@ Everything runs on your PC. FFmpeg, FFprobe, yt-dlp, Deno, 7-Zip, and whisper.cp
 
 ## Installation
 
-Download the newest `OmniForge-Setup-1.6.4.exe` from [GitHub Releases](https://github.com/gerg182/OmniForge/releases/latest), then verify it before running:
+Download the newest `OmniForge-Setup-1.7.0.exe` from [GitHub Releases](https://github.com/gerg182/OmniForge/releases/latest), then verify it before running:
 
 ```powershell
-Get-FileHash .\OmniForge-Setup-1.6.4.exe -Algorithm SHA256
-Get-Content .\OmniForge-Setup-1.6.4.exe.sha256
+Get-FileHash .\OmniForge-Setup-1.7.0.exe -Algorithm SHA256
+Get-Content .\OmniForge-Setup-1.7.0.exe.sha256
 ```
 
 The hashes must match. The current installer is unsigned, so Windows SmartScreen may warn. Only continue when the installer came from this repository and its SHA-256 matches. OmniForge requires Windows 10/11 x64 and installs per user; administrator access is not required.
@@ -76,16 +77,16 @@ Build the Windows installer:
 npm run dist
 ```
 
-The installer and its `OmniForge-Setup-1.6.4.exe.sha256` sidecar are written to `dist/`. After `npm run dist`, `npm run smoke:packaged` verifies the unpacked app starts correctly. Release builds are produced and published by the tag-driven GitHub Actions workflow after the version is synchronized in `package.json`, `package-lock.json`, this README, and `CHANGELOG.md`.
+The installer and its `OmniForge-Setup-1.7.0.exe.sha256` sidecar are written to `dist/`. After `npm run dist`, `npm run smoke:packaged` verifies the unpacked app starts correctly. Release builds are produced and published by the tag-driven GitHub Actions workflow after the version is synchronized in `package.json`, `package-lock.json`, this README, and `CHANGELOG.md`.
 
 ## Transcript Clip Studio
 
 1. Open **Transcript Clip Studio**, then choose one audio or video file and an output folder.
 2. Transcribe locally with whisper.cpp or import an existing SRT/VTT transcript.
 3. Edit transcript text if needed, click a line, then Shift-click another line to select a contiguous range, or use **Select all** to choose every subtitle. Add as many clips as you need and arrange them in the clip list.
-4. Choose the clip format, creator aspect ratios, Fill/Fit/Blur framing, caption sidecars, and optional burned-in caption style, then render the ordered clip queue.
+4. Choose a creator preset, clip format, aspect ratios, Fill/Fit/Blur framing, safe-zone guides, caption sidecars, and optional burned-in caption style, then render the ordered clip queue.
 
-Video clips support MP4, MKV, WebM, and MOV with optional burned captions. The preview can switch between the source ratio, 16:9 landscape, 9:16 Shorts, 1:1 square, and 4:5 portrait; selected ratios render as separate files with matching suffixes. Fill crops to the frame, Fit preserves the whole image with letterboxing, and Blur adds a synchronized blurred backdrop. Audio clips support MP3, WAV, FLAC, M4A, OGG, and Opus; audio always uses SRT/VTT sidecars. Sidecar timing is relative to each clip. Caption style controls font size, text color, outline, and top/center/bottom placement. All Studio processing stays local.
+Video clips support MP4, MKV, WebM, and MOV with optional burned captions. Long-form, Shorts, square, portrait, and multi-format presets set the ratios and framing together. The creator board previews every selected orientation side by side, while Shorts projects mark clips that exceed the 60-second target. The preview can also switch independently between the source ratio, 16:9 landscape, 9:16 Shorts, 1:1 square, and 4:5 portrait. Selected ratios render as separate files with matching suffixes. Fill crops to the frame, Fit preserves the whole image with letterboxing, and Blur adds a synchronized blurred backdrop. Safe-zone guides are preview-only and never burned into exports. Audio clips support MP3, WAV, FLAC, M4A, OGG, and Opus; audio always uses SRT/VTT sidecars. Sidecar timing is relative to each clip. Caption style controls font size, text color, outline, and top/center/bottom placement. All Studio processing stays local.
 
 Projects are saved as `.ofstudio` files containing the media reference, editable transcript, clips, caption style, and output settings. Unsaved changes are periodically copied to a recovery draft and offered for restore after a restart. Project media can be relinked if it moves. Audio-only projects identify a same-name video in the same folder and can switch to it without rebuilding the transcript.
 

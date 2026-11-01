@@ -17,6 +17,7 @@ const {
 } = require('./constants');
 const { RECIPE_TOOLS } = require('./recipes');
 const { STUDIO_RATIOS, STUDIO_FRAMING_MODES } = require('./studio-framing');
+const { STUDIO_CREATOR_PRESETS } = require('./creator-presets');
 const { isSupportedYouTubeUrl } = require('./youtube');
 const {
   PROJECT_EXTENSION,
@@ -232,7 +233,8 @@ function registerIpc() {
       toolLabels: TOOL_LABELS,
       recipeTools: RECIPE_TOOLS,
       studioRatios: STUDIO_RATIOS,
-      studioFramingModes: STUDIO_FRAMING_MODES
+      studioFramingModes: STUDIO_FRAMING_MODES,
+      creatorPresets: STUDIO_CREATOR_PRESETS
     };
   });
 

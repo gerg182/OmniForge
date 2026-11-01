@@ -101,7 +101,15 @@ test('Studio project normalization validates and clamps saved state', () => {
     clips: [{ id: 'clip', label: 'Opening', startMs: 1000, endMs: 9000 }],
     clipPaddingMs: 9999,
     captionStyle: { fontSize: 99, color: '#12abef', outline: 9, position: 'center' },
-    output: { directory: 'C:\\out', videoFormat: 'mkv', audioFormat: 'flac', burnCaptions: false, exportCaptions: 'both' }
+    output: {
+      directory: 'C:\\out',
+      videoFormat: 'mkv',
+      audioFormat: 'flac',
+      burnCaptions: false,
+      exportCaptions: 'both',
+      creatorPreset: 'SHORTS',
+      safeZones: true
+    }
   });
   assert.equal(project.version, PROJECT_VERSION);
   assert.equal(project.language, 'en');
@@ -114,6 +122,8 @@ test('Studio project normalization validates and clamps saved state', () => {
   assert.equal(project.output.burnCaptions, false);
   assert.deepEqual(project.output.ratios, ['original']);
   assert.equal(project.output.framing, 'fill');
+  assert.equal(project.output.creatorPreset, 'shorts');
+  assert.equal(project.output.safeZones, true);
   assert.throws(() => normalizeProject({ version: 99, mediaPath: 'a.mp4' }), /Unsupported/);
   assert.throws(() => normalizeProject({ version: 1, mediaPath: 'a.png' }), /audio or video/);
   assert.throws(() => normalizeProject({

@@ -106,6 +106,69 @@ const STUDIO_FRAMING_MODES = [
   { id: 'blur', label: 'Blur', description: 'Fill the frame with a blurred backdrop.' }
 ];
 
+const STUDIO_CREATOR_PRESETS = [
+  {
+    id: 'longform',
+    label: 'Long-form',
+    shortLabel: '16:9',
+    description: 'Widescreen edits for YouTube, courses, and the web.',
+    ratios: ['landscape'],
+    framing: 'fill',
+    safeZones: false,
+    durationTargetSeconds: null
+  },
+  {
+    id: 'shorts',
+    label: 'Shorts',
+    shortLabel: '9:16',
+    description: 'Vertical short-form clips with a 60-second target.',
+    ratios: ['portrait'],
+    framing: 'blur',
+    safeZones: true,
+    durationTargetSeconds: 60
+  },
+  {
+    id: 'square',
+    label: 'Square',
+    shortLabel: '1:1',
+    description: 'Feed-friendly square exports for social posts.',
+    ratios: ['square'],
+    framing: 'blur',
+    safeZones: false,
+    durationTargetSeconds: null
+  },
+  {
+    id: 'portrait',
+    label: 'Portrait',
+    shortLabel: '4:5',
+    description: 'Tall feed posts that use more vertical screen space.',
+    ratios: ['portrait45'],
+    framing: 'fill',
+    safeZones: true,
+    durationTargetSeconds: null
+  },
+  {
+    id: 'multiformat',
+    label: 'Multi-format',
+    shortLabel: '3 aspects',
+    description: 'One edit, with landscape, vertical, and square renders.',
+    ratios: ['landscape', 'portrait', 'square'],
+    framing: 'blur',
+    safeZones: true,
+    durationTargetSeconds: null
+  },
+  {
+    id: 'custom',
+    label: 'Custom',
+    shortLabel: 'Your mix',
+    description: 'Keep your own aspect ratio and framing combination.',
+    ratios: [],
+    framing: null,
+    safeZones: false,
+    durationTargetSeconds: null
+  }
+];
+
 const ALLOWED_CATEGORIES = {
   convert: ['video', 'audio', 'image', 'data'],
   compress: ['video', 'audio', 'image'],
@@ -1231,7 +1294,9 @@ function defaultStudioProject(mediaPath = '') {
       burnCaptions: true,
       exportCaptions: 'srt',
       ratios: ['original'],
-      framing: 'fill'
+      framing: 'fill',
+      creatorPreset: 'custom',
+      safeZones: false
     }
   };
 }
@@ -1250,6 +1315,76 @@ function studioFramingDefinitions() {
   return Array.isArray(state.status?.studioFramingModes) && state.status.studioFramingModes.length
     ? state.status.studioFramingModes.map((id) => STUDIO_FRAMING_MODES.find((mode) => mode.id === id) || { id, label: id, description: '' })
     : STUDIO_FRAMING_MODES;
+}
+
+function studioCreatorPresetDefinitions() {
+  return Array.isArray(state.status?.creatorPresets) && state.status.creatorPresets.length
+    ? state.status.creatorPresets
+    : STUDIO_CREATOR_PRESETS;
+}
+
+function studioCreatorPresetDefinition(id) {
+  const normalized = String(id || 'custom').trim().toLowerCase();
+  const presets = studioCreatorPresetDefinitions();
+  return presets.find((preset) => preset.id === normalized)
+    || presets.find((preset) => preset.id === 'custom')
+    || STUDIO_CREATOR_PRESETS[STUDIO_CREATOR_PRESETS.length - 1];
+}
+
+function studioCreatorTargetLabel(preset) {
+  const seconds = Number(preset?.durationTargetSeconds);
+  return Number.isFinite(seconds) && seconds > 0 ? `${formatStudioTime(seconds * 1000)} target` : '';
+}
+
+function studioClipPresetWarning(clip, preset) {
+  const targetMs = Math.round(Number(preset?.durationTargetSeconds) * 1000);
+  if (!Number.isFinite(targetMs) || targetMs <= 0) return null;
+  const startMs = Number(clip?.startMs);
+  const endMs = Number(clip?.endMs);
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs) || endMs <= startMs) return null;
+  const durationMs = Math.round(endMs - startMs);
+  if (durationMs <= targetMs) return null;
+  return {
+    durationMs,
+    targetMs,
+    excessMs: durationMs - targetMs,
+    message: `${formatStudioTime(durationMs)} clip; ${formatStudioTime(targetMs)} target.`
+  };
+}
+
+function studioClipWarningBadge(clip, preset) {
+  const warning = studioClipPresetWarning(clip, preset);
+  if (!warning) return '';
+  return `<span class="studio-clip-warning" title="${escapeHtml(warning.message)}">${icon('alert')} ${escapeHtml(formatStudioTime(warning.durationMs))}</span>`;
+}
+
+function studioCreatorThumbStyle(ratio) {
+  const width = Number(ratio?.width) || 16;
+  const height = Number(ratio?.height) || 9;
+  const scale = 30 / Math.max(width, height);
+  return `width:${Math.max(8, Math.round(width * scale))}px;height:${Math.max(8, Math.round(height * scale))}px`;
+}
+
+function studioCreatorBoard(project) {
+  const selectedIds = Array.isArray(project.output.ratios) && project.output.ratios.length ? project.output.ratios : ['original'];
+  const ratios = selectedIds.map(studioRatioDefinition);
+  const preset = studioCreatorPresetDefinition(project.output.creatorPreset);
+  const framing = studioFramingDefinitions().find((mode) => mode.id === project.output.framing) || studioFramingDefinitions()[0];
+  const target = studioCreatorTargetLabel(preset);
+  const cards = ratios.map((ratio) => {
+    const active = state.studio.previewRatio === ratio.id;
+    const size = ratio.width ? `${ratio.width}x${ratio.height}` : 'Source size';
+    const safe = Boolean(project.output.safeZones) && Number(ratio.height) > Number(ratio.width);
+    return `<button class="studio-creator-card${active ? ' active' : ''}" data-action="studio-preview-ratio" data-ratio="${escapeHtml(ratio.id)}" aria-pressed="${active}" title="Preview ${escapeHtml(ratio.label)}">
+      <span class="studio-creator-thumb"><i style="${studioCreatorThumbStyle(ratio)}"></i></span>
+      <span class="studio-creator-card-copy"><strong>${escapeHtml(ratio.shortLabel || ratio.label)}</strong><small>${escapeHtml(size)} - ${escapeHtml(framing?.label || project.output.framing)}</small></span>
+      <span class="studio-creator-card-state">${active ? 'Previewing' : 'Preview'}${safe ? ' - safe zones' : ''}</span>
+    </button>`;
+  }).join('');
+  return `<div class="studio-creator-board">
+    <div class="studio-creator-board-head"><span>Creator board</span><small data-studio-creator-current>${escapeHtml(preset.label)}${target ? ` - ${escapeHtml(target)}` : ''}</small></div>
+    <div class="studio-creator-cards">${cards}</div>
+  </div>`;
 }
 
 function studioMediaCategory() {
@@ -1352,9 +1487,14 @@ function renderStudioMediaPanel(project, file, category) {
   const missing = Boolean(state.studio.mediaError);
   const matchVideo = category === 'audio' ? state.studio.matchVideo : null;
   const mediaUrl = state.studio.mediaUrl;
+  if (category === 'video') {
+    const availableRatios = Array.isArray(project?.output?.ratios) && project.output.ratios.length ? project.output.ratios : ['original'];
+    if (!availableRatios.includes(state.studio.previewRatio)) state.studio.previewRatio = availableRatios[0];
+  }
   const previewRatio = studioRatioDefinition(state.studio.previewRatio);
   const framing = project?.output?.framing || 'fill';
   const frameStyle = previewRatio.width ? `aspect-ratio:${previewRatio.width} / ${previewRatio.height};` : '';
+  const safeZonePreview = category === 'video' && Boolean(project?.output?.safeZones) && Number(previewRatio.height) > Number(previewRatio.width);
   const mediaElement = file && mediaUrl
     ? category === 'audio'
       ? `<audio id="studio-media" class="studio-audio" src="${escapeHtml(mediaUrl)}" controls preload="metadata"></audio>`
@@ -1368,6 +1508,7 @@ function renderStudioMediaPanel(project, file, category) {
       <div class="studio-ratio-chips">${studioRatioDefinitions().map((ratio) => `<button class="${state.studio.previewRatio === ratio.id ? 'active' : ''}" data-action="studio-preview-ratio" data-ratio="${escapeHtml(ratio.id)}">${escapeHtml(ratio.shortLabel || ratio.label)}</button>`).join('')}</div>
       <span class="studio-framing-current">${escapeHtml(studioFramingDefinitions().find((mode) => mode.id === framing)?.label || framing)}</span>
     </div>` : '';
+  const creatorBoard = category === 'video' ? studioCreatorBoard(project) : '';
   return `<section class="studio-preview-panel">
     <div class="studio-panel-heading">
       <div><span class="studio-kicker">Preview</span><h2>${file ? escapeHtml(file.name) : 'Project media'}</h2></div>
@@ -1379,10 +1520,12 @@ function renderStudioMediaPanel(project, file, category) {
     ${!missing && category === 'audio' ? `<div class="studio-source-note">${icon(matchVideo ? 'film' : 'music')}<div><strong>Audio-only source</strong><span>${matchVideo ? `A matching video is available as ${escapeHtml(matchVideo.name)}. Switching keeps this transcript and clip queue.` : 'Preview and exports contain audio plus caption sidecars. Start from a video file to render video clips.'}</span></div>${matchVideo ? `<button class="secondary-button" data-action="studio-use-match-video">Use video</button>` : ''}</div>` : ''}
     ${missing ? `<div class="studio-media-warning">${icon('alert')}<div><strong>Project media is missing</strong><span>Relink the original file before previewing or rendering.</span></div><button class="secondary-button" data-action="studio-relink-media">Relink media</button></div>` : ''}
     ${ratioChips}
+    ${creatorBoard}
     <div class="studio-media-stage ${category}">
-      <div class="studio-media-frame framing-${escapeHtml(framing)}" data-studio-frame style="${frameStyle}">
+      <div class="studio-media-frame framing-${escapeHtml(framing)}${safeZonePreview ? ' safe-zones' : ''}" data-studio-frame style="${frameStyle}">
         ${backdrop}
         ${mediaElement || `<div class="studio-media-placeholder">${icon(category === 'audio' ? 'music' : 'film')}<span>Media preview unavailable</span></div>`}
+        ${category === 'video' ? '<div class="studio-safe-zones" aria-hidden="true"><span>Safe zone</span></div>' : ''}
         <div id="studio-caption-overlay" class="studio-caption-overlay ${escapeHtml(project?.captionStyle?.position || 'bottom')}" style="${studioCaptionOverlayStyle(project)}"></div>
       </div>
     </div>
@@ -1460,14 +1603,9 @@ function renderStudioSettingsPanel(project, category) {
   const selectedFormat = video ? project.output.videoFormat : project.output.audioFormat;
   const selectedRatios = video && Array.isArray(project.output.ratios) && project.output.ratios.length ? project.output.ratios : ['original'];
   const framing = project.output.framing || 'fill';
-  const presets = [
-    { id: 'source', label: 'Source', ratios: ['original'] },
-    { id: 'longform', label: 'Long-form', ratios: ['landscape'] },
-    { id: 'shorts', label: 'Shorts', ratios: ['portrait'] },
-    { id: 'square', label: 'Square', ratios: ['square'] },
-    { id: 'social', label: 'Social pack', ratios: ['landscape', 'portrait', 'square'] }
-  ];
-  const activePreset = presets.find((preset) => preset.ratios.slice().sort().join(',') === selectedRatios.slice().sort().join(','));
+  const presets = studioCreatorPresetDefinitions();
+  const activePreset = studioCreatorPresetDefinition(project.output.creatorPreset);
+  const activeTarget = studioCreatorTargetLabel(activePreset);
   const style = project.captionStyle;
   return `<div class="studio-inspector-section">
     <div class="studio-inspector-heading"><div><h2>Output settings</h2><p>Choose the format, caption delivery, and breathing room around each selected range.</p></div></div>
@@ -1484,10 +1622,17 @@ function renderStudioSettingsPanel(project, category) {
         ${video ? `<div class="field"><label>Burn into video</label><label class="check-pill studio-check"><input type="checkbox" data-studio-output="burnCaptions" ${project.output.burnCaptions ? 'checked' : ''}><span>Visible captions</span></label></div>` : `<div class="field"><label>Caption delivery</label><div class="field-note">Audio clips use sidecar captions only.</div></div>`}
       </div>
       ${video ? `<div class="studio-creator-block">
-        <div class="studio-style-head"><strong>Creator presets</strong><span>${activePreset ? escapeHtml(activePreset.label) : `${selectedRatios.length} formats selected`}</span></div>
-        <div class="studio-preset-row">${presets.map((preset) => `<button class="${activePreset?.id === preset.id ? 'active' : ''}" data-action="studio-ratio-preset" data-ratios="${preset.ratios.join(',')}">${escapeHtml(preset.label)}</button>`).join('')}</div>
-        <div class="studio-ratio-options">${studioRatioDefinitions().map((ratio) => `<label class="studio-ratio-option ${selectedRatios.includes(ratio.id) ? 'selected' : ''}"><input type="checkbox" data-studio-output="ratio" data-ratio="${escapeHtml(ratio.id)}" ${selectedRatios.includes(ratio.id) ? 'checked' : ''}><span>${icon(ratio.id === 'original' ? 'film' : ratio.id === 'portrait' || ratio.id === 'portrait45' ? 'captions' : 'frames')}<strong>${escapeHtml(ratio.shortLabel || ratio.label)}</strong><small>${ratio.width ? `${ratio.width}×${ratio.height}` : 'Source size'}</small></span></label>`).join('')}</div>
+        <div class="studio-style-head"><strong>Creator workflow</strong><span data-studio-preset-current>${escapeHtml(activePreset.label)}</span></div>
+        <div class="studio-creator-presets">${presets.map((preset) => {
+          const active = activePreset.id === preset.id;
+          const detail = [preset.shortLabel, studioCreatorTargetLabel(preset)].filter(Boolean).join(' - ');
+          return `<button class="${active ? 'active' : ''}" data-action="studio-creator-preset" data-preset="${escapeHtml(preset.id)}" aria-pressed="${active}" title="${escapeHtml(preset.description || '')}"><strong>${escapeHtml(preset.label)}</strong><small>${escapeHtml(detail)}</small></button>`;
+        }).join('')}</div>
+        <p class="studio-creator-description" data-studio-preset-description>${escapeHtml(activePreset.description || '')}</p>
+        <div class="studio-ratio-options">${studioRatioDefinitions().map((ratio) => `<label class="studio-ratio-option ${selectedRatios.includes(ratio.id) ? 'selected' : ''}"><input type="checkbox" data-studio-output="ratio" data-ratio="${escapeHtml(ratio.id)}" ${selectedRatios.includes(ratio.id) ? 'checked' : ''}><span>${icon(ratio.id === 'original' ? 'film' : ratio.id === 'portrait' || ratio.id === 'portrait45' ? 'captions' : 'frames')}<strong>${escapeHtml(ratio.shortLabel || ratio.label)}</strong><small>${ratio.width ? `${ratio.width}x${ratio.height}` : 'Source size'}</small></span></label>`).join('')}</div>
         <div class="studio-framing-options"><span>Framing</span><div>${studioFramingDefinitions().map((mode) => `<button class="${framing === mode.id ? 'active' : ''}" data-action="studio-framing" data-framing="${escapeHtml(mode.id)}" title="${escapeHtml(mode.description || '')}">${escapeHtml(mode.label)}</button>`).join('')}</div></div>
+        <label class="check-pill studio-check studio-safe-toggle"><input type="checkbox" data-studio-output="safeZones" ${project.output.safeZones ? 'checked' : ''}><span>Safe-zone guides</span></label>
+        <div class="studio-creator-note"><strong data-studio-preset-target>${escapeHtml(activeTarget || 'Preset ready')}</strong><span>Safe-zone guides are preview-only and never burned into exports.</span></div>
       </div>` : ''}
       ${video ? `<div class="studio-style-block"><div class="studio-style-head"><strong>Caption style</strong><span>Updates the preview live</span></div><div class="form-grid studio-style-grid">
         <div class="field"><label>Font size</label><input type="number" min="16" max="48" step="1" value="${Number(style.fontSize) || 24}" data-studio-style="fontSize"></div>
@@ -1502,12 +1647,15 @@ function renderStudioSettingsPanel(project, category) {
 }
 
 function renderStudioClipPanel(project, category) {
+  const creatorPreset = studioCreatorPresetDefinition(project.output.creatorPreset);
+  const creatorTarget = category === 'video' ? studioCreatorTargetLabel(creatorPreset) : '';
+  const targetHint = creatorTarget ? ` ${creatorPreset.label} target: ${creatorTarget}.` : '';
   return `<div class="studio-inspector-section">
-    <div class="studio-inspector-heading"><div><h2>Clip queue</h2><p>${project.clips.length ? 'Preview or reorder clips before rendering. Outputs follow this order.' : 'Select transcript lines, then use Add to queue.'}</p></div></div>
+    <div class="studio-inspector-heading"><div><h2>Clip queue</h2><p>${project.clips.length ? 'Preview or reorder clips before rendering. Outputs follow this order.' : 'Select transcript lines, then use Add to queue.'}${targetHint}</p></div></div>
     ${project.clips.length ? `<div class="studio-clip-list">${project.clips.map((clip, index) => `<div class="studio-clip-row">
       <div class="studio-clip-index">${String(index + 1).padStart(2, '0')}</div>
       <div class="studio-clip-body">
-        <div class="studio-clip-top"><input value="${escapeHtml(clip.label)}" data-studio-clip-label="${escapeHtml(clip.id)}" maxlength="120" aria-label="Clip name"><span class="studio-time-chip">${formatStudioTime(clip.startMs)}-${formatStudioTime(clip.endMs)}</span></div>
+        <div class="studio-clip-top"><input value="${escapeHtml(clip.label)}" data-studio-clip-label="${escapeHtml(clip.id)}" maxlength="120" aria-label="Clip name"><span class="studio-time-chip">${formatStudioTime(clip.startMs)}-${formatStudioTime(clip.endMs)}</span>${studioClipWarningBadge(clip, creatorPreset)}</div>
         <p data-studio-clip-excerpt="${escapeHtml(clip.id)}">${escapeHtml(studioClipExcerpt(project, clip))}</p>
         <div class="studio-clip-actions"><button data-action="studio-preview-clip" data-id="${escapeHtml(clip.id)}">${icon('play')} Preview</button><button data-action="studio-move-clip" data-id="${escapeHtml(clip.id)}" data-dir="-1" ${index === 0 ? 'disabled' : ''}>Up</button><button data-action="studio-move-clip" data-id="${escapeHtml(clip.id)}" data-dir="1" ${index === project.clips.length - 1 ? 'disabled' : ''}>Down</button><button class="danger-text" data-action="studio-remove-clip" data-id="${escapeHtml(clip.id)}">Remove</button></div>
       </div>
@@ -1583,6 +1731,8 @@ function applyStudioPreviewFrame() {
   }
   for (const mode of STUDIO_FRAMING_MODES) frame.classList.remove(`framing-${mode.id}`);
   frame.classList.add(`framing-${framing}`);
+  const safeZones = Boolean(project.output.safeZones) && Number(ratio.height) > Number(ratio.width);
+  frame.classList.toggle('safe-zones', safeZones);
   const backdrop = document.getElementById('studio-media-backdrop');
   if (backdrop && media) {
     try {
@@ -1594,6 +1744,7 @@ function applyStudioPreviewFrame() {
   }
   document.querySelectorAll('[data-action="studio-preview-ratio"]').forEach((button) => {
     button.classList.toggle('active', button.dataset.ratio === ratio.id);
+    button.setAttribute('aria-pressed', String(button.dataset.ratio === ratio.id));
   });
   document.querySelectorAll('[data-action="studio-framing"]').forEach((button) => {
     button.classList.toggle('active', button.dataset.framing === framing);
@@ -1608,26 +1759,61 @@ function setStudioPreviewRatio(id) {
   applyStudioPreviewFrame();
 }
 
+function syncStudioCreatorPresetUi(project = state.studio.project) {
+  if (!project) return;
+  const preset = studioCreatorPresetDefinition(project.output.creatorPreset);
+  const target = studioCreatorTargetLabel(preset);
+  document.querySelectorAll('[data-action="studio-creator-preset"]').forEach((button) => {
+    const active = button.dataset.preset === preset.id;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-pressed', String(active));
+  });
+  const current = document.querySelector('[data-studio-preset-current]');
+  if (current) current.textContent = preset.label;
+  const description = document.querySelector('[data-studio-preset-description]');
+  if (description) description.textContent = preset.description || '';
+  const targetLabel = document.querySelector('[data-studio-preset-target]');
+  if (targetLabel) targetLabel.textContent = target || 'Preset ready';
+  const boardCurrent = document.querySelector('[data-studio-creator-current]');
+  if (boardCurrent) boardCurrent.textContent = `${preset.label}${target ? ` - ${target}` : ''}`;
+  const safeToggle = document.querySelector('[data-studio-output="safeZones"]');
+  if (safeToggle) safeToggle.checked = Boolean(project.output.safeZones);
+}
+
 function setStudioFraming(id) {
   const project = state.studio.project;
   const mode = studioFramingDefinitions().find((entry) => entry.id === id);
   if (!project || !mode) return;
   project.output.framing = mode.id;
+  project.output.creatorPreset = 'custom';
   markStudioDirty();
   applyStudioPreviewFrame();
+  syncStudioCreatorPresetUi(project);
   updateStudioOutputSummary(project);
 }
 
-function applyStudioRatioPreset(value) {
+function applyStudioCreatorPreset(id) {
   const project = state.studio.project;
   if (!project) return;
+  const preset = studioCreatorPresetDefinition(id);
+  if (!preset) return;
   const available = new Set(studioRatioDefinitions().map((ratio) => ratio.id));
-  const ratios = String(value || '').split(',').map((entry) => entry.trim()).filter((entry) => available.has(entry));
-  if (!ratios.length) return;
-  project.output.ratios = [...new Set(ratios)];
-  if (!ratios.includes(state.studio.previewRatio)) state.studio.previewRatio = ratios[0];
+  if (preset.id !== 'custom') {
+    const ratios = preset.ratios.map((entry) => String(entry || '').trim()).filter((entry) => available.has(entry));
+    if (ratios.length) project.output.ratios = [...new Set(ratios)];
+    if (preset.framing && studioFramingDefinitions().some((mode) => mode.id === preset.framing)) {
+      project.output.framing = preset.framing;
+    }
+    if (preset.safeZones !== undefined) project.output.safeZones = Boolean(preset.safeZones);
+    if (!project.output.ratios.includes(state.studio.previewRatio)) {
+      state.studio.previewRatio = preset.ratios.find((ratio) => ratio === 'portrait') || project.output.ratios[0];
+    }
+  }
+  project.output.creatorPreset = preset.id;
   markStudioDirty();
   render();
+  const target = studioCreatorTargetLabel(preset);
+  showToast(`${preset.label} preset applied${target ? ` - ${target}` : ''}.`, 'success');
 }
 
 function renderGif() {
@@ -3107,6 +3293,11 @@ function updateStudioControl(target) {
       project.output.burnCaptions = Boolean(target.checked);
     } else if (field === 'exportCaptions') {
       project.output.exportCaptions = target.value;
+    } else if (field === 'safeZones') {
+      project.output.safeZones = Boolean(target.checked);
+      markStudioDirty();
+      render();
+      return true;
     } else if (field === 'ratio') {
       const ratio = String(target.dataset.ratio || '');
       const current = Array.isArray(project.output.ratios) ? project.output.ratios.slice() : [];
@@ -3123,6 +3314,13 @@ function updateStudioControl(target) {
         project.output.ratios = current;
       }
       target.closest('.studio-ratio-option')?.classList.toggle('selected', target.checked);
+      if (!project.output.ratios.includes(state.studio.previewRatio)) {
+        state.studio.previewRatio = project.output.ratios[0];
+      }
+      project.output.creatorPreset = 'custom';
+      markStudioDirty();
+      render();
+      return true;
     }
     markStudioDirty();
     updateStudioOutputSummary(project);
@@ -4237,7 +4435,7 @@ function handleAction(actionTarget, event) {
     case 'studio-preview-clip': previewStudioClip(actionTarget.dataset.id); break;
     case 'studio-preview-ratio': setStudioPreviewRatio(actionTarget.dataset.ratio); break;
     case 'studio-framing': setStudioFraming(actionTarget.dataset.framing); break;
-    case 'studio-ratio-preset': applyStudioRatioPreset(actionTarget.dataset.ratios); break;
+    case 'studio-creator-preset': applyStudioCreatorPreset(actionTarget.dataset.preset); break;
     case 'studio-render-clips': renderStudioClips(); break;
     case 'studio-inspector-tab': setStudioInspectorTab(actionTarget.dataset.tab); break;
     case 'recipe-apply': applyRecipe(actionTarget.dataset.id); break;

@@ -10,6 +10,7 @@ const {
   serializeTranscript
 } = require('./transcript');
 const { normalizeStudioRatios, normalizeStudioFraming } = require('./studio-framing');
+const { normalizeCreatorPreset } = require('./creator-presets');
 
 const PROJECT_VERSION = 1;
 const PROJECT_EXTENSION = '.ofstudio';
@@ -50,7 +51,9 @@ function normalizeOutput(input = {}) {
     burnCaptions: input.burnCaptions !== false,
     exportCaptions: CAPTION_EXPORTS.includes(input.exportCaptions) ? input.exportCaptions : 'srt',
     ratios: normalizeStudioRatios(input.ratios),
-    framing: normalizeStudioFraming(input.framing)
+    framing: normalizeStudioFraming(input.framing),
+    creatorPreset: normalizeCreatorPreset(input.creatorPreset),
+    safeZones: input.safeZones === true
   };
 }
 
