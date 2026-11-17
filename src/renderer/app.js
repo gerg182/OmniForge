@@ -428,7 +428,11 @@ function recipeToolLabel(tool) {
 
 function updateRecipeBadge() {
   const count = savedRecipes().length;
-  document.querySelectorAll('#recipe-count, [data-recipe-count]').forEach((element) => {
+  document.querySelectorAll('#recipe-count').forEach((element) => {
+    element.textContent = String(count);
+    element.classList.toggle('hidden', count === 0);
+  });
+  document.querySelectorAll('[data-recipe-count]').forEach((element) => {
     element.textContent = String(count);
   });
 }

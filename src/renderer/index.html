@@ -8,9 +8,6 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div class="ambient ambient-one"></div>
-  <div class="ambient ambient-two"></div>
-
   <div class="app-shell">
     <aside class="sidebar">
       <div class="brand">
@@ -76,25 +73,20 @@
           <h1 id="page-title">Overview</h1>
         </div>
         <div class="topbar-actions">
-          <button class="topbar-utility topbar-settings" data-view="settings" aria-label="Open Settings" title="Settings and updates">
-            <span class="nav-icon" data-icon="settings"></span>
-            <span>Settings</span>
-            <span class="nav-pip hidden" id="settings-topbar-pip"></span>
-          </button>
           <button class="topbar-utility command-button" id="command-button" aria-label="Open command palette" title="Command palette (Ctrl+K)">
             <span class="nav-icon" data-icon="sparkle"></span>
-            <span>Command</span>
-            <kbd>Ctrl K</kbd>
           </button>
           <button class="topbar-utility" id="recipes-button" aria-label="Open saved tool recipes" title="Saved tool recipes">
             <span class="nav-icon" data-icon="file"></span>
-            <span>Recipes</span>
             <span class="recipe-count" id="recipe-count">0</span>
           </button>
-          <div class="local-chip"><span class="status-dot"></span> Local processing</div>
+          <span class="topbar-divider" aria-hidden="true"></span>
+          <button class="topbar-utility topbar-settings" data-view="settings" aria-label="Open Settings" title="Settings and updates">
+            <span class="nav-icon" data-icon="settings"></span>
+            <span class="nav-pip hidden" id="settings-topbar-pip"></span>
+          </button>
           <button class="queue-button" id="queue-button" aria-label="Open job queue">
             <span class="nav-icon" data-icon="queue"></span>
-            <span>Job queue</span>
             <span class="queue-badge hidden" id="queue-badge">0</span>
           </button>
         </div>
