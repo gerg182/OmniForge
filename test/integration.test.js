@@ -13,6 +13,7 @@ const { executeJob } = require('../src/main/operations');
 const root = path.join(__dirname, '..');
 const toolsDir = path.join(root, 'tools');
 const ffmpeg = path.join(toolsDir, 'ffmpeg.exe');
+const ffprobe = path.join(toolsDir, 'ffprobe.exe');
 
 const deps = {
   tools: {
@@ -31,6 +32,16 @@ const deps = {
 function runTool(args) {
   const result = spawnSync(ffmpeg, args, { windowsHide: true, encoding: 'utf8', timeout: 120000 });
   if (result.status !== 0) throw new Error(result.stderr || result.stdout || `ffmpeg failed: ${result.status}`);
+}
+
+function probeDuration(filePath) {
+  const result = spawnSync(ffprobe, ['-v', 'error', '-show_entries', 'format=duration', '-of', 'default=nw=1:nk=1', filePath], {
+    windowsHide: true,
+    encoding: 'utf8',
+    timeout: 30000
+  });
+  if (result.status !== 0) throw new Error(result.stderr || 'ffprobe failed');
+  return Number(String(result.stdout).trim());
 }
 
 async function run(spec, outputDirectory) {
@@ -88,6 +99,30 @@ test('media, data, PDF, archive, checksum, and inspection integration', { timeou
     assert.ok(fs.existsSync(extracted.result.outputPaths[0]));
     const gif = await run({ tool: 'gif', inputPaths: [sample], options: { start: '0', duration: '0.8', fps: '8', width: '180' } }, temp);
     assert.ok(fs.existsSync(gif.result.outputPaths[0]));
+  });
+
+  await t.test('add an audio track and cut it to the video length', async () => {
+    const track = path.join(temp, 'track.mp3');
+    runTool([
+      '-hide_banner', '-y',
+      '-f', 'lavfi', '-i', 'sine=frequency=660:sample_rate=44100',
+      '-t', '5', '-c:a', 'libmp3lame', '-b:a', '128k', track
+    ]);
+    const added = await run({ tool: 'addaudio', inputPaths: [sample, track], options: { audioBitrate: '192' } }, temp);
+    assert.equal(added.result.outputPaths.length, 1);
+    assert.ok(fs.existsSync(added.result.outputPaths[0]));
+    const duration = probeDuration(added.result.outputPaths[0]);
+    assert.ok(Math.abs(duration - 2) < 0.4, `expected a 2s result, got ${duration}s`);
+
+    const shortTrack = path.join(temp, 'short-track.mp3');
+    runTool([
+      '-hide_banner', '-y',
+      '-f', 'lavfi', '-i', 'sine=frequency=330:sample_rate=44100',
+      '-t', '1', '-c:a', 'libmp3lame', '-b:a', '128k', shortTrack
+    ]);
+    const padded = await run({ tool: 'addaudio', inputPaths: [sample, shortTrack], options: { audioBitrate: '128' } }, temp);
+    const paddedDuration = probeDuration(padded.result.outputPaths[0]);
+    assert.ok(Math.abs(paddedDuration - 2) < 0.4, `expected silence padding to keep 2s, got ${paddedDuration}s`);
   });
 
   await t.test('CSV to JSON', async () => {

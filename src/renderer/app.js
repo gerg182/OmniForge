@@ -16,6 +16,7 @@ const ICONS = {
   download: '<path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 21h16"/>',
   convert: '<path d="M4 7h11"/><path d="m12 4 3 3-3 3"/><path d="M20 17H9"/><path d="m12 14-3 3 3 3"/>',
   merge: '<path d="M5 4v4a5 5 0 0 0 5 5h10"/><path d="m16 9 4 4-4 4"/><path d="M5 20v-4a5 5 0 0 1 5-5"/>',
+  addaudio: '<rect x="3" y="4" width="12" height="16" rx="2"/><path d="M18 8v7"/><circle cx="15.8" cy="16.5" r="2.2"/>',
   frames: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 5v14"/><path d="M17 5v14"/><path d="M3 9h4"/><path d="M17 9h4"/><path d="M3 15h4"/><path d="M17 15h4"/>',
   wave: '<path d="M3 12h2l2-6 3 12 3-16 3 14 2-4h3"/>',
   compress: '<path d="M9 4v4H5"/><path d="m4 8 4-4"/><path d="M15 4v4h4"/><path d="m20 8-4-4"/><path d="M9 20v-4H5"/><path d="m4 16 4 4"/><path d="M15 20v-4h4"/><path d="m20 16-4 4"/>',
@@ -62,6 +63,7 @@ const VIEW_META = {
   convert: ['Convert', 'Universal Converter'],
   compress: ['Media', 'Compress Files'],
   trim: ['Media', 'Trim & Clip'],
+  addaudio: ['Media', 'Add Audio Track'],
   join: ['Media', 'Media Joiner'],
   normalize: ['Media', 'Audio Normalizer'],
   frames: ['Media', 'Frame Extractor'],
@@ -82,11 +84,11 @@ const VIEW_META = {
 
 const TOOL_ICONS = {
   youtube: 'download', convert: 'convert', compress: 'compress', trim: 'scissors', extract: 'music',
-  join: 'merge', normalize: 'wave', frames: 'frames', gif: 'gif', pdf: 'pdf', archive: 'archive', encryptor: 'shield', checksum: 'hash', info: 'info', transcribe: 'mic', studio: 'captions', metadata: 'file', shred: 'harddrive'
+  addaudio: 'addaudio', join: 'merge', normalize: 'wave', frames: 'frames', gif: 'gif', pdf: 'pdf', archive: 'archive', encryptor: 'shield', checksum: 'hash', info: 'info', transcribe: 'mic', studio: 'captions', metadata: 'file', shred: 'harddrive'
 };
 
 const TOOL_COLORS = {
-  youtube: '#ff8c8c', convert: '#c9ff51', compress: '#66e9ff', trim: '#74ffb2', join: '#ff9f6b',
+  youtube: '#ff8c8c', convert: '#c9ff51', compress: '#66e9ff', trim: '#74ffb2', addaudio: '#ff9f6b', join: '#ff9f6b',
   extract: '#ffc857', normalize: '#66e9ff', gif: '#b18cff', frames: '#b18cff', pdf: '#ff8c8c',
   archive: '#7a9cff', encryptor: '#ff8c8c', checksum: '#f3a6ff', info: '#9aa6ba', transcribe: '#74ffb2', studio: '#c9ff51',
   metadata: '#c9ff51', shred: '#ff8c8c'
@@ -173,6 +175,7 @@ const ALLOWED_CATEGORIES = {
   convert: ['video', 'audio', 'image', 'data'],
   compress: ['video', 'audio', 'image'],
   trim: ['video', 'audio'],
+  addaudio: ['video', 'audio'],
   join: ['video', 'audio'],
   normalize: ['video', 'audio'],
   frames: ['video'],
@@ -193,6 +196,7 @@ const GUIDES = {
   convert: { icon: 'convert', title: 'One converter, every direction', text: 'FFmpeg handles media while a native data engine handles structured files. Everything runs on your PC.', steps: [['Choose files', 'Drop a batch or pick files from disk.'], ['Pick a format', 'Video, audio, image, or structured data.'], ['Convert', 'Choose an output folder and let the queue work.']] },
   compress: { icon: 'compress', title: 'Smaller files, same idea', text: 'Use a quality preset for predictable results, or set a target size for video and audio.', steps: [['Add media', 'Video, audio, and images are supported.'], ['Choose a strategy', 'Quality preset or target file size.'], ['Compare', 'Files are saved beside each other in your chosen folder.']] },
   trim: { icon: 'scissors', title: 'Keep only the good part', text: 'Timestamps can be seconds (12.5) or clock values (00:01:12.5).', steps: [['Add clips', 'Video and audio files both work.'], ['Set a range', 'Enter a start and an end time.'], ['Render', 'The result is re-encoded for accurate cuts.']] },
+  addaudio: { icon: 'addaudio', title: 'Give a video a new soundtrack', text: 'The video stream is copied without re-encoding, so the picture stays untouched. The audio is cut to the video length, or padded with silence when it is shorter.', steps: [['Add a video', 'MP4, MOV, MKV, and other common video files.'], ['Add an audio track', 'MP3, WAV, M4A, and more.'], ['Add audio', 'The result is an MP4 with the new soundtrack.']] },
   join: { icon: 'merge', title: 'Put the pieces together', text: 'Clips are normalized to matching video, audio, and frame settings before they are joined.', steps: [['Add two or more files', 'Use files of the same media type.'], ['Choose a result format', 'Video or audio output is available.'], ['Join', 'Clips play back-to-back in the selected order.']] },
   normalize: { icon: 'wave', title: 'Even out the volume', text: 'Loudness normalization targets -16 LUFS with a -1.5 dB true-peak ceiling, a good fit for spoken audio and mixed clips.', steps: [['Add media', 'Video or audio files with an audio track.'], ['Choose a format', 'The audio track is re-encoded.'], ['Normalize', 'Quiet and loud sections move closer together.']] },
   frames: { icon: 'frames', title: 'Turn motion into stills', text: 'Extract one exact frame or a series of frames at a chosen interval.', steps: [['Add a video', 'Choose any video FFmpeg can read.'], ['Pick a moment or interval', 'Use 00:00:05.500 for one frame, or 1 second for a series.'], ['Extract', 'Single frames are saved as images; intervals create a folder.']] },
@@ -214,11 +218,12 @@ const state = {
   settings: null,
   history: [],
   view: 'home',
-  files: { convert: [], compress: [], trim: [], join: [], normalize: [], frames: [], extract: [], gif: [], pdf: [], archive: [], encryptor: [], checksum: [], info: [], transcribe: [], studio: [], metadata: [], shred: [] },
+  files: { convert: [], compress: [], trim: [], addaudio: [], join: [], normalize: [], frames: [], extract: [], gif: [], pdf: [], archive: [], encryptor: [], checksum: [], info: [], transcribe: [], studio: [], metadata: [], shred: [] },
   options: {
     convert: { targetFormat: 'mp4', quality: 'balanced', resolution: 'source' },
     compress: { mode: 'quality', quality: 'balanced', resolution: 'source', targetSizeMB: '25' },
     trim: { start: '00:00:00', end: '', outputFormat: 'mp4', quality: 'high' },
+    addaudio: { audioBitrate: '192' },
     join: { outputFormat: 'mp4', resolution: 'source', quality: 'high', joinName: '' },
     normalize: { audioFormat: 'mp3', quality: 'high' },
     frames: { imageFormat: 'png', mode: 'interval', interval: '1', timestamp: '00:00:05', maxFrames: '100', width: '0' },
@@ -665,6 +670,7 @@ function render() {
     case 'convert': html = renderConvert(); break;
     case 'compress': html = renderCompress(); break;
     case 'trim': html = renderTrim(); break;
+    case 'addaudio': html = renderAddAudio(); break;
     case 'join': html = renderJoin(); break;
     case 'normalize': html = renderNormalize(); break;
     case 'frames': html = renderFrames(); break;
@@ -731,6 +737,7 @@ function renderHome() {
       ${toolCard('compress', 'compress', 'Compress', 'Quality presets or target size', '#66e9ff')}
       ${toolCard('pdf', 'pdf', 'PDF Toolkit', 'Merge, split, reorder, rotate', '#b18cff')}
       ${toolCard('trim', 'scissors', 'Trim & Clip', 'Keep exactly the moment you need', '#74ffb2')}
+      ${toolCard('addaudio', 'addaudio', 'Add Audio Track', 'Put an MP3 on your video', '#ff9f6b')}
       ${toolCard('join', 'merge', 'Join Media', 'Play clips back-to-back', '#ff9f6b')}
       ${toolCard('extract', 'music', 'Extract Audio', 'Turn video into MP3 or FLAC', '#ffc857')}
       ${toolCard('normalize', 'wave', 'Normalize Audio', 'Even out quiet and loud audio', '#66e9ff')}
@@ -1027,6 +1034,42 @@ function renderTrim() {
       </div>
     </div>
     ${renderGuide('trim')}
+  </div>`;
+}
+
+function renderAddAudio() {
+  const options = state.options.addaudio;
+  const files = state.files.addaudio;
+  const video = files.find((file) => file.category === 'video');
+  const audio = files.find((file) => file.category === 'audio');
+  const ready = Boolean(video && audio);
+  const status = ready ? 'Ready' : files.length ? 'Needs a pair' : 'No files';
+  return `<div class="tool-layout">
+    <div style="display:grid;gap:14px">
+      <div class="panel">
+        <div class="panel-head"><div><h2>Video and audio</h2><p>Add one video and one audio file. The audio is cut to the video's length.</p></div><span class="status-pill">${status}</span></div>
+        <div class="panel-body">
+          ${renderDropzone('addaudio', 'Drop a video and an audio track', 'MP4 + MP3, or any common video and audio formats')}
+          ${renderFileList('addaudio')}
+          <div class="file-add"><span class="file-count">${video ? `Video: ${escapeHtml(video.name)}` : 'Add a video'} · ${audio ? `Audio: ${escapeHtml(audio.name)}` : 'add an audio track'}</span></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><div><h2>Audio settings</h2><p>The video stream is copied; only the audio is re-encoded.</p></div></div>
+        <div class="panel-body">
+          <div class="form-grid">
+            <div class="field"><label>Audio bitrate</label><select data-tool="addaudio" data-option="audioBitrate">${selectOptions([
+              { value: '128', label: '128 kbps · smaller' },
+              { value: '192', label: '192 kbps · balanced' },
+              { value: '256', label: '256 kbps · higher' },
+              { value: '320', label: '320 kbps · best' }
+            ], options.audioBitrate)}</select><div class="field-note">AAC audio, cut or padded to the video length.</div></div>
+          </div>
+          ${renderStartBar('addaudio', 'Add audio', ready ? 'The new MP4 keeps the video and replaces its audio.' : 'Add one video and one audio file first.', !ready)}
+        </div>
+      </div>
+    </div>
+    ${renderGuide('addaudio')}
   </div>`;
 }
 
@@ -2521,6 +2564,7 @@ async function addPaths(tool, paths, fileObjects = []) {
   const metadata = await api.getFileMetadata(paths);
   const allowed = ALLOWED_CATEGORIES[tool];
   let skipped = 0;
+  let roleSkipped = false;
   const existing = new Set(state.files[tool].map((file) => file.path.toLowerCase()));
   const byName = new Map(fileObjects.map((file) => [file.name, file]));
   for (const meta of metadata) {
@@ -2529,6 +2573,11 @@ async function addPaths(tool, paths, fileObjects = []) {
     const ext = extensionFor(name);
     const category = categoryFor(ext, name);
     if (allowed && !allowed.includes(category)) { skipped += 1; continue; }
+    if (tool === 'addaudio' && state.files.addaudio.some((file) => file.category === category)) {
+      skipped += 1;
+      roleSkipped = true;
+      continue;
+    }
     if (tool === 'encryptor') {
       const wantsEncrypted = state.options.encryptor.mode === 'decrypt';
       if ((ext === 'ofenc') !== wantsEncrypted) { skipped += 1; continue; }
@@ -2545,7 +2594,11 @@ async function addPaths(tool, paths, fileObjects = []) {
     existing.add(meta.path.toLowerCase());
     if (tool === 'studio') break;
   }
-  if (skipped) showToast(`${skipped} file${skipped === 1 ? ' was' : 's were'} skipped because the type does not fit this tool.`, 'error');
+  if (skipped) {
+    showToast(roleSkipped
+      ? 'Add Audio uses one video and one audio track per job.'
+      : `${skipped} file${skipped === 1 ? ' was' : 's were'} skipped because the type does not fit this tool.`, 'error');
+  }
   if (tool === 'studio' && paths.length > 1) showToast('Only one Studio media file can be added per project.', 'error');
   if (tool === 'join' && state.files.join.length > 0) {
     const joinCategory = state.files.join[0].category;
@@ -2616,6 +2669,12 @@ function batchSpecs(tool, outputDirectory) {
       audioFormat: options.audioFormat,
       title: state.ytMeta?.title || 'YouTube download'
     }, state.ytMeta?.title || 'YouTube download')];
+  }
+  if (tool === 'addaudio') {
+    const video = files.find((file) => file.category === 'video');
+    const audio = files.find((file) => file.category === 'audio');
+    if (!video || !audio) return [];
+    return [makeSpec('addaudio', [video.path, audio.path], outputDirectory, { ...options }, `${video.name} + ${audio.name}`)];
   }
   if (tool === 'join') {
     return [makeSpec('join', files.map((file) => file.path), outputDirectory, { ...options }, options.joinName || 'Joined media')];
@@ -3356,6 +3415,9 @@ async function startTool(tool) {
   }
   if (tool === 'pdf' && options.operation === 'merge' && files.length < 2) {
     showToast('Choose at least two PDFs to merge.', 'error'); return;
+  }
+  if (tool === 'addaudio' && !(files.some((file) => file.category === 'video') && files.some((file) => file.category === 'audio'))) {
+    showToast('Add one video and one audio track first.', 'error'); return;
   }
   if (tool === 'join' && files.length < 2) {
     showToast('Choose at least two files to join.', 'error'); return;

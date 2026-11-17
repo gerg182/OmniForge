@@ -8,7 +8,7 @@ const crypto = require('crypto');
 const { PDFDocument, degrees } = require('pdf-lib');
 const { OUTPUT_FORMATS, extensionOf, formatCategory } = require('./constants');
 const { parseData, serializeData } = require('./data');
-const { buildMediaArgs } = require('./media-args');
+const { buildMediaArgs, buildAddAudioArgs } = require('./media-args');
 const { isSupportedYouTubeUrl, parseYouTubeProgressLine } = require('./youtube');
 const { parseFfmpegSpeed } = require('./job-metrics');
 const {
@@ -292,6 +292,43 @@ async function executeTrim(spec, ctx, deps) {
     outputs.push(outputPath);
   }
   return { outputPaths: outputs };
+}
+
+async function executeAddAudio(spec, ctx, deps) {
+  assertInputs(spec);
+  const videos = spec.inputPaths.filter((filePath) => formatCategory(extensionOf(filePath)) === 'video');
+  const audios = spec.inputPaths.filter((filePath) => formatCategory(extensionOf(filePath)) === 'audio');
+  const videoPath = videos[0];
+  const audioPath = audios[0];
+  if (!videoPath) throw new Error('Choose one video to receive the audio track.');
+  if (!audioPath) throw new Error('Choose one audio track, such as an MP3.');
+
+  const paths = deps.tools.paths();
+  const [videoMedia, audioMedia] = await Promise.all([
+    probeMedia(paths.ffprobe, videoPath),
+    probeMedia(paths.ffprobe, audioPath)
+  ]);
+  const videoStream = (videoMedia.streams || []).find((stream) => stream.codec_type === 'video');
+  const audioStream = (audioMedia.streams || []).find((stream) => stream.codec_type === 'audio');
+  if (!videoStream) throw new Error(`${path.basename(videoPath)} does not contain a video stream.`);
+  if (!audioStream) throw new Error(`${path.basename(audioPath)} does not contain an audio stream.`);
+
+  const duration = Number(videoMedia?.format?.duration) || Number(videoStream?.duration) || 0;
+  if (!(duration > 0)) throw new Error('Could not read the video duration.');
+  const outputDirectory = await ensureDir(spec.outputDirectory);
+  const outputPath = uniquePath(outputDirectory, `${baseNameWithoutExtension(videoPath)}_with_audio`, 'mp4');
+  const args = buildAddAudioArgs({
+    video: videoPath,
+    audio: audioPath,
+    output: outputPath,
+    options: { audioBitrate: spec.options?.audioBitrate }
+  });
+  await runFfmpeg(ctx, deps, args, {
+    duration,
+    message: `Adding audio to ${path.basename(videoPath)}`
+  });
+  if (!fs.existsSync(outputPath)) throw new Error('Adding audio finished without creating an output file.');
+  return { outputPaths: [outputPath] };
 }
 
 async function executeExtract(spec, ctx, deps) {
@@ -823,6 +860,7 @@ async function executeJob(spec, ctx, deps) {
     case 'convert': return executeConvert(spec, ctx, deps);
     case 'compress': return executeCompress(spec, ctx, deps);
     case 'trim': return executeTrim(spec, ctx, deps);
+    case 'addaudio': return executeAddAudio(spec, ctx, deps);
     case 'join': return executeJoin(spec, ctx, deps);
     case 'normalize': return executeNormalize(spec, ctx, deps);
     case 'frames': return executeFrames(spec, ctx, deps);
@@ -846,6 +884,7 @@ module.exports = {
   executeConvert,
   executeCompress,
   executeTrim,
+  executeAddAudio,
   executeJoin,
   executeNormalize,
   executeFrames,

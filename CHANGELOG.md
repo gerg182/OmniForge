@@ -2,6 +2,32 @@
 
 All notable changes to OmniForge are documented here.
 
+## 1.8.2 - 2026-11-16
+
+### Added
+
+- Added an **Add Audio** tool that puts an audio track such as an MP3 on a video and replaces the video's existing audio. The audio is cut to the video's length and padded with silence when it is shorter; the video stream is copied without re-encoding.
+
+## 1.8.1 - 2026-11-16
+
+### Changed
+
+- Reworked the interface into a warm light paper theme with cream surfaces, ink text, a subtle paper grain, and soft layered shadows.
+- Replaced the app icon with a cream tile showing an ink anvil draped with a clay cloth, and synced the window, build, and installer icons.
+
+## 1.8.0 - 2026-11-16
+
+### Changed
+
+- Refreshed the interface with a flat, monochrome theme: neutral palette, tighter spacing, flat panels, and neutral tool icons.
+- Simplified the top bar to icon-only actions and grouped Settings with the job queue; the saved-recipe count now hides when empty.
+- Tool cards now use a three-column grid instead of four.
+- Replaced the app icon with a monochrome anvil mark and synced the window, build, and installer icons.
+
+### Removed
+
+- Removed ambient background effects, gradient accents, glows, and decorative entrance animations.
+
 ## 1.7.0 - 2026-11-01
 
 ### Added

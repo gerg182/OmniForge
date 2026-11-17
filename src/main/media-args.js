@@ -135,6 +135,27 @@ function buildImageArgs(target, options, preset) {
   return args;
 }
 
+function buildAddAudioArgs({ video, audio, output, options = {} }) {
+  const requested = String(options.audioBitrate || '192').replace(/k$/i, '');
+  const bitrate = ['128', '192', '256', '320'].includes(requested) ? requested : '192';
+  return [
+    '-i', video,
+    '-i', audio,
+    '-map', '0:v:0',
+    '-map', '1:a:0',
+    '-c:v', 'copy',
+    '-c:a', 'aac',
+    '-b:a', `${bitrate}k`,
+    '-ar', '48000',
+    '-ac', '2',
+    '-af', 'apad',
+    '-shortest',
+    '-movflags', '+faststart',
+    '-map_metadata', '0',
+    output
+  ];
+}
+
 function buildMediaArgs({ input, output, target, options = {}, media = {}, trim = {} }) {
   const format = String(target || '').toLowerCase().replace(/^\./, '');
   const definition = OUTPUT_FORMATS[format];
@@ -166,6 +187,7 @@ module.exports = {
   QUALITY,
   presetFor,
   buildMediaArgs,
+  buildAddAudioArgs,
   buildVideoArgs,
   buildAudioArgs,
   buildImageArgs

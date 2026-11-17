@@ -1,6 +1,6 @@
 # OmniForge
 
-OmniForge is a local-first Windows desktop app for downloading permitted YouTube videos, converting media and data files, compressing and trimming clips, extracting audio, transcribing speech, recording dictation, building GIFs, editing PDFs, working with archives, encrypting files, calculating checksums, and inspecting media.
+OmniForge is a local-first Windows desktop app for downloading permitted YouTube videos, converting media and data files, compressing and trimming clips, adding audio tracks to video, extracting audio, transcribing speech, recording dictation, building GIFs, editing PDFs, working with archives, encrypting files, calculating checksums, and inspecting media.
 
 Everything runs on your PC. FFmpeg, FFprobe, yt-dlp, Deno, 7-Zip, and whisper.cpp with the multilingual base model are bundled with the app, so conversion, speech, and file tools do not require an internet connection. YouTube downloads naturally do.
 
@@ -17,6 +17,7 @@ Everything runs on your PC. FFmpeg, FFprobe, yt-dlp, Deno, 7-Zip, and whisper.cp
 - Compress by quality preset or approximate target file size
 - Trim video/audio and extract audio
 - Join multiple video or audio files into one result
+- Add or replace a video's audio track from an MP3 or other audio file, trimmed to the video's length
 - Normalize audio loudness for consistent volume
 - Extract a PNG/JPG frame at an exact timestamp or a series at a chosen interval
 - Palette-optimized GIF creation
@@ -40,11 +41,11 @@ Everything runs on your PC. FFmpeg, FFprobe, yt-dlp, Deno, 7-Zip, and whisper.cp
 
 ## Installation
 
-Download the newest `OmniForge-Setup-1.7.0.exe` from [GitHub Releases](https://github.com/gerg182/OmniForge/releases/latest), then verify it before running:
+Download the newest `OmniForge-Setup-1.8.2.exe` from [GitHub Releases](https://github.com/gerg182/OmniForge/releases/latest), then verify it before running:
 
 ```powershell
-Get-FileHash .\OmniForge-Setup-1.7.0.exe -Algorithm SHA256
-Get-Content .\OmniForge-Setup-1.7.0.exe.sha256
+Get-FileHash .\OmniForge-Setup-1.8.2.exe -Algorithm SHA256
+Get-Content .\OmniForge-Setup-1.8.2.exe.sha256
 ```
 
 The hashes must match. The current installer is unsigned, so Windows SmartScreen may warn. Only continue when the installer came from this repository and its SHA-256 matches. OmniForge requires Windows 10/11 x64 and installs per user; administrator access is not required.
@@ -77,7 +78,7 @@ Build the Windows installer:
 npm run dist
 ```
 
-The installer and its `OmniForge-Setup-1.7.0.exe.sha256` sidecar are written to `dist/`. After `npm run dist`, `npm run smoke:packaged` verifies the unpacked app starts correctly. Release builds are produced and published by the tag-driven GitHub Actions workflow after the version is synchronized in `package.json`, `package-lock.json`, this README, and `CHANGELOG.md`.
+The installer and its `OmniForge-Setup-1.8.2.exe.sha256` sidecar are written to `dist/`. After `npm run dist`, `npm run smoke:packaged` verifies the unpacked app starts correctly. Release builds are produced and published by the tag-driven GitHub Actions workflow after the version is synchronized in `package.json`, `package-lock.json`, this README, and `CHANGELOG.md`.
 
 ## Transcript Clip Studio
 

@@ -163,12 +163,12 @@ function createWindow() {
     height: 900,
     minWidth: 1100,
     minHeight: 720,
-    backgroundColor: '#0b0b0c',
+    backgroundColor: '#f4efe4',
     title: 'OmniForge',
     titleBarStyle: 'hidden',
     titleBarOverlay: {
-      color: '#0b0b0c',
-      symbolColor: '#c6c6c9',
+      color: '#f4efe4',
+      symbolColor: '#211e19',
       height: 42
     },
     icon: fs.existsSync(iconPath) ? iconPath : undefined,

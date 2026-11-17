@@ -82,6 +82,7 @@ const TOOL_LABELS = {
   convert: 'Universal Converter',
   compress: 'Media Compressor',
   trim: 'Video / Audio Trimmer',
+  addaudio: 'Audio Track Adder',
   join: 'Media Joiner',
   normalize: 'Audio Normalizer',
   frames: 'Frame Extractor',
