@@ -143,10 +143,11 @@ OmniForge is released under the [MIT License](LICENSE). Bundled third-party tool
 
 OmniForge has been developed with substantial AI development assistance:
 
-- DeepSeek V4.1 Flash 1017 was the primary AI model used across the project's development.
+- [Anthropic Claude Code](https://claude.com/claude-code) contributed the interface refresh, paper theme, app icon, the Add Audio tool, tests, and release work.
 - [OpenAI Codex](https://openai.com/codex/), OpenAI's AI coding agent, provided additional repository and release assistance.
+- DeepSeek V4.1 Flash 1017 was the primary AI model used across the project's development.
 
-Third-party software and model credits are listed in [tools/THIRD_PARTY_NOTICES.md](tools/THIRD_PARTY_NOTICES.md).
+The application is built on Electron, FFmpeg/FFprobe, yt-dlp, Deno, 7-Zip, whisper.cpp, pdf-lib, and electron-builder. Full third-party software and model credits are listed in [tools/THIRD_PARTY_NOTICES.md](tools/THIRD_PARTY_NOTICES.md).
 
 ## Notes
 
