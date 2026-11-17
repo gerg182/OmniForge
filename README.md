@@ -1,5 +1,13 @@
 # OmniForge
 
+<p align="center">
+  <a href="https://github.com/gerg182/OmniForge/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/gerg182/OmniForge?style=flat-square&amp;label=release&amp;labelColor=211e19&amp;color=b76a4f"></a>
+  <a href="https://github.com/gerg182/OmniForge/releases"><img alt="Total downloads" src="https://img.shields.io/github/downloads/gerg182/OmniForge/total?style=flat-square&amp;label=downloads&amp;labelColor=211e19&amp;color=b76a4f"></a>
+  <a href="https://github.com/gerg182/OmniForge/releases/latest"><img alt="Latest release downloads" src="https://img.shields.io/github/downloads/gerg182/OmniForge/latest/total?style=flat-square&amp;label=latest%20downloads&amp;labelColor=211e19&amp;color=c8bca6"></a>
+  <a href="https://github.com/gerg182/OmniForge/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/gerg182/OmniForge?style=flat-square&amp;label=stars&amp;labelColor=211e19&amp;color=8a641f"></a>
+  <a href="https://github.com/gerg182/OmniForge/watchers"><img alt="GitHub watchers" src="https://img.shields.io/github/watchers/gerg182/OmniForge?style=flat-square&amp;label=watchers&amp;labelColor=211e19&amp;color=2e7650"></a>
+</p>
+
 OmniForge is a local-first Windows desktop app for downloading permitted YouTube videos, converting media and data files, compressing and trimming clips, adding audio tracks to video, extracting audio, transcribing speech, recording dictation, building GIFs, editing PDFs, working with archives, encrypting files, calculating checksums, and inspecting media.
 
 Everything runs on your PC. FFmpeg, FFprobe, yt-dlp, Deno, 7-Zip, and whisper.cpp with the multilingual base model are bundled with the app, so conversion, speech, and file tools do not require an internet connection. YouTube downloads naturally do.
