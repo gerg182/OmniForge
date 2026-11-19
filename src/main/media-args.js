@@ -156,6 +156,20 @@ function buildAddAudioArgs({ video, audio, output, options = {} }) {
   ];
 }
 
+function buildRemoveAudioArgs({ input, output }) {
+  const target = String(output || '').toLowerCase().split('.').pop();
+  const args = [
+    '-i', input,
+    '-map', '0:v:0',
+    '-c:v', 'copy',
+    '-an',
+    '-map_metadata', '0'
+  ];
+  if (['mp4', 'm4v', 'mov'].includes(target)) args.push('-movflags', '+faststart');
+  args.push(output);
+  return args;
+}
+
 function buildMediaArgs({ input, output, target, options = {}, media = {}, trim = {} }) {
   const format = String(target || '').toLowerCase().replace(/^\./, '');
   const definition = OUTPUT_FORMATS[format];
@@ -188,6 +202,7 @@ module.exports = {
   presetFor,
   buildMediaArgs,
   buildAddAudioArgs,
+  buildRemoveAudioArgs,
   buildVideoArgs,
   buildAudioArgs,
   buildImageArgs

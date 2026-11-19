@@ -8,7 +8,7 @@ const crypto = require('crypto');
 const { PDFDocument, degrees } = require('pdf-lib');
 const { OUTPUT_FORMATS, extensionOf, formatCategory } = require('./constants');
 const { parseData, serializeData } = require('./data');
-const { buildMediaArgs, buildAddAudioArgs } = require('./media-args');
+const { buildMediaArgs, buildAddAudioArgs, buildRemoveAudioArgs } = require('./media-args');
 const { isSupportedYouTubeUrl, parseYouTubeProgressLine } = require('./youtube');
 const { parseFfmpegSpeed } = require('./job-metrics');
 const {
@@ -329,6 +329,47 @@ async function executeAddAudio(spec, ctx, deps) {
   });
   if (!fs.existsSync(outputPath)) throw new Error('Adding audio finished without creating an output file.');
   return { outputPaths: [outputPath] };
+}
+
+async function executeRemoveAudio(spec, ctx, deps) {
+  assertInputs(spec);
+  const requested = String(spec.options?.container || 'source').toLowerCase();
+  const container = ['mp4', 'mkv'].includes(requested) ? requested : 'source';
+  const sourceContainers = new Set(['mp4', 'm4v', 'mov', 'mkv', 'webm', 'avi', 'ts', 'ogv']);
+  const outputs = [];
+  const total = spec.inputPaths.length;
+
+  for (let index = 0; index < total; index += 1) {
+    const filePath = spec.inputPaths[index];
+    if (formatCategory(extensionOf(filePath)) !== 'video') {
+      throw new Error(`${path.basename(filePath)} is not a video file.`);
+    }
+    const paths = deps.tools.paths();
+    let media = {};
+    try { media = await probeMedia(paths.ffprobe, filePath); } catch { media = {}; }
+    const streams = media.streams || [];
+    const videoStream = streams.find((stream) => stream.codec_type === 'video');
+    if (streams.length && !videoStream) throw new Error(`${path.basename(filePath)} does not contain a video stream.`);
+    if (streams.length && !streams.some((stream) => stream.codec_type === 'audio')) {
+      throw new Error(`${path.basename(filePath)} does not contain an audio track.`);
+    }
+
+    const sourceExt = extensionOf(filePath);
+    const target = container === 'source' ? (sourceContainers.has(sourceExt) ? sourceExt : 'mkv') : container;
+    const duration = Number(media?.format?.duration) || Number(videoStream?.duration) || 0;
+    const outputDirectory = await ensureDir(spec.outputDirectory);
+    const outputPath = uniquePath(outputDirectory, `${baseNameWithoutExtension(filePath)}_no_audio`, target);
+    const args = buildRemoveAudioArgs({ input: filePath, output: outputPath });
+    await runFfmpeg(ctx, deps, args, {
+      duration,
+      progressBase: Math.round((index / total) * 100),
+      progressSpan: Math.round(100 / total),
+      message: `Removing audio from ${path.basename(filePath)}`
+    });
+    if (!fs.existsSync(outputPath)) throw new Error('Removing audio finished without creating an output file.');
+    outputs.push(outputPath);
+  }
+  return { outputPaths: outputs };
 }
 
 async function executeExtract(spec, ctx, deps) {
@@ -861,6 +902,7 @@ async function executeJob(spec, ctx, deps) {
     case 'compress': return executeCompress(spec, ctx, deps);
     case 'trim': return executeTrim(spec, ctx, deps);
     case 'addaudio': return executeAddAudio(spec, ctx, deps);
+    case 'removeaudio': return executeRemoveAudio(spec, ctx, deps);
     case 'join': return executeJoin(spec, ctx, deps);
     case 'normalize': return executeNormalize(spec, ctx, deps);
     case 'frames': return executeFrames(spec, ctx, deps);
@@ -885,6 +927,7 @@ module.exports = {
   executeCompress,
   executeTrim,
   executeAddAudio,
+  executeRemoveAudio,
   executeJoin,
   executeNormalize,
   executeFrames,

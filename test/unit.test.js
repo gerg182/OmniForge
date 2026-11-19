@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const { parseDelimited, parseData, serializeData } = require('../src/main/data');
 const { isSupportedYouTubeUrl, parseYouTubeProgressLine } = require('../src/main/youtube');
-const { buildMediaArgs, buildAddAudioArgs } = require('../src/main/media-args');
+const { buildMediaArgs, buildAddAudioArgs, buildRemoveAudioArgs } = require('../src/main/media-args');
 const { parsePageRanges, buildYouTubeArgs } = require('../src/main/operations');
 
 test('CSV parser handles quoted commas and newlines', () => {
@@ -80,6 +80,20 @@ test('add-audio args copy video and trim audio to the video length', () => {
   assert.equal(args[args.length - 1], 'out.mp4');
   const clamped = buildAddAudioArgs({ video: 'a.mp4', audio: 'b.mp3', output: 'c.mp4', options: { audioBitrate: '999' } });
   assert.ok(clamped.includes('192k'));
+});
+
+test('remove-audio args copy the video and drop the audio', () => {
+  const args = buildRemoveAudioArgs({ input: 'in.mp4', output: 'out.mp4' });
+  assert.ok(args.join(' ').includes('-map 0:v:0'));
+  assert.ok(args.join(' ').includes('-c:v copy'));
+  assert.ok(args.includes('-an'));
+  assert.ok(!args.includes('-c:a'));
+  assert.ok(args.includes('-movflags') && args.includes('+faststart'));
+  assert.equal(args[args.length - 1], 'out.mp4');
+
+  const mkv = buildRemoveAudioArgs({ input: 'in.webm', output: 'out.mkv' });
+  assert.ok(!mkv.includes('-movflags'));
+  assert.equal(mkv[mkv.length - 1], 'out.mkv');
 });
 
 test('PDF page ranges parse and validate', () => {

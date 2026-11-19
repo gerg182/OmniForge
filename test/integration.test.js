@@ -44,6 +44,16 @@ function probeDuration(filePath) {
   return Number(String(result.stdout).trim());
 }
 
+function probeStreams(filePath) {
+  const result = spawnSync(ffprobe, ['-v', 'error', '-show_streams', '-of', 'json', filePath], {
+    windowsHide: true,
+    encoding: 'utf8',
+    timeout: 30000
+  });
+  if (result.status !== 0) throw new Error(result.stderr || 'ffprobe failed');
+  return JSON.parse(result.stdout).streams || [];
+}
+
 async function run(spec, outputDirectory) {
   const updates = [];
   const controller = new AbortController();
@@ -123,6 +133,22 @@ test('media, data, PDF, archive, checksum, and inspection integration', { timeou
     const padded = await run({ tool: 'addaudio', inputPaths: [sample, shortTrack], options: { audioBitrate: '128' } }, temp);
     const paddedDuration = probeDuration(padded.result.outputPaths[0]);
     assert.ok(Math.abs(paddedDuration - 2) < 0.4, `expected silence padding to keep 2s, got ${paddedDuration}s`);
+  });
+
+  await t.test('remove audio and keep the video stream', async () => {
+    const stripped = await run({ tool: 'removeaudio', inputPaths: [sample], options: { container: 'source' } }, temp);
+    assert.equal(stripped.result.outputPaths.length, 1);
+    const outputPath = stripped.result.outputPaths[0];
+    assert.ok(fs.existsSync(outputPath));
+    assert.ok(fs.statSync(outputPath).size > 1000);
+    const streams = probeStreams(outputPath);
+    assert.ok(streams.some((stream) => stream.codec_type === 'video'));
+    assert.ok(!streams.some((stream) => stream.codec_type === 'audio'));
+    assert.ok(Math.abs(probeDuration(outputPath) - 2) < 0.4);
+
+    const remuxed = await run({ tool: 'removeaudio', inputPaths: [sample], options: { container: 'mkv' } }, temp);
+    assert.ok(remuxed.result.outputPaths[0].endsWith('.mkv'));
+    assert.ok(fs.existsSync(remuxed.result.outputPaths[0]));
   });
 
   await t.test('CSV to JSON', async () => {

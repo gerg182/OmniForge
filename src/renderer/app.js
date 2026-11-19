@@ -17,6 +17,7 @@ const ICONS = {
   convert: '<path d="M4 7h11"/><path d="m12 4 3 3-3 3"/><path d="M20 17H9"/><path d="m12 14-3 3 3 3"/>',
   merge: '<path d="M5 4v4a5 5 0 0 0 5 5h10"/><path d="m16 9 4 4-4 4"/><path d="M5 20v-4a5 5 0 0 1 5-5"/>',
   addaudio: '<rect x="3" y="4" width="12" height="16" rx="2"/><path d="M18 8v7"/><circle cx="15.8" cy="16.5" r="2.2"/>',
+  removeaudio: '<path d="m11 5-5 4H3v6h3l5 4z"/><path d="m16 9 5 6"/><path d="m21 9-5 6"/>',
   frames: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 5v14"/><path d="M17 5v14"/><path d="M3 9h4"/><path d="M17 9h4"/><path d="M3 15h4"/><path d="M17 15h4"/>',
   wave: '<path d="M3 12h2l2-6 3 12 3-16 3 14 2-4h3"/>',
   compress: '<path d="M9 4v4H5"/><path d="m4 8 4-4"/><path d="M15 4v4h4"/><path d="m20 8-4-4"/><path d="M9 20v-4H5"/><path d="m4 16 4 4"/><path d="M15 20v-4h4"/><path d="m20 16-4 4"/>',
@@ -64,6 +65,7 @@ const VIEW_META = {
   compress: ['Media', 'Compress Files'],
   trim: ['Media', 'Trim & Clip'],
   addaudio: ['Media', 'Add Audio Track'],
+  removeaudio: ['Media', 'Remove Audio'],
   join: ['Media', 'Media Joiner'],
   normalize: ['Media', 'Audio Normalizer'],
   frames: ['Media', 'Frame Extractor'],
@@ -84,11 +86,11 @@ const VIEW_META = {
 
 const TOOL_ICONS = {
   youtube: 'download', convert: 'convert', compress: 'compress', trim: 'scissors', extract: 'music',
-  addaudio: 'addaudio', join: 'merge', normalize: 'wave', frames: 'frames', gif: 'gif', pdf: 'pdf', archive: 'archive', encryptor: 'shield', checksum: 'hash', info: 'info', transcribe: 'mic', studio: 'captions', metadata: 'file', shred: 'harddrive'
+  addaudio: 'addaudio', removeaudio: 'removeaudio', join: 'merge', normalize: 'wave', frames: 'frames', gif: 'gif', pdf: 'pdf', archive: 'archive', encryptor: 'shield', checksum: 'hash', info: 'info', transcribe: 'mic', studio: 'captions', metadata: 'file', shred: 'harddrive'
 };
 
 const TOOL_COLORS = {
-  youtube: '#ff8c8c', convert: '#c9ff51', compress: '#66e9ff', trim: '#74ffb2', addaudio: '#ff9f6b', join: '#ff9f6b',
+  youtube: '#ff8c8c', convert: '#c9ff51', compress: '#66e9ff', trim: '#74ffb2', addaudio: '#ff9f6b', removeaudio: '#ff9f6b', join: '#ff9f6b',
   extract: '#ffc857', normalize: '#66e9ff', gif: '#b18cff', frames: '#b18cff', pdf: '#ff8c8c',
   archive: '#7a9cff', encryptor: '#ff8c8c', checksum: '#f3a6ff', info: '#9aa6ba', transcribe: '#74ffb2', studio: '#c9ff51',
   metadata: '#c9ff51', shred: '#ff8c8c'
@@ -176,6 +178,7 @@ const ALLOWED_CATEGORIES = {
   compress: ['video', 'audio', 'image'],
   trim: ['video', 'audio'],
   addaudio: ['video', 'audio'],
+  removeaudio: ['video'],
   join: ['video', 'audio'],
   normalize: ['video', 'audio'],
   frames: ['video'],
@@ -197,6 +200,7 @@ const GUIDES = {
   compress: { icon: 'compress', title: 'Smaller files, same idea', text: 'Use a quality preset for predictable results, or set a target size for video and audio.', steps: [['Add media', 'Video, audio, and images are supported.'], ['Choose a strategy', 'Quality preset or target file size.'], ['Compare', 'Files are saved beside each other in your chosen folder.']] },
   trim: { icon: 'scissors', title: 'Keep only the good part', text: 'Timestamps can be seconds (12.5) or clock values (00:01:12.5).', steps: [['Add clips', 'Video and audio files both work.'], ['Set a range', 'Enter a start and an end time.'], ['Render', 'The result is re-encoded for accurate cuts.']] },
   addaudio: { icon: 'addaudio', title: 'Give a video a new soundtrack', text: 'The video stream is copied without re-encoding, so the picture stays untouched. The audio is cut to the video length, or padded with silence when it is shorter.', steps: [['Add a video', 'MP4, MOV, MKV, and other common video files.'], ['Add an audio track', 'MP3, WAV, M4A, and more.'], ['Add audio', 'The result is an MP4 with the new soundtrack.']] },
+  removeaudio: { icon: 'removeaudio', title: 'Mute a video without touching the picture', text: 'The video stream is copied without re-encoding, so the picture and most of the file size stay the same. Only the audio track is dropped.', steps: [['Add videos', 'MP4, MKV, MOV, and other common video files.'], ['Choose a container', 'Keep the source container, or save as MP4 or MKV.'], ['Remove audio', 'Each result is written with a _no_audio suffix.']] },
   join: { icon: 'merge', title: 'Put the pieces together', text: 'Clips are normalized to matching video, audio, and frame settings before they are joined.', steps: [['Add two or more files', 'Use files of the same media type.'], ['Choose a result format', 'Video or audio output is available.'], ['Join', 'Clips play back-to-back in the selected order.']] },
   normalize: { icon: 'wave', title: 'Even out the volume', text: 'Loudness normalization targets -16 LUFS with a -1.5 dB true-peak ceiling, a good fit for spoken audio and mixed clips.', steps: [['Add media', 'Video or audio files with an audio track.'], ['Choose a format', 'The audio track is re-encoded.'], ['Normalize', 'Quiet and loud sections move closer together.']] },
   frames: { icon: 'frames', title: 'Turn motion into stills', text: 'Extract one exact frame or a series of frames at a chosen interval.', steps: [['Add a video', 'Choose any video FFmpeg can read.'], ['Pick a moment or interval', 'Use 00:00:05.500 for one frame, or 1 second for a series.'], ['Extract', 'Single frames are saved as images; intervals create a folder.']] },
@@ -218,12 +222,13 @@ const state = {
   settings: null,
   history: [],
   view: 'home',
-  files: { convert: [], compress: [], trim: [], addaudio: [], join: [], normalize: [], frames: [], extract: [], gif: [], pdf: [], archive: [], encryptor: [], checksum: [], info: [], transcribe: [], studio: [], metadata: [], shred: [] },
+  files: { convert: [], compress: [], trim: [], addaudio: [], removeaudio: [], join: [], normalize: [], frames: [], extract: [], gif: [], pdf: [], archive: [], encryptor: [], checksum: [], info: [], transcribe: [], studio: [], metadata: [], shred: [] },
   options: {
     convert: { targetFormat: 'mp4', quality: 'balanced', resolution: 'source' },
     compress: { mode: 'quality', quality: 'balanced', resolution: 'source', targetSizeMB: '25' },
     trim: { start: '00:00:00', end: '', outputFormat: 'mp4', quality: 'high' },
     addaudio: { audioBitrate: '192' },
+    removeaudio: { container: 'source' },
     join: { outputFormat: 'mp4', resolution: 'source', quality: 'high', joinName: '' },
     normalize: { audioFormat: 'mp3', quality: 'high' },
     frames: { imageFormat: 'png', mode: 'interval', interval: '1', timestamp: '00:00:05', maxFrames: '100', width: '0' },
@@ -671,6 +676,7 @@ function render() {
     case 'compress': html = renderCompress(); break;
     case 'trim': html = renderTrim(); break;
     case 'addaudio': html = renderAddAudio(); break;
+    case 'removeaudio': html = renderRemoveAudio(); break;
     case 'join': html = renderJoin(); break;
     case 'normalize': html = renderNormalize(); break;
     case 'frames': html = renderFrames(); break;
@@ -740,6 +746,7 @@ function renderHome() {
       ${toolCard('addaudio', 'addaudio', 'Add Audio Track', 'Put an MP3 on your video', '#ff9f6b')}
       ${toolCard('join', 'merge', 'Join Media', 'Play clips back-to-back', '#ff9f6b')}
       ${toolCard('extract', 'music', 'Extract Audio', 'Turn video into MP3 or FLAC', '#ffc857')}
+      ${toolCard('removeaudio', 'removeaudio', 'Remove Audio', 'Strip the soundtrack from a video', '#ff9f6b')}
       ${toolCard('normalize', 'wave', 'Normalize Audio', 'Even out quiet and loud audio', '#66e9ff')}
       ${toolCard('transcribe', 'mic', 'Audio to Text', 'Local Whisper transcripts', '#74ffb2')}
       ${toolCard('studio', 'captions', 'Transcript Clip Studio', 'Turn transcript lines into clips', '#c9ff51')}
@@ -1070,6 +1077,37 @@ function renderAddAudio() {
       </div>
     </div>
     ${renderGuide('addaudio')}
+  </div>`;
+}
+
+function renderRemoveAudio() {
+  const options = state.options.removeaudio;
+  const files = state.files.removeaudio;
+  const status = files.length ? `${files.length} ready` : 'No files';
+  return `<div class="tool-layout">
+    <div style="display:grid;gap:14px">
+      <div class="panel">
+        <div class="panel-head"><div><h2>Videos to mute</h2><p>Each video keeps its picture. The audio track is removed from the result.</p></div><span class="status-pill">${status}</span></div>
+        <div class="panel-body">
+          ${renderDropzone('removeaudio', 'Drop videos to mute', 'MP4, MKV, MOV, WebM, and other common video files')}
+          ${renderFileList('removeaudio')}
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><div><h2>Output settings</h2><p>The video stream is copied; nothing is re-encoded.</p></div></div>
+        <div class="panel-body">
+          <div class="form-grid">
+            <div class="field"><label>Output container</label><select data-tool="removeaudio" data-option="container">${selectOptions([
+              { value: 'source', label: 'Match the source file' },
+              { value: 'mp4', label: 'MP4', hint: 'H.264 or HEVC · most compatible' },
+              { value: 'mkv', label: 'MKV', hint: 'Flexible container' }
+            ], options.container)}</select><div class="field-note">MP4 needs a codec the container supports, such as H.264 or HEVC.</div></div>
+          </div>
+          ${renderStartBar('removeaudio', 'Remove audio', files.length ? 'A silent copy is saved for each video.' : 'Add at least one video first.', !files.length)}
+        </div>
+      </div>
+    </div>
+    ${renderGuide('removeaudio')}
   </div>`;
 }
 

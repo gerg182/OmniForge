@@ -14,6 +14,7 @@ const SUGGESTIONS = {
     ['compress', 'Reduce the file size'],
     ['trim', 'Keep a specific time range'],
     ['extract', 'Save the audio track'],
+    ['removeaudio', 'Strip the audio track'],
     ['gif', 'Create an animated GIF'],
     ['frames', 'Export still frames'],
     ['transcribe', 'Create a local transcript'],

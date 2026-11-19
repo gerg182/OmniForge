@@ -83,6 +83,7 @@ const TOOL_LABELS = {
   compress: 'Media Compressor',
   trim: 'Video / Audio Trimmer',
   addaudio: 'Audio Track Adder',
+  removeaudio: 'Audio Remover',
   join: 'Media Joiner',
   normalize: 'Audio Normalizer',
   frames: 'Frame Extractor',

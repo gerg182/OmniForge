@@ -2,6 +2,13 @@
 
 All notable changes to OmniForge are documented here.
 
+## 1.9.0 - 2026-11-18
+
+### Added
+
+- Added a **Remove Audio** tool that saves a silent copy of a video. The picture is copied without re-encoding, the audio track is dropped, and each result keeps the source container or is written as MP4 or MKV.
+- Added project skills that document the OmniForge interface style and the end-to-end tool pipeline for future changes.
+
 ## 1.8.2 - 2026-11-16
 
 ### Added
