@@ -2,7 +2,7 @@
 
 All notable changes to OmniForge are documented here.
 
-## 1.9.0 - 2026-11-18
+## 1.8.3 - 2026-11-18
 
 ### Added
 
