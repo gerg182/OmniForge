@@ -4179,6 +4179,7 @@ async function checkForUpdates(showMessage = true) {
     return state.updateInfo;
   } catch (error) {
     state.updateChecking = false;
+    updateUpdateBadge();
     if (state.view === 'settings') render();
     showToast(`Update check failed: ${error.message}`, 'error', 7000);
     return null;
@@ -4323,6 +4324,8 @@ async function installUpdate(installerPath, version) {
 
 function applyInstallerCandidate(info) {
   if (!info?.newer) return;
+  state.updateProgress = null;
+  state.updateDownloading = false;
   state.updateInfo = {
     ...(state.updateInfo || {}),
     folder: state.settings?.updateFolder || null,
