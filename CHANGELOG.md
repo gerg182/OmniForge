@@ -12,6 +12,12 @@ All notable changes to OmniForge are documented here.
 
 - Remove Audio now uses the same standard video format list as the other media tools, with MP4, MKV, WebM, MOV, and AVI options plus a Match source default.
 - The global Legal details button now opens the Legal & acceptable use section in Settings instead of only opening the Settings page.
+- The offline installer picker now opens in the configured update folder.
+
+### Fixed
+
+- A failed installer launch keeps the verified installer ready instead of reporting a download failure.
+- Changing the update folder clears stale download state so the warning banner does not claim an unverified build is ready.
 
 ## 1.8.3 - 2026-11-18
 

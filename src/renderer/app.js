@@ -1096,7 +1096,7 @@ function renderRemoveAudio() {
   const files = state.files.removeaudio;
   const containerFormats = allFormats().filter((format) => format.category === 'video' && format.value !== 'gif');
   const containerChoices = [
-    { value: 'source', label: 'Match source', hint: 'Keep the original container' },
+    { value: 'source', label: 'Match source', hint: 'Keep the original container when possible' },
     ...containerFormats
   ];
   const status = files.length ? `${files.length} ready` : 'No files';
@@ -4213,45 +4213,9 @@ async function downloadUpdate(version) {
     etaMs: null
   };
   if (state.view === 'settings') render();
+  let info;
   try {
-    const info = await api.downloadUpdate(version);
-    state.updateDownloading = false;
-    state.updateProgress = {
-      phase: 'ready',
-      version,
-      receivedBytes: info.size,
-      totalBytes: info.size,
-      percent: 100,
-      downloadPercent: 100,
-      verificationBytes: info.size,
-      verificationTotalBytes: info.size,
-      verificationPercent: 100,
-      bytesPerSecond: null,
-      etaMs: null,
-      actualHash: info.actualHash
-    };
-    state.updateInfo = {
-      ...(state.updateInfo || {}),
-      latest: {
-        ...(state.updateInfo?.latest || {}),
-        path: info.path,
-        size: info.size,
-        source: 'github',
-        hash: info.hash,
-        hashStatus: info.hashStatus,
-        expectedHash: info.expectedHash,
-        actualHash: info.actualHash
-      }
-    };
-    if (state.view === 'settings') render();
-    updateUpdateBadge();
-    const confirmed = window.confirm(`OmniForge ${version} downloaded and SHA-256 verified.\n\nSHA-256: ${info.actualHash}\n\nInstall now? OmniForge will close and open the Windows installer.`);
-    if (!confirmed) {
-      showToast('Download verified. Choose Install when you are ready.', 'info', 6000);
-      return;
-    }
-    await api.installUpdate(info.path, { allowMissingHash: false });
-    showToast(`Opening the OmniForge ${version} installer.`, 'success', 5000);
+    info = await api.downloadUpdate(version);
   } catch (error) {
     state.updateDownloading = false;
     state.updateProgress = {
@@ -4265,6 +4229,48 @@ async function downloadUpdate(version) {
     if (state.view === 'settings') render();
     updateUpdateBadge();
     showToast(`Update download failed: ${error.message}`, 'error', 9000);
+    return;
+  }
+  state.updateDownloading = false;
+  state.updateProgress = {
+    phase: 'ready',
+    version,
+    receivedBytes: info.size,
+    totalBytes: info.size,
+    percent: 100,
+    downloadPercent: 100,
+    verificationBytes: info.size,
+    verificationTotalBytes: info.size,
+    verificationPercent: 100,
+    bytesPerSecond: null,
+    etaMs: null,
+    actualHash: info.actualHash
+  };
+  state.updateInfo = {
+    ...(state.updateInfo || {}),
+    latest: {
+      ...(state.updateInfo?.latest || {}),
+      path: info.path,
+      size: info.size,
+      source: 'github',
+      hash: info.hash,
+      hashStatus: info.hashStatus,
+      expectedHash: info.expectedHash,
+      actualHash: info.actualHash
+    }
+  };
+  if (state.view === 'settings') render();
+  updateUpdateBadge();
+  const confirmed = window.confirm(`OmniForge ${version} downloaded and SHA-256 verified.\n\nSHA-256: ${info.actualHash}\n\nInstall now? OmniForge will close and open the Windows installer.`);
+  if (!confirmed) {
+    showToast('Download verified. Choose Install when you are ready.', 'info', 6000);
+    return;
+  }
+  try {
+    await api.installUpdate(info.path, { allowMissingHash: false });
+    showToast(`Opening the OmniForge ${version} installer.`, 'success', 5000);
+  } catch (error) {
+    showToast(`Update failed: ${error.message || error}`, 'error', 9000);
   }
 }
 
@@ -4280,6 +4286,8 @@ async function chooseUpdateFolder() {
   try {
     const result = await api.chooseUpdateFolder();
     if (!result) return;
+    state.updateProgress = null;
+    state.updateDownloading = false;
     state.settings = await api.getSettings();
     state.updateInfo = result;
     updateUpdateBadge();

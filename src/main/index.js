@@ -427,6 +427,7 @@ function registerIpc() {
   ipcMain.handle('updates:choose-installer', async () => {
     const result = await dialog.showOpenDialog(mainWindow, {
       title: 'Select an OmniForge installer',
+      defaultPath: store.get().updateFolder,
       properties: ['openFile'],
       filters: [{ name: 'OmniForge installer', extensions: ['exe'] }]
     });
