@@ -2,6 +2,17 @@
 
 All notable changes to OmniForge are documented here.
 
+## 1.8.4 - 2026-11-18
+
+### Added
+
+- Added a persistent update warning in the app shell when a newer OmniForge version is available. It switches to a ready-to-install message after the installer is downloaded and SHA-256 verified, and links to the Application updates section.
+
+### Changed
+
+- Remove Audio now uses the same standard video format list as the other media tools, with MP4, MKV, WebM, MOV, and AVI options plus a Match source default.
+- The global Legal details button now opens the Legal & acceptable use section in Settings instead of only opening the Settings page.
+
 ## 1.8.3 - 2026-11-18
 
 ### Added

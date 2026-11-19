@@ -45,16 +45,16 @@ Everything runs on your PC. FFmpeg, FFprobe, yt-dlp, Deno, 7-Zip, and whisper.cp
 - Saved tool recipes for reusable option presets, plus a `Ctrl+K` command palette for tools, recipes, and actions
 - Smart drag-and-drop anywhere in the window with file-type detection and a confirm-first compatible-tool chooser
 - Microphone dictation with an in-app recording timer and transcript preview
-- GitHub Releases update discovery with SHA-256 verification, plus an offline installer fallback
+- GitHub Releases update discovery with SHA-256 verification, an in-app availability and ready-to-install warning, plus an offline installer fallback
 - Choose an output folder for every batch
 
 ## Installation
 
-Download the newest `OmniForge-Setup-1.8.3.exe` from [GitHub Releases](https://github.com/gerg182/OmniForge/releases/latest), then verify it before running:
+Download the newest `OmniForge-Setup-1.8.4.exe` from [GitHub Releases](https://github.com/gerg182/OmniForge/releases/latest), then verify it before running:
 
 ```powershell
-Get-FileHash .\OmniForge-Setup-1.8.3.exe -Algorithm SHA256
-Get-Content .\OmniForge-Setup-1.8.3.exe.sha256
+Get-FileHash .\OmniForge-Setup-1.8.4.exe -Algorithm SHA256
+Get-Content .\OmniForge-Setup-1.8.4.exe.sha256
 ```
 
 The hashes must match. The current installer is unsigned, so Windows SmartScreen may warn. Only continue when the installer came from this repository and its SHA-256 matches. OmniForge requires Windows 10/11 x64 and installs per user; administrator access is not required.
@@ -87,7 +87,7 @@ Build the Windows installer:
 npm run dist
 ```
 
-The installer and its `OmniForge-Setup-1.8.3.exe.sha256` sidecar are written to `dist/`. After `npm run dist`, `npm run smoke:packaged` verifies the unpacked app starts correctly. Release builds are produced and published by the tag-driven GitHub Actions workflow after the version is synchronized in `package.json`, `package-lock.json`, this README, and `CHANGELOG.md`.
+The installer and its `OmniForge-Setup-1.8.4.exe.sha256` sidecar are written to `dist/`. After `npm run dist`, `npm run smoke:packaged` verifies the unpacked app starts correctly. Release builds are produced and published by the tag-driven GitHub Actions workflow after the version is synchronized in `package.json`, `package-lock.json`, this README, and `CHANGELOG.md`.
 
 ## Transcript Clip Studio
 

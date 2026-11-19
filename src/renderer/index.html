@@ -99,7 +99,15 @@
           <strong>LEGAL WARNING: Use only files and media you have the right to process.</strong>
           <span>You are responsible for copyright, YouTube terms, privacy and consent, encryption/export, and data-destruction laws. Never bypass DRM or access controls, remove rights information you do not control, or destroy evidence.</span>
         </div>
-        <button class="ghost-button" data-view="settings">Legal details</button>
+        <button class="ghost-button" data-action="open-legal">Legal details</button>
+      </div>
+      <div class="global-update-warning" id="update-warning" role="status" aria-live="polite" hidden>
+        <span class="nav-icon" data-icon="download"></span>
+        <div class="global-update-copy">
+          <strong id="update-warning-title">An OmniForge update is available.</strong>
+          <span id="update-warning-text">Open Application updates to review and install it.</span>
+        </div>
+        <button class="ghost-button" data-action="open-update-settings">Review update</button>
       </div>
       <section class="view" id="view" aria-live="polite"></section>
     </main>

@@ -200,7 +200,7 @@ const GUIDES = {
   compress: { icon: 'compress', title: 'Smaller files, same idea', text: 'Use a quality preset for predictable results, or set a target size for video and audio.', steps: [['Add media', 'Video, audio, and images are supported.'], ['Choose a strategy', 'Quality preset or target file size.'], ['Compare', 'Files are saved beside each other in your chosen folder.']] },
   trim: { icon: 'scissors', title: 'Keep only the good part', text: 'Timestamps can be seconds (12.5) or clock values (00:01:12.5).', steps: [['Add clips', 'Video and audio files both work.'], ['Set a range', 'Enter a start and an end time.'], ['Render', 'The result is re-encoded for accurate cuts.']] },
   addaudio: { icon: 'addaudio', title: 'Give a video a new soundtrack', text: 'The video stream is copied without re-encoding, so the picture stays untouched. The audio is cut to the video length, or padded with silence when it is shorter.', steps: [['Add a video', 'MP4, MOV, MKV, and other common video files.'], ['Add an audio track', 'MP3, WAV, M4A, and more.'], ['Add audio', 'The result is an MP4 with the new soundtrack.']] },
-  removeaudio: { icon: 'removeaudio', title: 'Mute a video without touching the picture', text: 'The video stream is copied without re-encoding, so the picture and most of the file size stay the same. Only the audio track is dropped.', steps: [['Add videos', 'MP4, MKV, MOV, and other common video files.'], ['Choose a container', 'Keep the source container, or save as MP4 or MKV.'], ['Remove audio', 'Each result is written with a _no_audio suffix.']] },
+  removeaudio: { icon: 'removeaudio', title: 'Mute a video without touching the picture', text: 'The video stream is copied without re-encoding, so the picture and most of the file size stay the same. Only the audio track is dropped.', steps: [['Add videos', 'MP4, MKV, MOV, and other common video files.'], ['Choose a format', 'Keep the source container, or pick another video format.'], ['Remove audio', 'Each result is written with a _no_audio suffix.']] },
   join: { icon: 'merge', title: 'Put the pieces together', text: 'Clips are normalized to matching video, audio, and frame settings before they are joined.', steps: [['Add two or more files', 'Use files of the same media type.'], ['Choose a result format', 'Video or audio output is available.'], ['Join', 'Clips play back-to-back in the selected order.']] },
   normalize: { icon: 'wave', title: 'Even out the volume', text: 'Loudness normalization targets -16 LUFS with a -1.5 dB true-peak ceiling, a good fit for spoken audio and mixed clips.', steps: [['Add media', 'Video or audio files with an audio track.'], ['Choose a format', 'The audio track is re-encoded.'], ['Normalize', 'Quiet and loud sections move closer together.']] },
   frames: { icon: 'frames', title: 'Turn motion into stills', text: 'Extract one exact frame or a series of frames at a chosen interval.', steps: [['Add a video', 'Choose any video FFmpeg can read.'], ['Pick a moment or interval', 'Use 00:00:05.500 for one frame, or 1 second for a series.'], ['Extract', 'Single frames are saved as images; intervals create a folder.']] },
@@ -399,6 +399,17 @@ function navigate(view) {
   closeQueue();
   updateShell();
   render();
+}
+
+function openSettingsSection(sectionId) {
+  navigate('settings');
+  requestAnimationFrame(() => {
+    const target = document.getElementById(sectionId);
+    if (!target) return;
+    target.setAttribute('tabindex', '-1');
+    target.focus({ preventScroll: true });
+    target.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  });
 }
 
 function updateShell() {
@@ -1083,6 +1094,11 @@ function renderAddAudio() {
 function renderRemoveAudio() {
   const options = state.options.removeaudio;
   const files = state.files.removeaudio;
+  const containerFormats = allFormats().filter((format) => format.category === 'video' && format.value !== 'gif');
+  const containerChoices = [
+    { value: 'source', label: 'Match source', hint: 'Keep the original container' },
+    ...containerFormats
+  ];
   const status = files.length ? `${files.length} ready` : 'No files';
   return `<div class="tool-layout">
     <div style="display:grid;gap:14px">
@@ -1097,11 +1113,7 @@ function renderRemoveAudio() {
         <div class="panel-head"><div><h2>Output settings</h2><p>The video stream is copied; nothing is re-encoded.</p></div></div>
         <div class="panel-body">
           <div class="form-grid">
-            <div class="field"><label>Output container</label><select data-tool="removeaudio" data-option="container">${selectOptions([
-              { value: 'source', label: 'Match the source file' },
-              { value: 'mp4', label: 'MP4', hint: 'H.264 or HEVC · most compatible' },
-              { value: 'mkv', label: 'MKV', hint: 'Flexible container' }
-            ], options.container)}</select><div class="field-note">MP4 needs a codec the container supports, such as H.264 or HEVC.</div></div>
+            <div class="field"><label>Output format</label><select data-tool="removeaudio" data-option="container">${selectOptions(containerChoices, options.container)}</select><div class="field-note">The picture is copied, so pick a container that supports the source codec. MKV accepts any codec.</div></div>
           </div>
           ${renderStartBar('removeaudio', 'Remove audio', files.length ? 'A silent copy is saved for each video.' : 'Add at least one video first.', !files.length)}
         </div>
@@ -2414,11 +2426,34 @@ function queueUpdatePanelRefresh() {
   });
 }
 
+function updateUpdateWarning() {
+  const warning = $('#update-warning');
+  if (!warning) return;
+  const newer = Boolean(state.updateInfo?.newer);
+  warning.hidden = !newer;
+  if (!newer) return;
+  const version = state.updateInfo?.latest?.version || '';
+  const ready = state.updateProgress?.phase === 'ready';
+  const title = $('#update-warning-title');
+  const text = $('#update-warning-text');
+  if (title) {
+    title.textContent = ready
+      ? `OmniForge ${version} is ready to install.`
+      : version ? `OmniForge ${version} is available.` : 'An OmniForge update is available.';
+  }
+  if (text) {
+    text.textContent = ready
+      ? 'The installer was downloaded and SHA-256 verified. Review it in Application updates.'
+      : 'A newer build is published. Review it in Application updates.';
+  }
+}
+
 function updateUpdateBadge() {
   const newer = Boolean(state.updateInfo?.newer);
   for (const pip of document.querySelectorAll('#settings-update-pip, #settings-topbar-pip')) {
     pip.classList.toggle('hidden', !newer);
   }
+  updateUpdateWarning();
 }
 
 function renderSettings() {
@@ -2534,7 +2569,7 @@ function renderSettings() {
           <div class="legal-note">${icon('alert')} Download only content you own or have permission to download. Respect YouTube's terms and local copyright law.</div>
         </div>
       </div>
-      <div class="panel legal-panel">
+      <div class="panel legal-panel" id="legal-acceptable-use">
         <div class="panel-head"><div><h2>Legal &amp; acceptable use</h2><p>OmniForge is a general-purpose tool; legality depends on what you process and how you distribute it.</p></div><span class="status-pill failed">Read before use</span></div>
         <div class="panel-body">
           <div class="legal-warning-block">
@@ -4128,6 +4163,7 @@ async function checkForUpdates(showMessage = true) {
   state.updateChecking = true;
   state.updateProgress = null;
   state.updateDownloading = false;
+  updateUpdateBadge();
   if (state.view === 'settings') render();
   try {
     state.updateInfo = await api.checkForUpdates();
@@ -4207,6 +4243,7 @@ async function downloadUpdate(version) {
       }
     };
     if (state.view === 'settings') render();
+    updateUpdateBadge();
     const confirmed = window.confirm(`OmniForge ${version} downloaded and SHA-256 verified.\n\nSHA-256: ${info.actualHash}\n\nInstall now? OmniForge will close and open the Windows installer.`);
     if (!confirmed) {
       showToast('Download verified. Choose Install when you are ready.', 'info', 6000);
@@ -4225,6 +4262,7 @@ async function downloadUpdate(version) {
       etaMs: null
     };
     if (state.view === 'settings') render();
+    updateUpdateBadge();
     showToast(`Update download failed: ${error.message}`, 'error', 9000);
   }
 }
@@ -4243,6 +4281,7 @@ async function chooseUpdateFolder() {
     if (!result) return;
     state.settings = await api.getSettings();
     state.updateInfo = result;
+    updateUpdateBadge();
     render();
     showToast('Update folder saved.', 'success');
   } catch (error) {
@@ -4294,6 +4333,7 @@ function applyInstallerCandidate(info) {
     source: 'local',
     candidates: [info]
   };
+  updateUpdateBadge();
   if (state.view === 'settings') render();
 }
 
@@ -4552,6 +4592,8 @@ function handleAction(actionTarget, event) {
     case 'refresh-status': refreshStatus(true); break;
     case 'update-ytdlp': updateYtdlp(actionTarget); break;
     case 'check-updates': checkForUpdates(true); break;
+    case 'open-legal': openSettingsSection('legal-acceptable-use'); break;
+    case 'open-update-settings': openSettingsSection('application-updates'); break;
     case 'download-update': downloadUpdate(actionTarget.dataset.version); break;
     case 'open-update-release': openUpdateRelease(); break;
     case 'choose-update-folder': chooseUpdateFolder(); break;
@@ -4837,7 +4879,10 @@ async function init() {
   api.onUpdateProgress?.((progress) => {
     state.updateProgress = progress;
     if (['downloading', 'verifying'].includes(progress?.phase)) state.updateDownloading = true;
-    if (['ready', 'error'].includes(progress?.phase)) state.updateDownloading = false;
+    if (['ready', 'error'].includes(progress?.phase)) {
+      state.updateDownloading = false;
+      updateUpdateBadge();
+    }
     queueUpdatePanelRefresh();
   });
   viewEl.innerHTML = `<div class="empty-state"><div class="tool-icon" style="--icon-color:var(--lime)">${icon('sparkle')}</div><h3>Starting OmniForge…</h3><p>Checking the bundled engines.</p></div>`;

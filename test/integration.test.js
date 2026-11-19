@@ -149,6 +149,20 @@ test('media, data, PDF, archive, checksum, and inspection integration', { timeou
     const remuxed = await run({ tool: 'removeaudio', inputPaths: [sample], options: { container: 'mkv' } }, temp);
     assert.ok(remuxed.result.outputPaths[0].endsWith('.mkv'));
     assert.ok(fs.existsSync(remuxed.result.outputPaths[0]));
+
+    const mov = await run({ tool: 'removeaudio', inputPaths: [sample], options: { container: 'mov' } }, temp);
+    const movPath = mov.result.outputPaths[0];
+    assert.ok(movPath.endsWith('.mov'));
+    assert.ok(fs.existsSync(movPath));
+    assert.ok(fs.statSync(movPath).size > 1000);
+    const movStreams = probeStreams(movPath);
+    assert.ok(movStreams.some((stream) => stream.codec_type === 'video'));
+    assert.ok(!movStreams.some((stream) => stream.codec_type === 'audio'));
+
+    await assert.rejects(
+      run({ tool: 'removeaudio', inputPaths: [sample], options: { container: 'gif' } }, temp),
+      /Choose a supported video container\./
+    );
   });
 
   await t.test('CSV to JSON', async () => {

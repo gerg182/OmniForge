@@ -334,7 +334,13 @@ async function executeAddAudio(spec, ctx, deps) {
 async function executeRemoveAudio(spec, ctx, deps) {
   assertInputs(spec);
   const requested = String(spec.options?.container || 'source').toLowerCase();
-  const container = ['mp4', 'mkv'].includes(requested) ? requested : 'source';
+  const videoContainers = new Set(
+    Object.keys(OUTPUT_FORMATS).filter((format) => OUTPUT_FORMATS[format].category === 'video' && format !== 'gif')
+  );
+  if (requested !== 'source' && !videoContainers.has(requested)) {
+    throw new Error('Choose a supported video container.');
+  }
+  const container = requested;
   const sourceContainers = new Set(['mp4', 'm4v', 'mov', 'mkv', 'webm', 'avi', 'ts', 'ogv']);
   const outputs = [];
   const total = spec.inputPaths.length;

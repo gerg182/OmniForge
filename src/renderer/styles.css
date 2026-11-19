@@ -1327,6 +1327,31 @@ body.legal-locked .app-shell { filter: blur(4px) saturate(0.75); pointer-events:
 .global-legal-copy span { display: block; margin-top: 2px; color: var(--muted-2); font-size: 10px; line-height: 1.45; }
 .global-legal-warning .ghost-button { flex: 0 0 auto; color: #8f3733; border-color: rgba(239, 128, 128, 0.25); }
 
+.global-update-warning {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin: 0 28px 10px;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-left: 2px solid rgba(138, 100, 31, 0.55);
+  border-radius: 6px;
+  background: rgba(138, 100, 31, 0.045);
+  color: var(--muted);
+}
+.global-update-warning[hidden] { display: none; }
+.global-update-warning > .nav-icon {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  color: var(--warning);
+}
+.global-update-copy { flex: 1; min-width: 0; }
+.global-update-copy strong { display: block; color: #7c5a1c; font-size: 11px; font-weight: 550; letter-spacing: 0; }
+.global-update-copy span { display: block; margin-top: 2px; color: var(--muted-2); font-size: 10px; line-height: 1.45; }
+.global-update-warning .ghost-button { flex: 0 0 auto; color: #7c5a1c; border-color: rgba(138, 100, 31, 0.25); }
+.global-update-warning .ghost-button:hover { background: rgba(138, 100, 31, 0.06); }
+
 .youtube-legal-warning {
   display: grid;
   grid-template-columns: 62px minmax(0, 1fr);
@@ -1425,10 +1450,13 @@ body.legal-locked .app-shell { filter: blur(4px) saturate(0.75); pointer-events:
 
 @media (max-width: 1280px) {
   .global-legal-warning { margin-left: 27px; margin-right: 27px; }
+  .global-update-warning { margin-left: 27px; margin-right: 27px; }
 }
 @media (max-width: 980px) {
   .global-legal-warning { margin-left: 20px; margin-right: 20px; align-items: flex-start; flex-wrap: wrap; }
   .global-legal-warning .ghost-button { display: none; }
+  .global-update-warning { margin-left: 20px; margin-right: 20px; align-items: flex-start; flex-wrap: wrap; }
+  .global-update-warning .ghost-button { display: none; }
   .youtube-legal-warning { grid-template-columns: 1fr; }
   .youtube-legal-icon { width: 48px; height: 48px; border-radius: 10px; }
   .youtube-legal-icon svg { width: 24px; height: 24px; }
