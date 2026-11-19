@@ -342,7 +342,7 @@ function registerIpc() {
 
   ipcMain.handle('studio:open-project', async () => {
     const result = await dialog.showOpenDialog(mainWindow, {
-      title: 'Open Transcript Clip Studio project',
+      title: 'Open Clip from Transcript project',
       properties: ['openFile'],
       filters: [{ name: 'OmniForge Studio project', extensions: ['ofstudio'] }]
     });
@@ -355,7 +355,7 @@ function registerIpc() {
     let projectPath = String(options.projectPath || '');
     if (!projectPath || options.saveAs) {
       const result = await dialog.showSaveDialog(mainWindow, {
-        title: 'Save Transcript Clip Studio project',
+        title: 'Save Clip from Transcript project',
         defaultPath: projectPath || suggestedProjectPath(normalized.mediaPath),
         filters: [{ name: 'OmniForge Studio project', extensions: ['ofstudio'] }]
       });

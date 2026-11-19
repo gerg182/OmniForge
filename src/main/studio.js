@@ -27,7 +27,7 @@ const { parseFfmpegSpeed } = require('./job-metrics');
 
 function assertInputs(spec) {
   if (!Array.isArray(spec.inputPaths) || spec.inputPaths.length !== 1) {
-    throw new Error('Transcript Clip Studio renders one media file per job.');
+    throw new Error('Clip from Transcript renders one media file per job.');
   }
   const filePath = spec.inputPaths[0];
   if (!fs.existsSync(filePath)) throw new Error(`File not found: ${filePath}`);

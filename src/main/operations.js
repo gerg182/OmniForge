@@ -145,7 +145,7 @@ async function executeConvert(spec, ctx, deps) {
       throw new Error(`${path.basename(filePath)} is a data file. Choose a data output format instead.`);
     }
     if (sourceCategory === 'pdf' || sourceCategory === 'archive' || sourceCategory === 'unknown') {
-      throw new Error(`The Universal Converter cannot convert ${path.basename(filePath)} to ${target.toUpperCase()}.`);
+      throw new Error(`OmniForge cannot convert ${path.basename(filePath)} to ${target.toUpperCase()}.`);
     }
 
     const outputDirectory = await ensureDir(spec.outputDirectory);

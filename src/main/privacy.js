@@ -171,7 +171,7 @@ function normalizeShredPasses(value) {
 async function shredFile(filePath, passes, ctx, onProgress) {
   const initial = await fsp.lstat(filePath);
   if (initial.isSymbolicLink()) throw new Error(`Symbolic links cannot be securely deleted: ${path.basename(filePath)}`);
-  if (initial.isDirectory()) throw new Error(`Secure Delete only accepts files, not directories: ${path.basename(filePath)}`);
+  if (initial.isDirectory()) throw new Error(`Shred Files only accepts files, not directories: ${path.basename(filePath)}`);
   if (!initial.isFile()) throw new Error(`Unsupported file type: ${path.basename(filePath)}`);
   const size = initial.size;
   let handle;
@@ -209,14 +209,14 @@ async function executeShred(spec, ctx) {
     throw new Error('Choose at least one input file.');
   }
   if (spec.options?.acknowledged !== true) {
-    throw new Error('Confirm that secure deletion cannot guarantee removal from SSD, backup, or cloud copies.');
+    throw new Error('Confirm that shredding cannot guarantee removal from SSD, backup, or cloud copies.');
   }
   const passes = normalizeShredPasses(spec.options?.passes);
   const targets = [];
   for (const filePath of spec.inputPaths) {
     const stat = await fsp.lstat(filePath);
     if (stat.isSymbolicLink()) throw new Error(`Symbolic links cannot be securely deleted: ${path.basename(filePath)}`);
-    if (stat.isDirectory()) throw new Error(`Secure Delete only accepts files, not directories: ${path.basename(filePath)}`);
+    if (stat.isDirectory()) throw new Error(`Shred Files only accepts files, not directories: ${path.basename(filePath)}`);
     if (!stat.isFile()) throw new Error(`Unsupported file type: ${path.basename(filePath)}`);
     targets.push({ filePath, size: stat.size });
   }
@@ -236,7 +236,7 @@ async function executeShred(spec, ctx) {
     });
     files.push({ filePath: target.filePath, fileName: path.basename(target.filePath), passes });
   }
-  ctx.report({ progress: 100, message: 'Secure deletion complete' });
+  ctx.report({ progress: 100, message: 'Shredding complete' });
   return { outputPaths: [], data: { kind: 'shred', passes, files } };
 }
 

@@ -2,11 +2,19 @@
 
 All notable changes to OmniForge are documented here.
 
+## 1.8.5 - 2026-11-18
+
+### Changed
+
+- Rewrote interface labels, tool descriptions, settings copy, and update messages so they say more directly what each action does.
+- Renamed tools for clarity: Convert Files, Join Files, Normalize Volume, GIF Maker, Extract Frames, Clip from Transcript, Transcribe Audio, PDF Tools, Encrypt / Decrypt, File Checksums, Inspect Media, Remove Metadata, and Shred Files.
+- Replaced "engine" with "tools" in status and readiness messages.
+
 ## 1.8.4 - 2026-11-18
 
 ### Added
 
-- Added a persistent update warning in the app shell when a newer OmniForge version is available. It switches to a ready-to-install message after the installer is downloaded and SHA-256 verified, and links to the Application updates section.
+- Added a persistent update warning in the app shell when a newer OmniForge version is available. It switches to a ready-to-install message after the installer is downloaded and SHA-256 verified, and links to the App updates section.
 
 ### Changed
 

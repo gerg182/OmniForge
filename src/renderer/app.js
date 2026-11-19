@@ -61,25 +61,25 @@ function icon(name, className = '') {
 const VIEW_META = {
   home: ['Workspace', 'Overview'],
   youtube: ['Download', 'YouTube Downloader'],
-  convert: ['Convert', 'Universal Converter'],
+  convert: ['Convert', 'Convert Files'],
   compress: ['Media', 'Compress Files'],
   trim: ['Media', 'Trim & Clip'],
-  addaudio: ['Media', 'Add Audio Track'],
+  addaudio: ['Media', 'Add Audio'],
   removeaudio: ['Media', 'Remove Audio'],
-  join: ['Media', 'Media Joiner'],
-  normalize: ['Media', 'Audio Normalizer'],
-  frames: ['Media', 'Frame Extractor'],
+  join: ['Media', 'Join Files'],
+  normalize: ['Media', 'Normalize Volume'],
+  frames: ['Media', 'Extract Frames'],
   extract: ['Media', 'Extract Audio'],
-  gif: ['Media', 'GIF Studio'],
-  pdf: ['Files', 'PDF Toolkit'],
+  gif: ['Media', 'GIF Maker'],
+  pdf: ['Files', 'PDF Tools'],
   archive: ['Files', 'Archives'],
-  encryptor: ['Files', 'File Encryptor'],
-  checksum: ['Files', 'Checksum Verifier'],
-  info: ['Files', 'Media Inspector'],
-  metadata: ['Privacy', 'Metadata Stripper'],
-  shred: ['Privacy', 'Secure Delete'],
-  studio: ['Speech', 'Transcript Clip Studio'],
-  transcribe: ['Speech', 'Audio to Text'],
+  encryptor: ['Files', 'Encrypt / Decrypt'],
+  checksum: ['Files', 'File Checksums'],
+  info: ['Files', 'Inspect Media'],
+  metadata: ['Privacy', 'Remove Metadata'],
+  shred: ['Privacy', 'Shred Files'],
+  studio: ['Speech', 'Clip from Transcript'],
+  transcribe: ['Speech', 'Transcribe Audio'],
   dictation: ['Speech', 'Dictation'],
   settings: ['System', 'Settings']
 };
@@ -196,25 +196,25 @@ const ALLOWED_CATEGORIES = {
 };
 
 const GUIDES = {
-  convert: { icon: 'convert', title: 'One converter, every direction', text: 'FFmpeg handles media while a native data engine handles structured files. Everything runs on your PC.', steps: [['Choose files', 'Drop a batch or pick files from disk.'], ['Pick a format', 'Video, audio, image, or structured data.'], ['Convert', 'Choose an output folder and let the queue work.']] },
-  compress: { icon: 'compress', title: 'Smaller files, same idea', text: 'Use a quality preset for predictable results, or set a target size for video and audio.', steps: [['Add media', 'Video, audio, and images are supported.'], ['Choose a strategy', 'Quality preset or target file size.'], ['Compare', 'Files are saved beside each other in your chosen folder.']] },
-  trim: { icon: 'scissors', title: 'Keep only the good part', text: 'Timestamps can be seconds (12.5) or clock values (00:01:12.5).', steps: [['Add clips', 'Video and audio files both work.'], ['Set a range', 'Enter a start and an end time.'], ['Render', 'The result is re-encoded for accurate cuts.']] },
-  addaudio: { icon: 'addaudio', title: 'Give a video a new soundtrack', text: 'The video stream is copied without re-encoding, so the picture stays untouched. The audio is cut to the video length, or padded with silence when it is shorter.', steps: [['Add a video', 'MP4, MOV, MKV, and other common video files.'], ['Add an audio track', 'MP3, WAV, M4A, and more.'], ['Add audio', 'The result is an MP4 with the new soundtrack.']] },
-  removeaudio: { icon: 'removeaudio', title: 'Mute a video without touching the picture', text: 'The video stream is copied without re-encoding, so the picture and most of the file size stay the same. Only the audio track is dropped.', steps: [['Add videos', 'MP4, MKV, MOV, and other common video files.'], ['Choose a format', 'Keep the source container, or pick another video format.'], ['Remove audio', 'Each result is written with a _no_audio suffix.']] },
-  join: { icon: 'merge', title: 'Put the pieces together', text: 'Clips are normalized to matching video, audio, and frame settings before they are joined.', steps: [['Add two or more files', 'Use files of the same media type.'], ['Choose a result format', 'Video or audio output is available.'], ['Join', 'Clips play back-to-back in the selected order.']] },
-  normalize: { icon: 'wave', title: 'Even out the volume', text: 'Loudness normalization targets -16 LUFS with a -1.5 dB true-peak ceiling, a good fit for spoken audio and mixed clips.', steps: [['Add media', 'Video or audio files with an audio track.'], ['Choose a format', 'The audio track is re-encoded.'], ['Normalize', 'Quiet and loud sections move closer together.']] },
-  frames: { icon: 'frames', title: 'Turn motion into stills', text: 'Extract one exact frame or a series of frames at a chosen interval.', steps: [['Add a video', 'Choose any video FFmpeg can read.'], ['Pick a moment or interval', 'Use 00:00:05.500 for one frame, or 1 second for a series.'], ['Extract', 'Single frames are saved as images; intervals create a folder.']] },
-  extract: { icon: 'music', title: 'Pull the soundtrack out', text: 'Choose MP3 for compatibility or FLAC for a lossless copy when the source allows it.', steps: [['Add video', 'Any FFmpeg-readable video works.'], ['Choose audio', 'MP3, WAV, FLAC, M4A, OGG, or Opus.'], ['Extract', 'Only the audio stream is written.']] },
-  gif: { icon: 'gif', title: 'Make a clean, small GIF', text: 'The palette is generated per clip for better color and file size than a basic conversion.', steps: [['Add a video', 'Pick the clip you want to animate.'], ['Set the moment', 'Start time, duration, frame rate, and width.'], ['Create', 'A palette-optimized GIF is generated.']] },
-  pdf: { icon: 'pdf', title: 'PDFs without uploads', text: 'Merge, split, extract, reorder, or rotate pages locally. Encrypted PDFs are not supported.', steps: [['Add PDFs', 'Merge uses every selected file.'], ['Choose an action', 'Page ranges look like 1-3,5.'], ['Save', 'New PDFs are written to your chosen folder.']] },
-  archive: { icon: 'archive', title: 'Pack files or unpack archives', text: 'Create ZIP, 7Z, TAR, TAR.GZ, or GZ archives and extract common archive formats.', steps: [['Add items', 'Select files to pack or archives to open.'], ['Choose a mode', 'Create a new archive or extract an existing one.'], ['Finish', 'Extracted content gets its own folder.']] },
-  encryptor: { icon: 'shield', title: 'Encrypt files before they travel', text: 'AES-256-GCM with an scrypt-derived key encrypts the contents and authenticates the stored metadata. Everything runs locally.', steps: [['Add files', 'Encrypt anything, or choose .ofenc files to restore.'], ['Set a password', 'Use at least 8 characters. OmniForge never stores it.'], ['Save', 'Decrypted files get their original names back.']] },
-  checksum: { icon: 'hash', title: 'Verify that a file is intact', text: 'Checksums are calculated locally with streaming reads, so large files stay responsive.', steps: [['Add files', 'Any file type can be hashed.'], ['Pick algorithms', 'MD5, SHA-1, and SHA-256 can run together.'], ['Compare', 'Copy a digest and compare it with the source.']] },
-  info: { icon: 'info', title: 'See what is inside', text: 'FFprobe reports container details, duration, bitrate, video dimensions, and audio properties.', steps: [['Add media', 'Video and audio files work best.'], ['Inspect', 'The whole probe result is summarized.'], ['Review', 'Open technical details directly in the app.']] },
-  metadata: { icon: 'file', title: 'Leave less behind', text: 'Remove EXIF, XMP, IPTC, comments, and media tags while preserving image data and color profiles.', steps: [['Add media', 'JPEG, PNG, WebP, audio, and video are supported.'], ['Choose a folder', 'Cleaned copies get a _clean suffix.'], ['Clean', 'Streams are copied without re-encoding media.']] },
-  shred: { icon: 'harddrive', title: 'Overwrite before deleting', text: 'A practical cleanup tool for ordinary local files. SSDs, backups, cloud sync, and snapshots may still retain copies, so this is not a guarantee of physical erasure.', steps: [['Add files', 'Directories and symbolic links are rejected.'], ['Choose passes', 'One, three, or seven passes; three is the default.'], ['Confirm', 'Review the SSD note, then remove the files. There is no undo.']] },
-  transcribe: { icon: 'mic', title: 'Turn speech into text', text: 'Whisper runs locally on your PC. Audio never leaves the machine and nothing is uploaded.', steps: [['Add audio or video', 'Drop a recording, podcast, or video file.'], ['Pick a language', 'Auto-detect works for most recordings.'], ['Transcribe', 'Save a plain TXT or timed SRT transcript.']] },
-  studio: { icon: 'captions', title: 'Edit video by its words', text: 'Transcribe locally, select sentences, and turn them into captioned clips without sending media anywhere.', steps: [['Load media', 'Transcribe with Whisper or import SRT/VTT.'], ['Select a range', 'Click a line, then Shift-click another.'], ['Render clips', 'Save trimmed media with optional captions.']] }
+  convert: { icon: 'convert', title: 'Convert files to another format', text: 'FFmpeg converts media; data files are converted in the app. Everything runs on this PC.', steps: [['Choose files', 'Drop a batch or pick files from disk.'], ['Pick a format', 'Video, audio, image, or structured data.'], ['Convert', 'Choose an output folder and start the queue.']] },
+  compress: { icon: 'compress', title: 'Reduce file size', text: 'Pick a quality preset, or set a target size for video and audio.', steps: [['Add media', 'Video, audio, and images are supported.'], ['Choose a strategy', 'Quality preset or target file size.'], ['Compare', 'Results are saved together in your chosen folder.']] },
+  trim: { icon: 'scissors', title: 'Cut video or audio', text: 'Use seconds (12.5) or clock values (00:01:12.5) for start and end times.', steps: [['Add clips', 'Video and audio files both work.'], ['Set a range', 'Enter a start and an end time.'], ['Render', 'Cuts are re-encoded for accuracy.']] },
+  addaudio: { icon: 'addaudio', title: 'Add or replace a video\'s audio', text: 'The picture is copied without re-encoding. The new audio is cut to the video length, or padded with silence if it is shorter.', steps: [['Add a video', 'MP4, MOV, MKV, and other common video files.'], ['Add an audio track', 'MP3, WAV, M4A, and more.'], ['Add audio', 'Saves an MP4 with the new soundtrack.']] },
+  removeaudio: { icon: 'removeaudio', title: 'Remove audio from a video', text: 'The picture is copied without re-encoding. Only the audio track is removed.', steps: [['Add videos', 'MP4, MKV, MOV, and other common video files.'], ['Choose a format', 'Keep the source container, or pick another video format.'], ['Remove audio', 'Each result gets a _no_audio suffix.']] },
+  join: { icon: 'merge', title: 'Join files into one', text: 'Clips are converted to matching settings before joining.', steps: [['Add two or more files', 'Use files of the same media type.'], ['Choose a format', 'Video or audio output is available.'], ['Join', 'Clips play back-to-back in the order shown.']] },
+  normalize: { icon: 'wave', title: 'Even out audio volume', text: 'Targets -16 LUFS with a -1.5 dB peak limit, which suits speech and mixed clips.', steps: [['Add media', 'Video or audio files with an audio track.'], ['Choose a format', 'The audio track is re-encoded.'], ['Normalize', 'Quiet and loud sections move closer together.']] },
+  frames: { icon: 'frames', title: 'Save frames as images', text: 'Export one exact frame, or a series of frames at a chosen interval.', steps: [['Add a video', 'Choose any video FFmpeg can read.'], ['Pick a time or interval', 'Use 00:00:05.500 for one frame, or 1 second for a series.'], ['Extract', 'Single frames are images; intervals create a folder.']] },
+  extract: { icon: 'music', title: 'Save audio from a video', text: 'Choose MP3 for compatibility or FLAC for lossless audio.', steps: [['Add video', 'Any FFmpeg-readable video works.'], ['Choose audio', 'MP3, WAV, FLAC, M4A, OGG, or Opus.'], ['Extract', 'Only the audio stream is written.']] },
+  gif: { icon: 'gif', title: 'Create a small GIF', text: 'Each GIF gets its own color palette for better quality and a smaller file.', steps: [['Add a video', 'Pick the clip you want to animate.'], ['Set the range', 'Start time, duration, frame rate, and width.'], ['Create', 'A palette-optimized GIF is generated.']] },
+  pdf: { icon: 'pdf', title: 'Edit PDFs locally', text: 'Merge, split, extract, reorder, or rotate pages on this PC. Encrypted PDFs are not supported.', steps: [['Add PDFs', 'Merge uses every selected file.'], ['Choose an action', 'Page ranges look like 1-3,5.'], ['Save', 'New PDFs are written to your chosen folder.']] },
+  archive: { icon: 'archive', title: 'Create or extract archives', text: 'Create ZIP, 7Z, TAR, TAR.GZ, or GZ archives and extract common archive formats.', steps: [['Add items', 'Select files to pack or archives to open.'], ['Choose a mode', 'Create a new archive or extract an existing one.'], ['Finish', 'Extracted content gets its own folder.']] },
+  encryptor: { icon: 'shield', title: 'Protect files with a password', text: 'AES-256-GCM encrypts the contents and verifies the stored metadata. Everything runs on this PC.', steps: [['Add files', 'Encrypt anything, or choose .ofenc files to restore.'], ['Set a password', 'Use at least 8 characters. OmniForge never stores it.'], ['Save', 'Decrypted files get their original names back.']] },
+  checksum: { icon: 'hash', title: 'Check file integrity', text: 'Hashes are calculated locally, so large files stay responsive.', steps: [['Add files', 'Any file type can be hashed.'], ['Pick algorithms', 'MD5, SHA-1, and SHA-256 can run together.'], ['Compare', 'Copy a hash and compare it with the source.']] },
+  info: { icon: 'info', title: 'Inspect media details', text: 'FFprobe reports container details, duration, bitrate, video dimensions, and audio properties.', steps: [['Add media', 'Video and audio files work best.'], ['Inspect', 'FFprobe reads the file and returns a summary.'], ['Review', 'Open technical details in the app.']] },
+  metadata: { icon: 'file', title: 'Remove hidden metadata', text: 'Remove EXIF, XMP, IPTC, comments, and media tags while preserving image data and color profiles.', steps: [['Add media', 'JPEG, PNG, WebP, audio, and video are supported.'], ['Choose a folder', 'Cleaned copies get a _clean suffix.'], ['Clean', 'Streams are copied without re-encoding.']] },
+  shred: { icon: 'harddrive', title: 'Erase files securely', text: 'Overwrites ordinary local files before deleting them. SSDs, backups, cloud sync, and snapshots may still keep copies, so this is not a guarantee of physical erasure.', steps: [['Add files', 'Directories and symbolic links are rejected.'], ['Choose passes', 'One, three, or seven passes; three is the default.'], ['Confirm', 'Review the SSD note, then remove the files. There is no undo.']] },
+  transcribe: { icon: 'mic', title: 'Transcribe speech locally', text: 'Whisper runs on this PC. Audio is never uploaded.', steps: [['Add audio or video', 'Drop a recording, podcast, or video file.'], ['Pick a language', 'Auto-detect works for most recordings.'], ['Transcribe', 'Save a plain TXT or timed SRT transcript.']] },
+  studio: { icon: 'captions', title: 'Cut video from a transcript', text: 'Transcribe locally, select sentences, and render captioned clips without uploading media.', steps: [['Load media', 'Transcribe with Whisper or import SRT/VTT.'], ['Select a range', 'Click a line, then Shift-click another.'], ['Render clips', 'Save trimmed media with optional captions.']] }
 };
 
 const state = {
@@ -722,7 +722,7 @@ function renderHome() {
       <div class="hero-copy">
         <div class="hero-kicker"><span class="status-dot"></span> Local-first file workbench</div>
         <h2>One app.<br><span class="gradient-text">Every file.</span><br>Zero uploads.</h2>
-        <p>Download, convert, compress, trim, extract, encrypt, archive, and inspect files without sending them to a server. Built for fast batches and the formats you actually use.</p>
+        <p>Convert, compress, trim, download, encrypt, archive, and inspect files without uploading them. Built for batches and common formats.</p>
         <div class="hero-actions">
           <button class="primary-button" data-view="convert">${icon('convert')} Open converter</button>
           <button class="secondary-button" data-view="youtube">${icon('download')} Download from YouTube</button>
@@ -741,46 +741,46 @@ function renderHome() {
     <div class="stats-strip">
       <div class="stat-cell"><div class="stat-value">${outputCount}<span> formats</span></div><div class="stat-label">Ready to convert</div></div>
       <div class="stat-cell"><div class="stat-value">0<span> bytes uploaded</span></div><div class="stat-label">Everything stays local</div></div>
-      <div class="stat-cell"><div class="stat-value">${state.status?.tools?.ffmpeg?.available ? 'Ready' : 'Setup'}<span> engine status</span></div><div class="stat-label">Bundled tools</div></div>
+      <div class="stat-cell"><div class="stat-value">${state.status?.tools?.ffmpeg?.available ? 'Ready' : 'Setup'}<span> tool status</span></div><div class="stat-label">Bundled tools</div></div>
     </div>
 
     <div class="section-head">
-      <div><h2>Pick a tool</h2><p>Fast paths for the jobs you do most.</p></div>
-      <button class="section-link" data-view="convert">See all tools →</button>
+      <div><h2>Pick a tool</h2><p>Shortcuts to common tasks.</p></div>
+      <button class="section-link" data-view="convert">Open converter →</button>
     </div>
     <div class="tool-grid">
-      ${toolCard('youtube', 'download', 'YouTube Downloader', 'Video or audio, direct to disk', '#ff8c8c')}
-      ${toolCard('convert', 'convert', 'Universal Convert', '24 output formats + data files', '#c9ff51')}
-      ${toolCard('compress', 'compress', 'Compress', 'Quality presets or target size', '#66e9ff')}
-      ${toolCard('pdf', 'pdf', 'PDF Toolkit', 'Merge, split, reorder, rotate', '#b18cff')}
-      ${toolCard('trim', 'scissors', 'Trim & Clip', 'Keep exactly the moment you need', '#74ffb2')}
-      ${toolCard('addaudio', 'addaudio', 'Add Audio Track', 'Put an MP3 on your video', '#ff9f6b')}
-      ${toolCard('join', 'merge', 'Join Media', 'Play clips back-to-back', '#ff9f6b')}
-      ${toolCard('extract', 'music', 'Extract Audio', 'Turn video into MP3 or FLAC', '#ffc857')}
-      ${toolCard('removeaudio', 'removeaudio', 'Remove Audio', 'Strip the soundtrack from a video', '#ff9f6b')}
-      ${toolCard('normalize', 'wave', 'Normalize Audio', 'Even out quiet and loud audio', '#66e9ff')}
-      ${toolCard('transcribe', 'mic', 'Audio to Text', 'Local Whisper transcripts', '#74ffb2')}
-      ${toolCard('studio', 'captions', 'Transcript Clip Studio', 'Turn transcript lines into clips', '#c9ff51')}
-      ${toolCard('dictation', 'mic', 'Dictation', 'Speak and get text instantly', '#74ffb2')}
-      ${toolCard('frames', 'frames', 'Frame Extractor', 'Save video moments as images', '#b18cff')}
-      ${toolCard('archive', 'archive', 'Archives', 'ZIP, 7Z, TAR and more', '#7a9cff')}
-      ${toolCard('encryptor', 'shield', 'File Encryptor', 'Password-protect files locally', '#ff8c8c')}
-      ${toolCard('checksum', 'hash', 'Checksums', 'Verify files with MD5 or SHA', '#f3a6ff')}
-      ${toolCard('metadata', 'file', 'Metadata Stripper', 'Remove tags without re-encoding', '#c9ff51')}
-      ${toolCard('shred', 'harddrive', 'Secure Delete', 'Overwrite files before removal', '#ff8c8c')}
+      ${toolCard('youtube', 'download', 'YouTube Downloader', 'Save video or audio', '#ff8c8c')}
+      ${toolCard('convert', 'convert', 'Convert Files', 'Change format without uploads', '#c9ff51')}
+      ${toolCard('compress', 'compress', 'Compress Files', 'Reduce file size', '#66e9ff')}
+      ${toolCard('pdf', 'pdf', 'PDF Tools', 'Merge, split, and rotate', '#b18cff')}
+      ${toolCard('trim', 'scissors', 'Trim & Clip', 'Cut a section out', '#74ffb2')}
+      ${toolCard('addaudio', 'addaudio', 'Add Audio', "Replace a video's audio", '#ff9f6b')}
+      ${toolCard('join', 'merge', 'Join Files', 'Combine clips in order', '#ff9f6b')}
+      ${toolCard('extract', 'music', 'Extract Audio', 'Save audio from video', '#ffc857')}
+      ${toolCard('removeaudio', 'removeaudio', 'Remove Audio', 'Strip the soundtrack', '#ff9f6b')}
+      ${toolCard('normalize', 'wave', 'Normalize Volume', 'Even out quiet and loud', '#66e9ff')}
+      ${toolCard('transcribe', 'mic', 'Transcribe Audio', 'Local speech-to-text', '#74ffb2')}
+      ${toolCard('studio', 'captions', 'Clip from Transcript', 'Turn lines into clips', '#c9ff51')}
+      ${toolCard('dictation', 'mic', 'Dictation', 'Speak and get text', '#74ffb2')}
+      ${toolCard('frames', 'frames', 'Extract Frames', 'Save video moments', '#b18cff')}
+      ${toolCard('archive', 'archive', 'Archives', 'Zip, unpack, and more', '#7a9cff')}
+      ${toolCard('encryptor', 'shield', 'Encrypt / Decrypt', 'Password-protect files', '#ff8c8c')}
+      ${toolCard('checksum', 'hash', 'File Checksums', 'Verify with MD5 or SHA', '#f3a6ff')}
+      ${toolCard('metadata', 'file', 'Remove Metadata', 'Strip tags without re-encoding', '#c9ff51')}
+      ${toolCard('shred', 'harddrive', 'Shred Files', 'Overwrite before deleting', '#ff8c8c')}
     </div>
 
     <div class="two-col" style="margin-top: 28px;">
       <div class="panel">
-        <div class="panel-head"><div><h2>Recent activity</h2><p>Your last local operations.</p></div><button class="section-link" data-action="open-history">View queue →</button></div>
+        <div class="panel-head"><div><h2>Recent activity</h2><p>Recently finished jobs.</p></div><button class="section-link" data-action="open-history">View queue →</button></div>
         <div class="panel-body tight">
-          ${recent.length ? `<div class="recent-list">${recent.map(recentRow).join('')}</div>` : `<div class="empty-state" style="min-height:150px"><div class="tool-icon" style="--icon-color:var(--muted)">${icon('clock')}</div><h3>No jobs yet</h3><p>Your recent conversions and downloads will appear here.</p></div>`}
+          ${recent.length ? `<div class="recent-list">${recent.map(recentRow).join('')}</div>` : `<div class="empty-state" style="min-height:150px"><div class="tool-icon" style="--icon-color:var(--muted)">${icon('clock')}</div><h3>No jobs yet</h3><p>Finished conversions and downloads appear here.</p></div>`}
         </div>
       </div>
       <div class="panel side-panel">
         <div class="tool-icon side-icon" style="--icon-color: var(--lime)">${icon('shield')}</div>
         <h3>Built to stay on your machine</h3>
-        <p>OmniForge runs FFmpeg, 7-Zip, yt-dlp, and its encryption engine locally. Your files never pass through a third-party conversion service.</p>
+        <p>FFmpeg, 7-Zip, yt-dlp, and encryption run on this PC. Your files are not uploaded.</p>
         <div class="side-list">
           <div class="side-step"><span class="side-step-number">01</span><div><strong>Local by default</strong><span>Only YouTube downloads need the internet.</span></div></div>
           <div class="side-step"><span class="side-step-number">02</span><div><strong>Batch friendly</strong><span>Queue many files and keep working.</span></div></div>
@@ -810,9 +810,9 @@ function recentRow(job) {
 
 GUIDES.youtube = {
   icon: 'download',
-  title: 'A direct line to your media',
-  text: 'yt-dlp handles extraction while the bundled Deno runtime and FFmpeg keep formats and audio conversion reliable.',
-  steps: [['Paste a URL', 'One public YouTube video at a time.'], ['Pick a format', 'MP4 video at up to 1080p or audio only.'], ['Save', 'Choose an output folder and download.']]
+  title: 'Download YouTube videos',
+  text: 'yt-dlp downloads the video, while the bundled Deno runtime and FFmpeg handle formats and audio conversion.',
+  steps: [['Paste a link', 'One public YouTube video at a time.'], ['Pick a format', 'MP4 video up to 1080p, or audio only.'], ['Save', 'Choose an output folder and download.']]
 };
 
 function allFormats() {
@@ -964,7 +964,7 @@ function renderConvert() {
   return `<div class="tool-layout">
     <div style="display:grid;gap:14px">
       <div class="panel">
-        <div class="panel-head"><div><h2>Files to convert</h2><p>Media is processed with FFmpeg. Structured data is converted natively.</p></div><span class="status-pill">${state.files.convert.length ? `${state.files.convert.length} ready` : 'No files'}</span></div>
+        <div class="panel-head"><div><h2>Files to convert</h2><p>Media uses FFmpeg; data files use the built-in converter.</p></div><span class="status-pill">${state.files.convert.length ? `${state.files.convert.length} ready` : 'No files'}</span></div>
         <div class="panel-body">
           ${renderDropzone('convert', 'Drop files to convert', 'Video, audio, images, JSON, CSV, YAML, or XML')}
           ${renderFileList('convert')}
@@ -996,7 +996,7 @@ function renderCompress() {
   return `<div class="tool-layout">
     <div style="display:grid;gap:14px">
       <div class="panel">
-        <div class="panel-head"><div><h2>Media to compress</h2><p>Shrink large files with predictable quality or a target size.</p></div><span class="status-pill">${state.files.compress.length ? `${state.files.compress.length} ready` : 'No files'}</span></div>
+        <div class="panel-head"><div><h2>Media to compress</h2><p>Shrink large files with a quality preset or a target size.</p></div><span class="status-pill">${state.files.compress.length ? `${state.files.compress.length} ready` : 'No files'}</span></div>
         <div class="panel-body">
           ${renderDropzone('compress', 'Drop video, audio, or images', 'Keep the same container or choose a new one')}
           ${renderFileList('compress')}
@@ -1033,14 +1033,14 @@ function renderTrim() {
   return `<div class="tool-layout">
     <div style="display:grid;gap:14px">
       <div class="panel">
-        <div class="panel-head"><div><h2>Clips to trim</h2><p>Accurate cuts are re-encoded, so they work with most source files.</p></div><span class="status-pill">${state.files.trim.length ? `${state.files.trim.length} ready` : 'No files'}</span></div>
+        <div class="panel-head"><div><h2>Clips to trim</h2><p>Cuts are re-encoded for accuracy, so most files work.</p></div><span class="status-pill">${state.files.trim.length ? `${state.files.trim.length} ready` : 'No files'}</span></div>
         <div class="panel-body">
           ${renderDropzone('trim', 'Drop video or audio', 'MP4, MKV, MOV, MP3, WAV and more')}
           ${renderFileList('trim')}
         </div>
       </div>
       <div class="panel">
-        <div class="panel-head"><div><h2>Cut range</h2><p>Leave end blank to keep everything from the start time onward.</p></div></div>
+        <div class="panel-head"><div><h2>Cut range</h2><p>Leave the end blank to keep everything from the start time.</p></div></div>
         <div class="panel-body">
           <div class="form-grid three">
             <div class="field"><label>Start time</label><input value="${escapeHtml(options.start)}" placeholder="00:00:00" data-tool="trim" data-option="start"><div class="field-note">Seconds or HH:MM:SS.</div></div>
@@ -1065,7 +1065,7 @@ function renderAddAudio() {
   return `<div class="tool-layout">
     <div style="display:grid;gap:14px">
       <div class="panel">
-        <div class="panel-head"><div><h2>Video and audio</h2><p>Add one video and one audio file. The audio is cut to the video's length.</p></div><span class="status-pill">${status}</span></div>
+        <div class="panel-head"><div><h2>Video and audio files</h2><p>Add one video and one audio file. The audio is cut to the video length.</p></div><span class="status-pill">${status}</span></div>
         <div class="panel-body">
           ${renderDropzone('addaudio', 'Drop a video and an audio track', 'MP4 + MP3, or any common video and audio formats')}
           ${renderFileList('addaudio')}
@@ -1073,7 +1073,7 @@ function renderAddAudio() {
         </div>
       </div>
       <div class="panel">
-        <div class="panel-head"><div><h2>Audio settings</h2><p>The video stream is copied; only the audio is re-encoded.</p></div></div>
+        <div class="panel-head"><div><h2>Audio settings</h2><p>The picture is copied; only the new audio is re-encoded.</p></div></div>
         <div class="panel-body">
           <div class="form-grid">
             <div class="field"><label>Audio bitrate</label><select data-tool="addaudio" data-option="audioBitrate">${selectOptions([
@@ -1103,14 +1103,14 @@ function renderRemoveAudio() {
   return `<div class="tool-layout">
     <div style="display:grid;gap:14px">
       <div class="panel">
-        <div class="panel-head"><div><h2>Videos to mute</h2><p>Each video keeps its picture. The audio track is removed from the result.</p></div><span class="status-pill">${status}</span></div>
+        <div class="panel-head"><div><h2>Videos</h2><p>Each video keeps its picture. The audio track is removed.</p></div><span class="status-pill">${status}</span></div>
         <div class="panel-body">
           ${renderDropzone('removeaudio', 'Drop videos to mute', 'MP4, MKV, MOV, WebM, and other common video files')}
           ${renderFileList('removeaudio')}
         </div>
       </div>
       <div class="panel">
-        <div class="panel-head"><div><h2>Output settings</h2><p>The video stream is copied; nothing is re-encoded.</p></div></div>
+        <div class="panel-head"><div><h2>Output settings</h2><p>The picture is copied without re-encoding.</p></div></div>
         <div class="panel-body">
           <div class="form-grid">
             <div class="field"><label>Output format</label><select data-tool="removeaudio" data-option="container">${selectOptions(containerChoices, options.container)}</select><div class="field-note">The picture is copied, so pick a container that supports the source codec. MKV accepts any codec.</div></div>
@@ -1137,14 +1137,14 @@ function renderJoin() {
   return `<div class="tool-layout">
     <div style="display:grid;gap:14px">
       <div class="panel">
-        <div class="panel-head"><div><h2>Clips to join</h2><p>Use the arrows to set the playback order.</p></div><span class="status-pill">${files.length ? `${files.length} ready` : 'No files'}</span></div>
+        <div class="panel-head"><div><h2>Clips to join</h2><p>Use the arrows to set the order.</p></div><span class="status-pill">${files.length ? `${files.length} ready` : 'No files'}</span></div>
         <div class="panel-body">
           ${renderDropzone('join', 'Drop video or audio clips', 'Choose at least two files of the same media type')}
           ${renderFileList('join')}
         </div>
       </div>
       <div class="panel">
-        <div class="panel-head"><div><h2>Join settings</h2><p>Mixed formats are normalized before they are joined.</p></div></div>
+        <div class="panel-head"><div><h2>Join settings</h2><p>Clips are converted to matching settings before joining.</p></div></div>
         <div class="panel-body">
           <div class="form-grid">
             <div class="field"><label>Output format</label><select data-tool="join" data-option="outputFormat" data-rerender="true">${joinGroups.map((group) => `<optgroup label="${escapeHtml(group.label)}">${group.formats.map((format) => `<option value="${format.value}" ${options.outputFormat === format.value ? 'selected' : ''}>${format.label} — ${escapeHtml(format.hint)}</option>`).join('')}</optgroup>`).join('')}</select></div>
@@ -1154,7 +1154,7 @@ function renderJoin() {
             ], options.resolution)}</select></div>` : ''}
             <div class="field"><label>Output name <span>optional</span></label><input value="${escapeHtml(options.joinName)}" placeholder="joined" data-tool="join" data-option="joinName"><div class="field-note">A format extension is added automatically.</div></div>
           </div>
-          ${renderStartBar('join', 'Join media', 'Files are combined in the order shown above.', files.length < 2)}
+          ${renderStartBar('join', 'Join files', 'Files are combined in the order shown above.', files.length < 2)}
         </div>
       </div>
     </div>
@@ -1168,20 +1168,20 @@ function renderNormalize() {
   return `<div class="tool-layout">
     <div style="display:grid;gap:14px">
       <div class="panel">
-        <div class="panel-head"><div><h2>Media to normalize</h2><p>Video files work too; only the audio track is kept.</p></div><span class="status-pill">${state.files.normalize.length ? `${state.files.normalize.length} ready` : 'No files'}</span></div>
+        <div class="panel-head"><div><h2>Media to normalize</h2><p>Video files work too; only the audio is kept.</p></div><span class="status-pill">${state.files.normalize.length ? `${state.files.normalize.length} ready` : 'No files'}</span></div>
         <div class="panel-body">
           ${renderDropzone('normalize', 'Drop video or audio', 'Audio is normalized to -16 LUFS with a -1.5 dB ceiling')}
           ${renderFileList('normalize')}
         </div>
       </div>
       <div class="panel">
-        <div class="panel-head"><div><h2>Normalization settings</h2><p>Single-pass loudness normalization is suitable for podcasts, voice notes, and mixed clips.</p></div></div>
+        <div class="panel-head"><div><h2>Normalization settings</h2><p>Single-pass loudness matching for podcasts, voice notes, and mixed clips.</p></div></div>
         <div class="panel-body">
           <div class="form-grid">
             <div class="field"><label>Audio format</label><select data-tool="normalize" data-option="audioFormat">${audioFormats.map((format) => `<option value="${format.value}" ${options.audioFormat === format.value ? 'selected' : ''}>${format.label} — ${format.hint}</option>`).join('')}</select></div>
             <div class="field"><label>Quality</label>${qualityPicker('normalize', options.quality)}</div>
           </div>
-          ${renderStartBar('normalize', 'Normalize audio', 'The result is saved as a separate audio file.', state.files.normalize.length === 0)}
+          ${renderStartBar('normalize', 'Normalize volume', 'The result is saved as a separate audio file.', state.files.normalize.length === 0)}
         </div>
       </div>
     </div>
@@ -1195,7 +1195,7 @@ function renderFrames() {
   return `<div class="tool-layout">
     <div style="display:grid;gap:14px">
       <div class="panel">
-        <div class="panel-head"><div><h2>Videos to sample</h2><p>${timestampMode ? 'One image is saved per video at the exact timestamp.' : 'Each video gets its own folder of numbered frames.'}</p></div><span class="status-pill">${state.files.frames.length ? `${state.files.frames.length} ready` : 'No files'}</span></div>
+        <div class="panel-head"><div><h2>Videos</h2><p>${timestampMode ? 'One image per video at the exact timestamp.' : 'Each video gets a folder of numbered frames.'}</p></div><span class="status-pill">${state.files.frames.length ? `${state.files.frames.length} ready` : 'No files'}</span></div>
         <div class="panel-body">
           ${renderDropzone('frames', 'Drop videos to extract frames from', timestampMode ? 'Save the exact frame at a chosen moment' : 'A frame is saved at the chosen time interval')}
           ${renderFileList('frames')}
@@ -1230,14 +1230,14 @@ function renderExtract() {
   return `<div class="tool-layout">
     <div style="display:grid;gap:14px">
       <div class="panel">
-        <div class="panel-head"><div><h2>Video files</h2><p>Keep the soundtrack and discard the video stream.</p></div><span class="status-pill">${state.files.extract.length ? `${state.files.extract.length} ready` : 'No files'}</span></div>
+        <div class="panel-head"><div><h2>Video or audio files</h2><p>Keep the audio and discard the video.</p></div><span class="status-pill">${state.files.extract.length ? `${state.files.extract.length} ready` : 'No files'}</span></div>
         <div class="panel-body">
           ${renderDropzone('extract', 'Drop videos to extract audio from', 'MP4, MKV, MOV, WebM, AVI and more')}
           ${renderFileList('extract')}
         </div>
       </div>
       <div class="panel">
-        <div class="panel-head"><div><h2>Audio settings</h2><p>Choose a format and quality for the extracted track.</p></div></div>
+        <div class="panel-head"><div><h2>Audio settings</h2><p>Choose a format and quality for the audio track.</p></div></div>
         <div class="panel-body">
           <div class="form-grid">
             <div class="field"><label>Audio format</label><select data-tool="extract" data-option="audioFormat">${audioFormats.map((format) => `<option value="${format.value}" ${options.audioFormat === format.value ? 'selected' : ''}>${format.label} — ${format.hint}</option>`).join('')}</select></div>
@@ -1290,14 +1290,14 @@ function renderTranscribe() {
   return `<div class="tool-layout">
     <div style="display:grid;gap:14px">
       <div class="panel">
-        <div class="panel-head"><div><h2>Audio &amp; video files</h2><p>Whisper converts each file to a local transcript. Nothing is uploaded.</p></div><span class="status-pill ${ready ? 'succeeded' : 'failed'}">${ready ? 'Engine ready' : 'Engine missing'}</span></div>
+        <div class="panel-head"><div><h2>Audio &amp; video files</h2><p>Whisper transcribes each file on this PC. Nothing is uploaded.</p></div><span class="status-pill ${ready ? 'succeeded' : 'failed'}">${ready ? 'Whisper ready' : 'Whisper missing'}</span></div>
         <div class="panel-body">
           ${renderDropzone('transcribe', 'Drop audio or video to transcribe', 'MP3, WAV, M4A, FLAC, MP4, MKV, MOV, WebM and more')}
           ${renderFileList('transcribe')}
         </div>
       </div>
       <div class="panel">
-        <div class="panel-head"><div><h2>Transcript settings</h2><p>Auto-detect handles mixed-language recordings. Choosing a language can speed things up.</p></div></div>
+        <div class="panel-head"><div><h2>Transcript settings</h2><p>Auto-detect works for most recordings. Choosing a language can be faster.</p></div></div>
         <div class="panel-body">
           <div class="form-grid">
             <div class="field"><label>Spoken language</label><select data-tool="transcribe" data-option="language">${selectOptions(SPEECH_LANGUAGES, options.language)}</select></div>
@@ -1324,7 +1324,7 @@ function renderDictation() {
   return `<div class="tool-layout">
     <div style="display:grid;gap:14px">
       <div class="panel dictation-panel ${recording ? 'is-recording' : ''}">
-        <div class="panel-head"><div><h2>Live dictation</h2><p>Speak, stop, and OmniForge transcribes the recording on this PC.</p></div><span class="status-pill ${recording ? 'running' : ready ? 'succeeded' : 'failed'}">${recording ? 'recording' : ready ? 'ready' : 'engine missing'}</span></div>
+        <div class="panel-head"><div><h2>Live dictation</h2><p>Record, stop, and get a local transcript.</p></div><span class="status-pill ${recording ? 'running' : ready ? 'succeeded' : 'failed'}">${recording ? 'recording' : ready ? 'ready' : 'Whisper missing'}</span></div>
         <div class="panel-body">
           <div class="dictation-stage">
             <div class="dictation-orb ${recording ? 'recording' : ''}">${recording ? icon('stop') : icon('mic')}</div>
@@ -1553,15 +1553,15 @@ function renderStudio() {
       <section class="studio-welcome">
         <div class="studio-welcome-copy">
           <span class="studio-kicker">Transcript-first editing</span>
-          <h2>Turn spoken words into finished clips.</h2>
-          <p>Load one audio or video file, build a timed transcript locally, then select the lines worth keeping. Every clip, caption, and render stays on this PC.</p>
+          <h2>Turn speech into finished clips.</h2>
+          <p>Load one audio or video file, build a transcript locally, then select the lines to keep. Every clip and caption stays on this PC.</p>
           ${renderDropzone('studio', 'Drop audio or video to begin', 'MP3, WAV, MP4, MKV, MOV, WebM and more')}
           <div class="studio-welcome-actions"><button class="ghost-button" data-action="studio-open-project">${icon('upload')} Open an existing .ofstudio project</button></div>
         </div>
         <div class="studio-welcome-steps">
           <div class="studio-welcome-step"><span>01</span><div><strong>Build the transcript</strong><p>Transcribe with local Whisper or import SRT/VTT.</p></div></div>
-          <div class="studio-welcome-step"><span>02</span><div><strong>Select the good parts</strong><p>Click a line, then Shift-click to extend the range.</p></div></div>
-          <div class="studio-welcome-step"><span>03</span><div><strong>Render a clip queue</strong><p>Reorder, style captions, and export every clip in one run.</p></div></div>
+          <div class="studio-welcome-step"><span>02</span><div><strong>Select the parts to keep</strong><p>Click a line, then Shift-click to extend the range.</p></div></div>
+          <div class="studio-welcome-step"><span>03</span><div><strong>Render your clips</strong><p>Reorder, style captions, and export every clip in one run.</p></div></div>
         </div>
       </section>
     </div>`;
@@ -1705,7 +1705,7 @@ function renderStudioSettingsPanel(project, category) {
   const activeTarget = studioCreatorTargetLabel(activePreset);
   const style = project.captionStyle;
   return `<div class="studio-inspector-section">
-    <div class="studio-inspector-heading"><div><h2>Output settings</h2><p>Choose the format, caption delivery, and breathing room around each selected range.</p></div></div>
+    <div class="studio-inspector-heading"><div><h2>Output settings</h2><p>Choose the format, caption style, and padding around each range.</p></div></div>
     <div class="studio-settings-block">
       <div class="field full"><label>Output folder</label><div class="studio-path-picker"><span title="${escapeHtml(project.output.directory)}">${escapeHtml(project.output.directory || 'No folder selected')}</span><button class="ghost-button" data-action="studio-choose-output">${icon('folder')} Change</button></div></div>
       <div class="form-grid studio-settings-grid">
@@ -1918,14 +1918,14 @@ function renderGif() {
   return `<div class="tool-layout">
     <div style="display:grid;gap:14px">
       <div class="panel">
-        <div class="panel-head"><div><h2>Source videos</h2><p>Create short, palette-optimized GIFs from any video clip.</p></div><span class="status-pill">${state.files.gif.length ? `${state.files.gif.length} ready` : 'No files'}</span></div>
+        <div class="panel-head"><div><h2>Source videos</h2><p>Create small GIFs from any video clip.</p></div><span class="status-pill">${state.files.gif.length ? `${state.files.gif.length} ready` : 'No files'}</span></div>
         <div class="panel-body">
           ${renderDropzone('gif', 'Drop videos for GIFs', 'MP4, MKV, MOV, WebM and more')}
           ${renderFileList('gif')}
         </div>
       </div>
       <div class="panel">
-        <div class="panel-head"><div><h2>GIF settings</h2><p>Shorter, narrower GIFs are much smaller and load faster.</p></div></div>
+        <div class="panel-head"><div><h2>GIF settings</h2><p>Shorter clips and smaller widths create smaller files.</p></div></div>
         <div class="panel-body">
           <div class="form-grid">
             <div class="field"><label>Start time</label><input value="${escapeHtml(options.start)}" placeholder="00:00:00" data-tool="gif" data-option="start"></div>
@@ -1947,14 +1947,14 @@ function renderPdf() {
   return `<div class="tool-layout">
     <div style="display:grid;gap:14px">
       <div class="panel">
-        <div class="panel-head"><div><h2>PDF files</h2><p>All PDF work happens locally. Encrypted PDFs are rejected.</p></div><span class="status-pill">${state.files.pdf.length ? `${state.files.pdf.length} ready` : 'No files'}</span></div>
+        <div class="panel-head"><div><h2>PDF files</h2><p>All PDF work stays on this PC. Encrypted PDFs are not supported.</p></div><span class="status-pill">${state.files.pdf.length ? `${state.files.pdf.length} ready` : 'No files'}</span></div>
         <div class="panel-body">
           ${renderDropzone('pdf', 'Drop PDFs', 'Merge, split, extract, reorder, or rotate')}
           ${renderFileList('pdf')}
         </div>
       </div>
       <div class="panel">
-        <div class="panel-head"><div><h2>PDF action</h2><p>${options.operation === 'merge' ? 'Every selected PDF is combined in order.' : 'Each selected PDF is processed separately.'}</p></div></div>
+        <div class="panel-head"><div><h2>PDF action</h2><p>${options.operation === 'merge' ? 'Selected PDFs are combined in order.' : 'Each PDF is processed separately.'}</p></div></div>
         <div class="panel-body">
           <div class="form-grid">
             <div class="field"><label>Operation</label><select data-tool="pdf" data-option="operation" data-rerender="true">${selectOptions([
@@ -1978,14 +1978,14 @@ function renderArchive() {
   return `<div class="tool-layout">
     <div style="display:grid;gap:14px">
       <div class="panel">
-        <div class="panel-head"><div><h2>${creating ? 'Files to pack' : 'Archives to extract'}</h2><p>${creating ? 'Selected files are stored together in one archive.' : 'Each archive is extracted into a new folder.'}</p></div><span class="status-pill">${state.files.archive.length ? `${state.files.archive.length} ready` : 'No files'}</span></div>
+        <div class="panel-head"><div><h2>${creating ? 'Files to pack' : 'Archives to extract'}</h2><p>${creating ? 'Selected files are stored in one archive.' : 'Each archive is extracted into a new folder.'}</p></div><span class="status-pill">${state.files.archive.length ? `${state.files.archive.length} ready` : 'No files'}</span></div>
         <div class="panel-body">
           ${renderDropzone('archive', creating ? 'Drop files' : 'Drop archives', creating ? 'ZIP, 7Z, TAR, TAR.GZ, or GZ output' : 'ZIP, 7Z, TAR, GZ, RAR, ISO and more')}
           ${renderFileList('archive')}
         </div>
       </div>
       <div class="panel">
-        <div class="panel-head"><div><h2>Archive settings</h2><p>7-Zip runs locally and preserves folder structure.</p></div></div>
+        <div class="panel-head"><div><h2>Archive settings</h2><p>7-Zip runs locally and keeps folder structure.</p></div></div>
         <div class="panel-body">
           <div class="form-grid">
             <div class="field"><label>Operation</label><select data-tool="archive" data-option="operation" data-rerender="true">${selectOptions([{ value: 'create', label: 'Create archive' }, { value: 'extract', label: 'Extract archive' }], options.operation)}</select></div>
@@ -2008,7 +2008,7 @@ function renderEncryptor() {
   return `<div class="tool-layout">
     <div style="display:grid;gap:14px">
       <div class="panel">
-        <div class="panel-head"><div><h2>${decrypting ? 'Encrypted files' : 'Files to encrypt'}</h2><p>${decrypting ? 'Choose OmniForge .ofenc files and restore their original contents.' : 'Every selected file is encrypted into its own .ofenc file.'}</p></div><span class="status-pill">${state.files.encryptor.length ? `${state.files.encryptor.length} ready` : 'No files'}</span></div>
+        <div class="panel-head"><div><h2>${decrypting ? 'Encrypted files' : 'Files to encrypt'}</h2><p>${decrypting ? 'Choose .ofenc files to restore.' : 'Each selected file becomes its own .ofenc file.'}</p></div><span class="status-pill">${state.files.encryptor.length ? `${state.files.encryptor.length} ready` : 'No files'}</span></div>
         <div class="panel-body">
           ${renderDropzone('encryptor', decrypting ? 'Drop .ofenc files' : 'Drop files to encrypt', decrypting ? 'Only files created by OmniForge are supported' : 'Any file type, including media, documents, and archives')}
           ${renderFileList('encryptor')}
@@ -2022,7 +2022,7 @@ function renderEncryptor() {
 
 function renderEncryptorSettings(decrypting) {
   return `<div class="panel">
-    <div class="panel-head"><div><h2>Encryption settings</h2><p>AES-256-GCM protects the contents and verifies that nothing was changed.</p></div><span class="status-pill">${icon('shield')} Local only</span></div>
+    <div class="panel-head"><div><h2>Encryption settings</h2><p>AES-256-GCM encrypts the contents and detects tampering.</p></div><span class="status-pill">${icon('shield')} Local only</span></div>
     <div class="panel-body">
       <div class="field full" style="margin-bottom:14px">
         <label>Mode</label>
@@ -2046,14 +2046,14 @@ function renderChecksum() {
   return `<div class="tool-layout">
     <div style="display:grid;gap:14px">
       <div class="panel">
-        <div class="panel-head"><div><h2>Files to verify</h2><p>Checksums are streamed from disk and never uploaded.</p></div><span class="status-pill">${state.files.checksum.length ? `${state.files.checksum.length} ready` : 'No files'}</span></div>
+        <div class="panel-head"><div><h2>Files to verify</h2><p>Files are read from disk; nothing is uploaded.</p></div><span class="status-pill">${state.files.checksum.length ? `${state.files.checksum.length} ready` : 'No files'}</span></div>
         <div class="panel-body">
           ${renderDropzone('checksum', 'Drop files to hash', 'Any file type, including archives and media')}
           ${renderFileList('checksum')}
         </div>
       </div>
       <div class="panel">
-        <div class="panel-head"><div><h2>Algorithms</h2><p>Select one or more digests to calculate together.</p></div></div>
+        <div class="panel-head"><div><h2>Algorithms</h2><p>Choose one or more hashes to calculate.</p></div></div>
         <div class="panel-body">
           <div class="check-row">
             ${[['md5', 'MD5'], ['sha1', 'SHA-1'], ['sha256', 'SHA-256']].map(([value, label]) => `<label class="check-pill"><input type="checkbox" value="${value}" data-tool="checksum" data-algorithm="${value}" ${options.algorithms.includes(value) ? 'checked' : ''}><span>${label}</span></label>`).join('')}
@@ -2078,7 +2078,7 @@ function renderInfo() {
         </div>
       </div>
       <div class="panel">
-        <div class="panel-head"><div><h2>Inspection</h2><p>FFprobe reads the file directly and returns a technical summary.</p></div></div>
+        <div class="panel-head"><div><h2>Inspection</h2><p>FFprobe reads the file and returns a technical summary.</p></div></div>
         <div class="panel-body">
           ${renderStartBar('info', 'Inspect files', 'No output folder is needed.', state.files.info.length === 0)}
         </div>
@@ -2095,7 +2095,7 @@ function renderMetadata() {
   return `<div class="tool-layout">
     <div style="display:grid;gap:14px">
       <div class="panel">
-        <div class="panel-head"><div><h2>Media to clean</h2><p>Remove identifying metadata without changing the underlying image or media streams.</p></div><span class="status-pill">${escapeHtml(status)}</span></div>
+        <div class="panel-head"><div><h2>Media to clean</h2><p>Strip identifying tags without re-encoding the media.</p></div><span class="status-pill">${escapeHtml(status)}</span></div>
         <div class="panel-body">
           ${renderDropzone('metadata', 'Drop media to clean', 'JPEG, PNG, WebP, audio, and video')}
           ${renderFileList('metadata')}
@@ -2123,14 +2123,14 @@ function renderShred() {
   return `<div class="tool-layout">
     <div style="display:grid;gap:14px">
       <div class="panel">
-        <div class="panel-head"><div><h2>Files to securely delete</h2><p>These files will be overwritten and removed from this disk. There is no undo.</p></div><span class="status-pill">Destructive</span></div>
+        <div class="panel-head"><div><h2>Files to delete</h2><p>These files will be overwritten and deleted. There is no undo.</p></div><span class="status-pill">Destructive</span></div>
         <div class="panel-body">
           ${renderDropzone('shred', 'Drop files to securely delete', 'Directories and symbolic links are rejected')}
           ${renderFileList('shred')}
         </div>
       </div>
       <div class="panel">
-        <div class="panel-head"><div><h2>Overwrite options</h2><p>Choose how much work to do before the files are removed from this disk.</p></div></div>
+        <div class="panel-head"><div><h2>Overwrite options</h2><p>Choose how many passes to run before deletion.</p></div></div>
         <div class="panel-body">
           <div class="form-grid">
             <div class="field"><label>Passes</label><select data-tool="shred" data-option="passes">${passOptions}</select></div>
@@ -2144,7 +2144,7 @@ function renderShred() {
             </div>
           </div>
           <label class="check-pill shred-ack"><input type="checkbox" data-tool="shred" data-option="acknowledged" ${options.acknowledged ? 'checked' : ''}><span>I understand copies may remain on SSDs, backups, cloud sync, or snapshots.</span></label>
-          <div class="legal-note">${icon('alert')} Secure Delete is best for ordinary local files you own. It overwrites and removes the file, but cannot guarantee physical erasure on every storage device. Cancelling may leave a partially overwritten file. Never use it on evidence, data under a legal hold, or files you are not authorized to destroy.</div>
+          <div class="legal-note">${icon('alert')} Shred Files works best on ordinary local files you own. It overwrites and removes the file, but cannot guarantee physical erasure on every storage device. Cancelling may leave a partially overwritten file. Never use it on evidence, data under a legal hold, or files you are not authorized to destroy.</div>
           ${renderStartBar('shred', 'Securely delete files', 'No output folder is needed. This action cannot be undone.', state.files.shred.length === 0 || !options.acknowledged)}
         </div>
       </div>
@@ -2292,7 +2292,7 @@ function getUpdateUiState() {
   let updateIcon = 'refresh';
   if (state.updateChecking) {
     updateTitle = 'Checking for updates...';
-    updateText = 'Looking for the newest OmniForge GitHub release.';
+    updateText = 'Looking for the latest published version.';
     updateTone = 'checking';
     updateIcon = 'refresh';
   } else if (downloading) {
@@ -2302,31 +2302,31 @@ function getUpdateUiState() {
     updateTone = verifying ? 'verifying' : 'downloading';
     updateIcon = verifying ? 'shield' : 'download';
   } else if (progressPhase === 'error') {
-    updateTitle = 'Update download failed';
+    updateTitle = 'Download failed';
     updateText = progressSummary;
     updateTone = 'error';
     updateIcon = 'alert';
   } else if (progressPhase === 'ready' && updateInfo?.newer && latestUpdate) {
     updateTitle = `OmniForge ${latestUpdate.version} is ready to install`;
-    updateText = 'Downloaded and SHA-256 verified. Choose Install when you are ready.';
+    updateText = 'Downloaded and verified. Choose Install when ready.';
     updateTone = 'ready';
     updateIcon = 'check';
   } else if (updateInfo?.newer && latestUpdate) {
     updateTitle = `Version ${latestUpdate.version} is available`;
     const sourceText = latestSource === 'github'
       ? `GitHub release${releaseDate ? ` from ${releaseDate}` : ''} - ${formatBytes(latestUpdate.size || 0)} - SHA-256 published`
-      : `Offline installer - ${formatBytes(latestUpdate.size || 0)} - ${hashLabel}`;
-    updateText = `${sourceText}${githubError ? ' GitHub could not be checked.' : ''}`;
+      : `Local installer - ${formatBytes(latestUpdate.size || 0)} - ${hashLabel}`;
+    updateText = `${sourceText}${githubError ? ' Could not check GitHub.' : ''}`;
     updateTone = 'available';
     updateIcon = 'download';
   } else if (githubError) {
-    updateTitle = 'GitHub could not be checked';
-    updateText = `${githubError} Use an offline installer below.`;
+    updateTitle = 'Could not check GitHub';
+    updateText = `${githubError} Use a local installer below.`;
     updateTone = 'missing';
     updateIcon = 'alert';
   } else if (noPublishedRelease) {
-    updateTitle = 'No published GitHub release';
-    updateText = 'Publish a vX.Y.Z release with the installer and .sha256 asset, or use an offline installer below.';
+    updateTitle = 'No published release found';
+    updateText = 'Publish a vX.Y.Z release with the installer and .sha256 file, or use a local installer below.';
     updateTone = 'missing';
     updateIcon = 'info';
   } else if (updateInfo && !updateInfo.exists) {
@@ -2341,7 +2341,7 @@ function getUpdateUiState() {
     updateIcon = 'check';
   } else if (updateInfo) {
     updateTitle = 'No updates found';
-    updateText = 'Use an offline installer below if you already downloaded a newer build.';
+    updateText = 'Use a local installer below if you already have a newer build.';
     updateTone = 'current';
     updateIcon = 'info';
   }
@@ -2443,8 +2443,8 @@ function updateUpdateWarning() {
   }
   if (text) {
     text.textContent = ready
-      ? 'The installer was downloaded and SHA-256 verified. Review it in Application updates.'
-      : 'A newer build is published. Review it in Application updates.';
+      ? 'The installer is downloaded and verified. Open App updates to install it.'
+      : 'A newer version is available. Open App updates to get it.';
   }
 }
 
@@ -2461,12 +2461,12 @@ function renderSettings() {
   const concurrency = configuredConcurrency();
   const notifyOnFailure = state.settings?.notifyOnFailure !== false;
   const toolRows = [
-    ['ffmpeg', 'FFmpeg', 'Media conversion engine'],
-    ['ffprobe', 'FFprobe', 'Media inspection engine'],
-    ['ytDlp', 'yt-dlp', 'YouTube extraction engine'],
-    ['deno', 'Deno', 'JavaScript runtime for YouTube'],
-    ['sevenZip', '7-Zip', 'Archive engine'],
-    ['speech', 'Whisper', 'Local speech-to-text engine']
+    ['ffmpeg', 'FFmpeg', 'Converts media'],
+    ['ffprobe', 'FFprobe', 'Reads media details'],
+    ['ytDlp', 'yt-dlp', 'Downloads YouTube media'],
+    ['deno', 'Deno', 'Runtime for YouTube downloads'],
+    ['sevenZip', '7-Zip', 'Packs and extracts archives'],
+    ['speech', 'Whisper', 'Transcribes speech locally']
   ];
   const updateUi = getUpdateUiState();
   const {
@@ -2478,7 +2478,7 @@ function renderSettings() {
   return `<div class="tool-layout">
     <div style="display:grid;gap:14px">
       <div class="panel">
-        <div class="panel-head"><div><h2>Bundled engines</h2><p>These tools ship with OmniForge and run locally.</p></div><button class="secondary-button" data-action="refresh-status">${icon('refresh')} Refresh</button></div>
+        <div class="panel-head"><div><h2>Local tools</h2><p>Bundled tools that run on this PC.</p></div><button class="secondary-button" data-action="refresh-status">${icon('refresh')} Refresh</button></div>
         <div class="panel-body">
           <div class="engine-grid">
             ${toolRows.map(([key, name, description]) => {
@@ -2489,7 +2489,7 @@ function renderSettings() {
         </div>
       </div>
       <div class="panel">
-        <div class="panel-head"><div><h2>Output behavior</h2><p>OmniForge asks where to save each job by remembering only your last folder.</p></div></div>
+        <div class="panel-head"><div><h2>Saving and performance</h2><p>OmniForge asks where to save each batch and remembers the last folder.</p></div></div>
         <div class="panel-body">
           <div class="settings-block">
             <div class="settings-row"><div class="settings-row-copy"><strong>Output location</strong><span>Choose each time a batch starts. The last folder is used as the default.</span></div><span class="settings-value">${escapeHtml(state.settings?.lastOutputDir || 'No folder chosen yet')}</span></div>
@@ -2503,20 +2503,20 @@ function renderSettings() {
         <div class="panel-head"><div><h2>Diagnostics</h2><p>Get help without sharing file paths, URLs, or credentials.</p></div></div>
         <div class="panel-body">
           <div class="settings-block">
-            <div class="settings-row"><div class="settings-row-copy"><strong>Support report</strong><span>Includes app and engine versions, queue counts, and a redacted startup log. Paths, URLs, email addresses, and secrets are removed.</span></div><div class="action-buttons"><button class="secondary-button" data-action="open-diagnostics">${icon('folder')} Open logs</button><button class="secondary-button" data-action="copy-diagnostics">${icon('copy')} Copy report</button></div></div>
+            <div class="settings-row"><div class="settings-row-copy"><strong>Support report</strong><span>Includes app and tool versions, queue counts, and a redacted startup log. Paths, URLs, emails, and secrets are removed.</span></div><div class="action-buttons"><button class="secondary-button" data-action="open-diagnostics">${icon('folder')} Open logs</button><button class="secondary-button" data-action="copy-diagnostics">${icon('copy')} Copy report</button></div></div>
           </div>
           <div class="legal-note">${icon('shield')} Diagnostics stay on this PC unless you choose to share the copied report.</div>
         </div>
       </div>
       <div class="panel">
-        <div class="panel-head"><div><h2>Tool recipes</h2><p>Save frequently used option combinations and apply them from any tool or the command palette.</p></div><span class="status-pill" data-recipe-count>${savedRecipes().length}</span></div>
+        <div class="panel-head"><div><h2>Tool recipes</h2><p>Save option combinations and reuse them from any tool or the command palette.</p></div><span class="status-pill" data-recipe-count>${savedRecipes().length}</span></div>
         <div class="panel-body">
           <div class="recipe-manager">${recipeRowsMarkup(savedRecipes())}</div>
           <div class="legal-note">${icon('shield')} Recipes only store tool options. URLs, output folders, passwords, file lists, and Studio project data are never saved.</div>
         </div>
       </div>
       <div class="panel settings-updates-panel" id="application-updates">
-          <div class="panel-head"><div><div class="eyebrow">System</div><h2>Application updates</h2><p>Install a newer build without uninstalling OmniForge.</p></div><span class="status-pill">v${escapeHtml(appVersion)}</span></div>
+          <div class="panel-head"><div><div class="eyebrow">System</div><h2>App updates</h2><p>Update OmniForge without uninstalling it.</p></div><span class="status-pill">v${escapeHtml(appVersion)}</span></div>
           <div class="panel-body">
             <div class="settings-row">
               <div class="settings-row-copy"><strong>GitHub Releases</strong><span>Checks the public OmniForge release feed. Downloads are verified before they can run.</span></div>
@@ -2537,11 +2537,11 @@ function renderSettings() {
               <div class="update-progress-meta" id="update-progress-meta">${escapeHtml(progressMeta)}</div>
             </div>` : ''}
             ${publishedHash ? `<div class="update-hash-row"><span>SHA-256</span><code title="${escapeHtml(publishedHash)}">${escapeHtml(publishedHash)}</code><button class="copy-button" data-action="copy-text" data-value="${escapeHtml(publishedHash)}">Copy</button></div>` : ''}
-            <div class="legal-note">${icon('harddrive')} The installer used for an update is deleted after the updated app starts. Other installers in your update folder are left untouched.</div>
+            <div class="legal-note">${icon('harddrive')} The installer used for an update is deleted after the updated app starts. Other installers stay in the update folder.</div>
             <div class="update-offline">
-              <div class="update-offline-head"><strong>Offline installer</strong><span>Use this if GitHub is unavailable or you downloaded a setup file elsewhere.</span></div>
+              <div class="update-offline-head"><strong>Local installer</strong><span>Use this if GitHub is unavailable or you already have a setup file.</span></div>
               <div class="settings-row">
-                <div class="settings-row-copy"><strong>Update folder</strong><span>Place newer OmniForge-Setup-x.y.z.exe files in this folder.</span></div>
+                <div class="settings-row-copy"><strong>Update folder</strong><span>Place newer OmniForge-Setup-x.y.z.exe files here.</span></div>
                 <div class="action-buttons">
                   <button class="secondary-button" data-action="open-update-folder">${icon('folder')} Open</button>
                   <button class="secondary-button" data-action="choose-update-folder">${icon('folder')} Change</button>
@@ -2551,8 +2551,8 @@ function renderSettings() {
               <div class="update-dropzone" id="update-dropzone" data-action="choose-update-installer" role="button" tabindex="0" aria-label="Drop an OmniForge installer to update">
                 <div class="update-dropzone-icon">${icon('upload')}</div>
                 <div class="update-dropzone-copy">
-                  <strong>Drop a newer installer here</strong>
-                  <span>OmniForge checks the version and adjacent .sha256 sidecar, confirms, then opens the installer.</span>
+                  <strong>Choose or drop a newer installer</strong>
+                  <span>OmniForge checks the version and .sha256 file, asks for confirmation, then opens the installer.</span>
                 </div>
                 <span class="update-dropzone-badge">.exe</span>
               </div>
@@ -2560,7 +2560,7 @@ function renderSettings() {
             <div class="legal-note">${icon('alert')} This release is unsigned, so Windows SmartScreen may warn. Confirm the SHA-256 hash before running the installer. GitHub downloads fail closed when the hash is missing or mismatched, and OmniForge never installs an update without confirmation.</div>
           </div>
         </div><div class="panel">
-        <div class="panel-head"><div><h2>YouTube engine</h2><p>YouTube changes often. Update yt-dlp if downloads stop working.</p></div></div>
+        <div class="panel-head"><div><h2>YouTube support</h2><p>YouTube changes often. Update yt-dlp if downloads stop working.</p></div></div>
         <div class="panel-body">
           <div class="settings-row">
             <div class="settings-row-copy"><strong>Update yt-dlp</strong><span>Downloads the latest nightly build to the app's writable runtime folder. Requires internet.</span></div>
@@ -2570,7 +2570,7 @@ function renderSettings() {
         </div>
       </div>
       <div class="panel legal-panel" id="legal-acceptable-use">
-        <div class="panel-head"><div><h2>Legal &amp; acceptable use</h2><p>OmniForge is a general-purpose tool; legality depends on what you process and how you distribute it.</p></div><span class="status-pill failed">Read before use</span></div>
+        <div class="panel-head"><div><h2>Legal &amp; acceptable use</h2><p>Legality depends on what you process and how you share it.</p></div><span class="status-pill failed">Read before use</span></div>
         <div class="panel-body">
           <div class="legal-warning-block">
             <strong>You are responsible for your use.</strong>
@@ -2580,7 +2580,7 @@ function renderSettings() {
             <li><strong>YouTube:</strong> The downloader relies on yt-dlp. YouTube's terms generally prohibit unauthorized downloading, and copyright law may apply even to public videos. OmniForge is not affiliated with YouTube and grants no rights to its content.</li>
             <li><strong>Media and metadata:</strong> Converting, trimming, extracting, and metadata stripping do not grant rights to the source. Metadata removal can remove copyright-management information; only use it on files you may modify.</li>
             <li><strong>Encryption:</strong> Use it only for lawful data. Strong encryption may be subject to export-control rules when distributing software internationally.</li>
-            <li><strong>Secure Delete:</strong> Never use it on evidence, data under legal hold, or files you are not authorized to destroy. SSDs, backups, snapshots, and cloud sync may retain copies.</li>
+            <li><strong>Shred Files:</strong> Never use it on evidence, data under legal hold, or files you are not authorized to destroy. SSDs, backups, snapshots, and cloud sync may retain copies.</li>
             <li><strong>Speech:</strong> Recording and transcription may require consent under wiretap, privacy, and biometric laws. Only record people who have consented and when you have legal authority.</li>
             <li><strong>Third-party tools:</strong> FFmpeg, yt-dlp, Deno, 7-Zip, and whisper.cpp retain their own licenses and notices. Some codecs may carry separate patent-licensing obligations in commercial distribution.</li>
           </ul>
@@ -2606,7 +2606,7 @@ function updateEngineStatus() {
   const allReady = Object.values(tools).every((tool) => tool.available);
   const engineCard = document.getElementById('engine-card');
   engineCard.classList.toggle('degraded', !allReady);
-  document.getElementById('engine-title').textContent = allReady ? 'All engines ready' : 'Setup needed';
+  document.getElementById('engine-title').textContent = allReady ? 'All tools ready' : 'Setup needed';
   const ffmpegVersion = String(tools.ffmpeg?.version || '').replace(/^ffmpeg version\s*/i, '').split(' ')[0];
   document.getElementById('engine-subtitle').textContent = allReady ? `FFmpeg ${ffmpegVersion || ''} / Whisper local` : 'Open settings to review';
   const pip = document.querySelector('[data-view="youtube"] .nav-pip');
@@ -2621,10 +2621,10 @@ async function refreshStatus(showMessage = false) {
     mergeHistoryJobs(state.history);
     applyJobSnapshots(await api.listJobs());
     updateEngineStatus();
-    if (showMessage) showToast('Engine status refreshed.', 'success');
+    if (showMessage) showToast('Tool status refreshed.', 'success');
     render();
   } catch (error) {
-    showToast(`Could not refresh engine status: ${error.message}`, 'error');
+    showToast(`Could not refresh tool status: ${error.message}`, 'error');
   }
 }
 
@@ -2826,7 +2826,7 @@ async function clearStudioRecovery(silent = true) {
 
 function studioDiscardConfirmation() {
   if (!state.studio.dirty) return true;
-  return window.confirm('Discard unsaved Transcript Clip Studio changes?');
+  return window.confirm('Discard unsaved Clip from Transcript changes?');
 }
 
 async function applyStudioProject(project, projectPath = null, options = {}) {
@@ -3081,7 +3081,7 @@ async function startStudioTranscription() {
     return;
   }
   if (!state.status?.tools?.speech?.available) {
-    showToast('The local Whisper engine is unavailable.', 'error');
+    showToast('Whisper is unavailable.', 'error');
     return;
   }
   try {
@@ -3260,7 +3260,7 @@ async function renderStudioClips() {
       framing: project.output.framing,
       clips: project.clips,
       segments: project.segments
-    }, `Transcript Clip Studio · ${outputCount} file${outputCount === 1 ? '' : 's'}`);
+    }, `Clip from Transcript · ${outputCount} file${outputCount === 1 ? '' : 's'}`);
     const job = await api.startJob(spec);
     state.jobs.set(job.id, job);
     openQueue();
@@ -3502,7 +3502,7 @@ async function startTool(tool) {
     showToast('Choose at least one checksum algorithm.', 'error'); return;
   }
   if (tool === 'shred' && options.acknowledged !== true) {
-    showToast('Confirm the secure deletion warning first.', 'error'); return;
+    showToast('Confirm the shredding warning first.', 'error'); return;
   }
   if (tool === 'encryptor') {
     if (!options.password) { showToast('Enter a password first.', 'error'); return; }
@@ -3679,7 +3679,7 @@ function renderSmartDropPicker() {
   content.innerHTML = `<div class="smart-drop-head">
       <span class="eyebrow">Smart drop</span>
       <h2 id="smart-drop-title">Choose what to do with these files</h2>
-      <p>${picker.paths.length} ${dropCategoryLabel(picker.category).toLowerCase()} detected. Compatible tools are suggested first; nothing is added until you confirm.</p>
+      <p>${picker.paths.length} ${dropCategoryLabel(picker.category).toLowerCase()} detected. Compatible tools are listed first. Nothing is added until you confirm.</p>
     </div>
     <div class="smart-drop-files">${picker.names.slice(0, 6).map((name) => `<span title="${escapeHtml(name)}">${icon('file')}${escapeHtml(name)}</span>`).join('')}${picker.names.length > 6 ? `<span>+${picker.names.length - 6} more</span>` : ''}${totalSize ? `<b>${formatBytes(totalSize)}</b>` : ''}</div>
     <div class="smart-drop-tools" role="radiogroup" aria-label="Compatible tools">
@@ -3946,7 +3946,7 @@ async function resumeJob(job) {
     if (!password) return;
   }
   if (job.tool === 'shred') {
-    const confirmed = window.confirm('Resume secure deletion?\n\nMany SSDs use wear leveling, and backups, cloud sync, or snapshots may keep copies. Secure Delete is best for ordinary local files you own.');
+    const confirmed = window.confirm('Resume shredding?\n\nMany SSDs use wear leveling, and backups, cloud sync, or snapshots may keep copies. Shred Files is best on ordinary local files you own.');
     if (!confirmed) return;
     options.acknowledged = true;
   }
@@ -3971,7 +3971,7 @@ async function retryJob(job) {
     if (!options.password) return;
   }
   if (job.tool === 'shred') {
-    const confirmed = window.confirm('Retry secure deletion?\n\nMany SSDs use wear leveling, and backups, cloud sync, or snapshots may keep copies. Secure Delete is best for ordinary local files you own.');
+    const confirmed = window.confirm('Retry shredding?\n\nMany SSDs use wear leveling, and backups, cloud sync, or snapshots may keep copies. Shred Files is best on ordinary local files you own.');
     if (!confirmed) return;
     options.acknowledged = true;
   }
@@ -4228,7 +4228,7 @@ async function downloadUpdate(version) {
     };
     if (state.view === 'settings') render();
     updateUpdateBadge();
-    showToast(`Update download failed: ${error.message}`, 'error', 9000);
+    showToast(`Download failed: ${error.message}`, 'error', 9000);
     return;
   }
   state.updateDownloading = false;
@@ -4263,7 +4263,7 @@ async function downloadUpdate(version) {
   updateUpdateBadge();
   const confirmed = window.confirm(`OmniForge ${version} downloaded and SHA-256 verified.\n\nSHA-256: ${info.actualHash}\n\nInstall now? OmniForge will close and open the Windows installer.`);
   if (!confirmed) {
-    showToast('Download verified. Choose Install when you are ready.', 'info', 6000);
+    showToast('Download verified. Choose Install when ready.', 'info', 6000);
     return;
   }
   try {
@@ -4408,7 +4408,7 @@ async function startDictation() {
   const dictation = state.dictation;
   if (dictation.recording || dictation.busy) return;
   if (!state.status?.tools?.speech?.available) {
-    showToast('The Whisper speech engine is not ready. Open Settings to check it.', 'error');
+    showToast('Whisper is not ready. Open Settings to check it.', 'error');
     return;
   }
   dictation.error = '';
@@ -4896,7 +4896,7 @@ async function init() {
     }
     queueUpdatePanelRefresh();
   });
-  viewEl.innerHTML = `<div class="empty-state"><div class="tool-icon" style="--icon-color:var(--lime)">${icon('sparkle')}</div><h3>Starting OmniForge…</h3><p>Checking the bundled engines.</p></div>`;
+  viewEl.innerHTML = `<div class="empty-state"><div class="tool-icon" style="--icon-color:var(--lime)">${icon('sparkle')}</div><h3>Starting OmniForge…</h3><p>Checking local tools.</p></div>`;
   try {
     const [status, history, pendingJobs] = await Promise.all([api.getSystemStatus(), api.getHistory(), api.listJobs()]);
     state.status = status;
@@ -4920,7 +4920,7 @@ async function init() {
     }
   } catch (error) {
     viewEl.innerHTML = `<div class="empty-state"><div class="tool-icon" style="--icon-color:var(--danger)">${icon('alert')}</div><h3>OmniForge could not start</h3><p>${escapeHtml(error.message || String(error))}</p></div>`;
-    showToast('The app could not load its engine status.', 'error', 8000);
+    showToast('OmniForge could not load the tool status.', 'error', 8000);
   }
 }
 

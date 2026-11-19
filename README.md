@@ -38,7 +38,7 @@ Everything runs on your PC. FFmpeg, FFprobe, yt-dlp, Deno, 7-Zip, and whisper.cp
 - Random-data secure deletion with 1, 3, or 7 overwrite passes
 - FFprobe media inspection
 - Audio and video to text with local whisper.cpp transcription (TXT or timestamped SRT)
-- Transcript Clip Studio: transcribe or import SRT/VTT, select individual lines or all subtitles at once, and render multiple captioned clips in a three-pane preview, transcript, and clip workspace
+- Clip from Transcript: transcribe or import SRT/VTT, select individual lines or all subtitles at once, and render multiple captioned clips in a three-pane preview, transcript, and clip workspace
 - Studio creator presets for long-form, Shorts, square, portrait, and multi-format output, with simultaneous orientation previews, 60-second Shorts guidance, and preview-only safe-zone guides
 - Multi-ratio Studio exports with Fill, Fit, and Blur framing
 - Editable `.ofstudio` projects with explicit save/open, automatic recovery drafts, and clip-relative caption files
@@ -50,11 +50,11 @@ Everything runs on your PC. FFmpeg, FFprobe, yt-dlp, Deno, 7-Zip, and whisper.cp
 
 ## Installation
 
-Download the newest `OmniForge-Setup-1.8.4.exe` from [GitHub Releases](https://github.com/gerg182/OmniForge/releases/latest), then verify it before running:
+Download the newest `OmniForge-Setup-1.8.5.exe` from [GitHub Releases](https://github.com/gerg182/OmniForge/releases/latest), then verify it before running:
 
 ```powershell
-Get-FileHash .\OmniForge-Setup-1.8.4.exe -Algorithm SHA256
-Get-Content .\OmniForge-Setup-1.8.4.exe.sha256
+Get-FileHash .\OmniForge-Setup-1.8.5.exe -Algorithm SHA256
+Get-Content .\OmniForge-Setup-1.8.5.exe.sha256
 ```
 
 The hashes must match. The current installer is unsigned, so Windows SmartScreen may warn. Only continue when the installer came from this repository and its SHA-256 matches. OmniForge requires Windows 10/11 x64 and installs per user; administrator access is not required.
@@ -87,11 +87,11 @@ Build the Windows installer:
 npm run dist
 ```
 
-The installer and its `OmniForge-Setup-1.8.4.exe.sha256` sidecar are written to `dist/`. After `npm run dist`, `npm run smoke:packaged` verifies the unpacked app starts correctly. Release builds are produced and published by the tag-driven GitHub Actions workflow after the version is synchronized in `package.json`, `package-lock.json`, this README, and `CHANGELOG.md`.
+The installer and its `OmniForge-Setup-1.8.5.exe.sha256` sidecar are written to `dist/`. After `npm run dist`, `npm run smoke:packaged` verifies the unpacked app starts correctly. Release builds are produced and published by the tag-driven GitHub Actions workflow after the version is synchronized in `package.json`, `package-lock.json`, this README, and `CHANGELOG.md`.
 
-## Transcript Clip Studio
+## Clip from Transcript
 
-1. Open **Transcript Clip Studio**, then choose one audio or video file and an output folder.
+1. Open **Clip from Transcript**, then choose one audio or video file and an output folder.
 2. Transcribe locally with whisper.cpp or import an existing SRT/VTT transcript.
 3. Edit transcript text if needed, click a line, then Shift-click another line to select a contiguous range, or use **Select all** to choose every subtitle. Add as many clips as you need and arrange them in the clip list.
 4. Choose a creator preset, clip format, aspect ratios, Fill/Fit/Blur framing, safe-zone guides, caption sidecars, and optional burned-in caption style, then render the ordered clip queue.
@@ -114,9 +114,9 @@ Failure notifications are enabled by default and can be disabled in the same set
 
 ## Updates
 
-Open **Settings -> Application updates** and choose **Check now**. OmniForge reads the latest published GitHub Release for this repository, requires the exact `OmniForge-Setup-X.Y.Z.exe` and matching `.sha256` asset, streams download progress, and verifies SHA-256 before offering **Install**. Missing or mismatched hashes block GitHub-driven installation. Updates always require explicit confirmation and never install silently. Use **View release notes** to open the GitHub release page.
+Open **Settings -> App updates** and choose **Check now**. OmniForge reads the latest published GitHub Release for this repository, requires the exact `OmniForge-Setup-X.Y.Z.exe` and matching `.sha256` asset, streams download progress, and verifies SHA-256 before offering **Install**. Missing or mismatched hashes block GitHub-driven installation. Updates always require explicit confirmation and never install silently. Use **View release notes** to open the GitHub release page.
 
-If GitHub is unavailable, use the offline fallback: drag a newer installer onto the update drop zone, point OmniForge at a local update folder, or browse for the installer. Offline installers must still use the versioned filename. A malformed or mismatched sidecar blocks installation. If a sidecar is missing, OmniForge displays the computed hash and requires explicit confirmation; GitHub-driven downloads never allow this fallback.
+If GitHub is unavailable, use the local fallback: drag a newer installer onto the update drop zone, point OmniForge at a local update folder, or browse for the installer. Local installers must still use the versioned filename. A malformed or mismatched sidecar blocks installation. If a sidecar is missing, OmniForge displays the computed hash and requires explicit confirmation; GitHub-driven downloads never allow this fallback.
 
 After the upgraded app starts, OmniForge deletes the installer used for that update and removes older app-managed installers to reclaim disk space. Future installers and unrelated files are preserved; cleanup is retried on the next launch if Windows still has a file locked.
 
@@ -136,7 +136,7 @@ OmniForge requires you to read and accept the Legal & Acceptable Use notice befo
 
 The YouTube downloader relies on yt-dlp and does not grant rights to YouTube content. YouTube's terms generally prohibit unauthorized downloading, and copyright law may apply even to public videos. The app does not bypass DRM, paywalls, age checks, region locks, or login restrictions.
 
-Metadata stripping may remove copyright-management information. Encryption is lawful for lawful data but may be subject to export-control rules when distributing internationally. Secure Delete must not be used on evidence or data you are not authorized to destroy. Transcription and dictation require compliance with recording-consent and privacy laws. FFmpeg and other third-party components may carry separate license and codec-patent obligations.
+Metadata stripping may remove copyright-management information. Encryption is lawful for lawful data but may be subject to export-control rules when distributing internationally. Shred Files must not be used on evidence or data you are not authorized to destroy. Transcription and dictation require compliance with recording-consent and privacy laws. FFmpeg and other third-party components may carry separate license and codec-patent obligations.
 
 This is not legal advice. Read the full [Legal & Acceptable Use notice](LEGAL.md), preserve the third-party notices, and consult a qualified lawyer for jurisdiction-specific advice.
 
@@ -165,7 +165,7 @@ The application is built on Electron, FFmpeg/FFprobe, yt-dlp, Deno, 7-Zip, whisp
 - Encrypted PDFs and password-protected archives are not supported.
 - OmniForge `.ofenc` files require the original password. Passwords are held only in memory while a job runs and are never stored or uploaded.
 - Metadata stripping supports JPEG/PNG/WebP images plus audio/video containers handled by FFmpeg. PDF and Office metadata are not included in this release.
-- Secure Delete overwrites, truncates, renames, and removes each file. SSD wear leveling, snapshots, backups, cloud sync, and journaling may retain copies; this tool cannot guarantee physical erasure.
+- Shred Files overwrites, truncates, renames, and removes each file. SSD wear leveling, snapshots, backups, cloud sync, and journaling may retain copies; this tool cannot guarantee physical erasure.
 - Office document conversion is not included.
 - Download only content you own or have permission to download. Respect YouTube's terms, privacy and consent laws, and applicable copyright law. See [LEGAL.md](LEGAL.md).
 - Speech recognition uses the bundled `ggml-base.bin` multilingual model and runs entirely offline. Long recordings take longer to transcribe; the queue reports progress.

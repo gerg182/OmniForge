@@ -170,7 +170,7 @@ class JobManager {
     } else if (tool === 'shred') {
       if (inputPaths.length === 0) throw new Error('Choose at least one input file.');
       if (options.acknowledged !== true) {
-        throw new Error('Confirm that secure deletion cannot guarantee removal from SSD, backup, or cloud copies.');
+        throw new Error('Confirm that shredding cannot guarantee removal from SSD, backup, or cloud copies.');
       }
       const passes = Number(options.passes);
       options.passes = [1, 3, 7].includes(passes) ? passes : 3;
@@ -306,7 +306,7 @@ class JobManager {
       options.password = password;
     }
     if (job.tool === 'shred') {
-      if (input.acknowledged !== true) throw new Error('Confirm the secure deletion warning before resuming.');
+      if (input.acknowledged !== true) throw new Error('Confirm the shredding warning before resuming.');
       options.acknowledged = true;
     }
     const validated = this.normalizeSpec({
@@ -343,7 +343,7 @@ class JobManager {
       options.password = input.password;
     }
     if (entry.tool === 'shred') {
-      if (input.acknowledged !== true) throw new Error('Confirm the secure deletion warning before retrying.');
+      if (input.acknowledged !== true) throw new Error('Confirm the shredding warning before retrying.');
       options.acknowledged = true;
     }
     return this.start({
